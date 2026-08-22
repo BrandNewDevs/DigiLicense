@@ -70,19 +70,23 @@ function ServiceCardAction({ href, label }: ServiceCardActionProps) {
 
 type ServiceLookupFormProps = {
   describedBy?: string
+  feedback?: ReactNode
   fieldId: string
   fieldLabel: string
   fieldName: string
+  isSubmitting?: boolean
   placeholder: string
   submitLabel: string
-  onSubmit: (value: string) => void
+  onSubmit: (value: string) => Promise<void> | void
 }
 
 function ServiceLookupForm({
   describedBy,
+  feedback,
   fieldId,
   fieldLabel,
   fieldName,
+  isSubmitting = false,
   placeholder,
   submitLabel,
   onSubmit,
@@ -90,12 +94,12 @@ function ServiceLookupForm({
   return (
     <form
       className="space-y-2"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault()
         const formData = new FormData(event.currentTarget)
         const value = String(formData.get(fieldName) ?? "").trim()
 
-        if (value) onSubmit(value)
+        if (value) await onSubmit(value)
       }}
     >
       <label className="mb-2 block text-sm font-medium" htmlFor={fieldId}>
@@ -111,9 +115,10 @@ function ServiceLookupForm({
         required
         aria-describedby={describedBy}
       />
-      <Button className="h-11 w-full" type="submit">
-        {submitLabel}
+      <Button className="h-11 w-full" type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Checking..." : submitLabel}
       </Button>
+      {feedback}
     </form>
   )
 }
