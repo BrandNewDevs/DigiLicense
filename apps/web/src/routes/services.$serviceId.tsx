@@ -13,7 +13,7 @@ function ServicePage() {
     >
       <a
         className="inline-flex min-h-11 items-center gap-2 text-base text-muted-foreground underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        href="/"
+        href="/services"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Back to services
