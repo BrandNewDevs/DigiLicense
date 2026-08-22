@@ -1,10 +1,12 @@
 import { LogIn, ShieldCheck } from "lucide-react"
 import type { ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
 
 import { endMockSession, useMockSession } from "../lib/mock-auth"
+import { logoutDemoSession } from "../server-functions/demo-auth"
 
 type MockApplicantGateProps = {
   children: ReactNode
@@ -13,6 +15,7 @@ type MockApplicantGateProps = {
 
 function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
   const isSignedIn = useMockSession("applicant")
+  const logout = useServerFn(logoutDemoSession)
 
   if (!isSignedIn) {
     return (
@@ -62,7 +65,10 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
         <Button
           variant="outline"
           className="h-9"
-          onClick={() => endMockSession("applicant")}
+          onClick={async () => {
+            await logout({ data: { role: "applicant" } })
+            endMockSession("applicant")
+          }}
           type="button"
         >
           End mock session

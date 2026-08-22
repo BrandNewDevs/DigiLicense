@@ -1,6 +1,7 @@
 import { ArrowLeft, BadgeCheck, ShieldAlert } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
 import { SiteFooter } from "@workspace/ui/components/site-footer"
@@ -11,9 +12,12 @@ import {
   mockCredentials,
   startMockSession,
   useMockSession,
-  validateMockCredentials,
 } from "../lib/mock-auth"
 import type { MockRole } from "../lib/mock-auth"
+import {
+  loginDemoSession,
+  logoutDemoSession,
+} from "../server-functions/demo-auth"
 
 type MockLoginPageProps = {
   returnTo?: string
@@ -48,7 +52,7 @@ const roleContent = {
     eyebrow: "Operator access",
     title: "Sign in as the demo operator",
     description:
-      "Use the fixed operator credentials below. They work only in this browser prototype.",
+      "Use the fixed credentials below. They identify only the synthetic operator in this prototype.",
     fields: [
       {
         autoComplete: "off",
@@ -73,8 +77,11 @@ function MockLoginPage({ returnTo, role }: MockLoginPageProps) {
   const navigate = useNavigate()
   const content = roleContent[role]
   const isSignedIn = useMockSession(role)
+  const login = useServerFn(loginDemoSession)
+  const logout = useServerFn(logoutDemoSession)
   const isApplicant = role === "applicant"
   const [error, setError] = useState<string>()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const destination =
     isApplicant && (returnTo === "/" || returnTo?.startsWith("/services"))
       ? returnTo
@@ -120,9 +127,8 @@ function MockLoginPage({ returnTo, role }: MockLoginPageProps) {
           <div className="mt-8 flex gap-3 rounded-2xl bg-muted p-4">
             <ShieldAlert className="mt-1 size-5 shrink-0" aria-hidden="true" />
             <p className="text-sm leading-6 text-muted-foreground">
-              Mock authentication stores a short-lived, role-bound demo session
-              in this browser. It is not secure authentication and must be
-              replaced before production.
+              The server creates a short-lived, role-bound demo session. It
+              isolates prototype routes but does not verify a real person.
             </p>
           </div>
         </div>
@@ -149,10 +155,20 @@ function MockLoginPage({ returnTo, role }: MockLoginPageProps) {
                 >
                   Continue to services
                 </Link>
-              ) : null}
+              ) : (
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-base font-medium text-primary-foreground hover:bg-primary/80"
+                  to="/operator"
+                >
+                  Continue to operator dashboard
+                </Link>
+              )}
               <Button
                 className="h-11 px-5 text-base"
-                onClick={() => endMockSession(role)}
+                onClick={async () => {
+                  await logout({ data: { role } })
+                  endMockSession(role)
+                }}
                 type="button"
                 variant="outline"
               >
@@ -163,22 +179,42 @@ function MockLoginPage({ returnTo, role }: MockLoginPageProps) {
         ) : (
           <form
             className="rounded-3xl border border-border bg-card p-6 sm:p-8"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault()
               const formData = new FormData(event.currentTarget)
               const values = Object.fromEntries(formData.entries())
-              const matches = validateMockCredentials(role, values)
+              setIsSubmitting(true)
 
-              if (!matches) {
-                setError("Use the synthetic credentials shown in the form.")
-                return
-              }
+              try {
+                const result = await login({
+                  data:
+                    role === "applicant"
+                      ? {
+                          role,
+                          mobileNumber: String(values.mobileNumber),
+                          otp: String(values.otp),
+                        }
+                      : {
+                          role,
+                          username: String(values.username),
+                          password: String(values.password),
+                        },
+                })
 
-              setError(undefined)
-              startMockSession(role)
+                if (!result.ok) {
+                  setError(result.message)
+                  return
+                }
 
-              if (isApplicant && returnTo) {
-                void navigate({ to: destination })
+                setError(undefined)
+                startMockSession(role)
+                await navigate({ to: isApplicant ? destination : "/operator" })
+              } catch {
+                setError(
+                  "Mock sign in is unavailable. Check the server configuration."
+                )
+              } finally {
+                setIsSubmitting(false)
               }
             }}
           >
@@ -211,8 +247,12 @@ function MockLoginPage({ returnTo, role }: MockLoginPageProps) {
                 {error}
               </p>
             ) : null}
-            <Button className="mt-7 h-11 w-full text-base" type="submit">
-              {content.submitLabel}
+            <Button
+              className="mt-7 h-11 w-full text-base"
+              disabled={isSubmitting}
+              type="submit"
+            >
+              {isSubmitting ? "Signing in..." : content.submitLabel}
             </Button>
           </form>
         )}
