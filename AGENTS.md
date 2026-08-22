@@ -96,4 +96,8 @@ The bilingual English/Hindi assistant provides evidence-grounded explanations on
 
 ## Architecture
 
-Use a Next.js/TypeScript web application for authentication, UI, workflows, appointments, notifications, operator tools, and auditing; PostgreSQL/Neon for product state; and a stateless Python/FastAPI service for AI. The AI service must have no product-database credentials and must be called server-to-server only.
+Use a TanStack Start and TypeScript full-stack web application for authentication, UI, workflows, appointments, notifications, operator tools, and auditing. Use TanStack Router file-based routes and keep the generated route tree out of manual edits. Put privileged reads and mutations in TanStack Start server functions or server routes, never in browser-only code. Server-only modules must enforce authentication, authorization, input validation, workflow transitions, and audit recording before accessing PostgreSQL.
+
+Use PostgreSQL on Neon for product state and Prisma for database access, migrations, and synthetic seed data. Deploy the web application to a server runtime that supports TanStack Start SSR and server functions. Do not treat the application as a static-only Vite site.
+
+Use a separate stateless Python and FastAPI service for AI. Call it only from the TanStack Start server, give it no product-database credentials, and never expose it directly to the browser.
