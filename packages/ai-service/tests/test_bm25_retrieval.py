@@ -1,11 +1,21 @@
 import asyncio
 from time import perf_counter
+from typing import Any, cast
 
 import pytest
 
 from digilicense_ai.corpus import load_promoted_corpus
 from digilicense_ai.retrieval.bm25 import Bm25Retriever, canonical_query
 from digilicense_ai.schemas import CanonicalIntent, Locale, RetrievalQuery, Topic
+
+
+class _FixedScores:
+    def __init__(self, scores: list[float]) -> None:
+        self._scores = scores
+
+    def get_scores(self, tokens: list[str]) -> list[float]:
+        del tokens
+        return self._scores
 
 
 def _query(intent: CanonicalIntent, *, allowed: tuple[str, ...] = ()) -> RetrievalQuery:
@@ -56,6 +66,26 @@ async def test_bm25_returns_no_evidence_when_no_allowlisted_source_can_match() -
         )
         == ()
     )
+
+
+async def test_bm25_normalises_against_only_allowlisted_sections() -> None:
+    retriever = Bm25Retriever(load_promoted_corpus())
+    scores = [
+        100.0 if section.source_id == "delhi-driving-licence-guidance-2026" else 0.0
+        for section in retriever._sections
+    ]
+    first_allowed = next(
+        index
+        for index, section in enumerate(retriever._sections)
+        if section.source_id == "digilicense-prototype-behavior-v1"
+    )
+    scores[first_allowed] = 1.0
+    retriever._index = cast(Any, _FixedScores(scores))
+
+    result = await retriever.retrieve(_query(CanonicalIntent.WAITLIST_EXPLANATION))
+
+    assert result
+    assert result[0].score == 1.0
 
 
 def test_canonical_query_has_no_raw_question_input_surface() -> None:

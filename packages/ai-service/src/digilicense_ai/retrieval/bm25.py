@@ -104,11 +104,14 @@ class Bm25Retriever:
         # A caller-provided allowlist can only narrow the corpus's intent allowlist.
         allowed &= set(self._corpus.allowed_source_ids(query.intent))
         raw_scores = self._index.get_scores(_tokens(safe_query))
-        maximum = max((float(score) for score in raw_scores), default=0.0)
-        candidates = [
-            (self._normalise(float(score), maximum), section)
+        allowed_scores = [
+            (float(score), section)
             for score, section in zip(raw_scores, self._sections, strict=True)
             if section.source_id in allowed
+        ]
+        maximum = max((score for score, _ in allowed_scores), default=0.0)
+        candidates = [
+            (self._normalise(score, maximum), section) for score, section in allowed_scores
         ]
         candidates.sort(key=lambda item: (-item[0], item[1].source_id, item[1].section_id))
 

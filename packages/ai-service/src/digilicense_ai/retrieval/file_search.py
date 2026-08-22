@@ -75,8 +75,8 @@ class FileSearchRetriever:
             score = float(getattr(result, "score", 0.0))
             if not 0 <= score <= 1 or score < self._relevance_threshold:
                 continue
-            text = _text_content(getattr(result, "content", ()))
-            if not text or _token_count(text) > remaining_tokens:
+            reviewed_text = section[1]
+            if _token_count(reviewed_text) > remaining_tokens:
                 continue
             source = self._corpus.source(source_id)
             evidence.append(
@@ -85,11 +85,11 @@ class FileSearchRetriever:
                     section_id=section_id,
                     title=source.title,
                     url=source.public_url,
-                    text=text,
+                    text=reviewed_text,
                     score=round(score, 6),
                 )
             )
-            remaining_tokens -= _token_count(text)
+            remaining_tokens -= _token_count(reviewed_text)
             if len(evidence) == _MAX_RESULTS:
                 break
         await logger.ainfo(
@@ -106,12 +106,3 @@ class FileSearchRetriever:
 
     async def close(self) -> None:
         await self._client.close()
-
-
-def _text_content(content: object) -> str:
-    parts: list[str] = []
-    for item in content if isinstance(content, (list, tuple)) else ():
-        text = getattr(item, "text", None)
-        if isinstance(text, str):
-            parts.append(text)
-    return "\n".join(parts).strip()

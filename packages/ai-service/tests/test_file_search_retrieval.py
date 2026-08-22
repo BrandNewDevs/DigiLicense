@@ -130,6 +130,8 @@ async def test_file_search_maps_only_verified_allowlisted_results_to_evidence_ch
     assert len(evidence) == 1
     assert evidence[0].source_id == "digilicense-prototype-behavior-v1"
     assert evidence[0].section_id == "prototype-waitlist-offers-v1"
+    assert evidence[0].text == corpus.section_by_id["prototype-waitlist-offers-v1"][1]
+    assert "simulated prototype workflow." not in evidence[0].text
     assert evidence[0].model_dump().keys() == {
         "source_id",
         "section_id",
