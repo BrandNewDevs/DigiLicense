@@ -177,6 +177,59 @@ pnpm --filter web lint
 pnpm --filter web typecheck
 ```
 
+## Database setup and migrations
+
+Copy `apps/web/.env.example` to `apps/web/.env`, point `DATABASE_URL` at a
+synthetic development database, and set a session secret. Remote hosts must
+require TLS (`sslmode=require`, `verify-ca`, or `verify-full`).
+
+For an **empty development database**, create the schema with:
+
+```bash
+pnpm --filter web db:migrate   # prisma migrate dev
+pnpm --filter web db:seed      # synthetic demo data only
+```
+
+Do not treat `prisma migrate dev --name init` as a production baseline.
+`migrate dev` is a development command that may reset data; use it only against
+an empty or disposable database.
+
+For an **existing database that holds important data**, baseline without
+resetting it:
+
+1. Generate the SQL for review instead of applying it blindly:
+
+   ```bash
+   pnpm --filter web exec prisma migrate diff \
+     --from-empty --to-schema prisma/schema.prisma --script > baseline.sql
+   ```
+
+2. Review `baseline.sql` carefully before it touches any database.
+3. Apply it with `prisma migrate deploy` (never `migrate dev`) and record the
+   baseline so history stays consistent:
+
+   ```bash
+   prisma migrate resolve --applied <migration_name>
+   ```
+
+In production, apply committed migrations only with `prisma migrate deploy`.
+
+### Destructive-command safety
+
+`prisma migrate reset` and other destructive commands are restricted to
+development, test, or synthetic databases. Never run them against a production,
+live, or government system, and verify the target in `DATABASE_URL` before
+running anything. User consent alone does not make a wrong datasource safe.
+
+When automation needs the consent environment variable, expand the message
+safely instead of pasting it inline, because a `'` inside single quotes breaks
+the shell command:
+
+```bash
+read -r -p 'Paste the exact consent message: ' consent
+PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION="$consent" prisma migrate reset --force
+```
+
 ## Application routes
 
 | Route                         | Description                                                                              |

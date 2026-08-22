@@ -9,7 +9,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [x] Define TanStack Router route groups for isolated applicant, operator, and public experiences
 - [x] Implement applicant login with a seeded synthetic mobile number and simulated OTP
 - [x] Implement a separate operator login using synthetic username/password credentials
-- [ ] Add server-side sessions, role authorization, rate limits, and security headers through TanStack Start server code (sessions and role checks done; rate limits and security headers outstanding)
+- [ ] Add server-side sessions, role authorization, rate limits, and security headers through TanStack Start server code (sessions, role checks, and Postgres-backed login/operator rate limits done; security headers outstanding)
 - [x] Configure Neon-hosted PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data
 - [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models (application, workflow-event, and audit-event models exist; document, payment, appointment, and notification models remain)
 
@@ -61,7 +61,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Add mock document checks, payments, notifications, and government-action markers
 - [ ] Implement transactional appointment allocation, offer expiry, and confirmation
 - [x] Add append-only workflow and operator-action audit events
-- [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (input validation, secure cookies, and secret isolation done; safe logs and CSRF outstanding)
+- [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (input validation, secure cookies, secret isolation, and TLS-required database URLs done; safe logs and CSRF outstanding)
 - [x] Keep applicant and operator authorization checks at every server boundary
 
 ## Bilingual AI assistant
