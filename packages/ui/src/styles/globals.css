@@ -126,5 +126,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+  }
+
+  :where(a, button, input, textarea, select):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
   }
 }
