@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 
-export const Route = createFileRoute("/services/$serviceId")({
-  component: ServicePage,
+export const Route = createFileRoute("/services")({
+  component: ServicesPage,
 })
 
-function ServicePage() {
+function ServicesPage() {
   return (
     <main
       id="main-content"
@@ -16,7 +16,7 @@ function ServicePage() {
         href="/"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Back to services
+        Back to home
       </a>
       <p className="mt-20 text-base text-muted-foreground">
         DigiLicence services
@@ -25,8 +25,8 @@ function ServicePage() {
         Coming soon
       </h1>
       <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-        We are working on this service. Please check back soon for the full
-        application and tracking experience.
+        We are preparing the services page. The available service flows will be
+        added here soon.
       </p>
     </main>
   )

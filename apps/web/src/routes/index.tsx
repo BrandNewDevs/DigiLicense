@@ -74,7 +74,7 @@ function App() {
           >
             <a
               className="inline-flex min-h-11 items-center transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-              href="#services"
+              href="/services"
             >
               Services
             </a>
@@ -122,17 +122,17 @@ function App() {
               opts={{ align: "start", loop: true }}
               aria-label="Licence services"
             >
-              <CarouselContent>
+              <CarouselContent className="items-stretch">
                 {services.map((service, index) => {
                   const Icon = service.icon
 
                   return (
                     <CarouselItem
-                      className="md:basis-1/2 lg:basis-1/3"
+                      className="h-[430px] md:basis-1/2 lg:basis-1/3"
                       key={service.title}
                       aria-label={`${service.title}, service ${index + 1} of ${services.length}`}
                     >
-                      <article className="group flex min-h-[390px] flex-col rounded-[1.6rem] border border-border bg-card p-6 transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none sm:p-7">
+                      <article className="group flex h-full min-h-0 flex-col rounded-[1.6rem] border border-border bg-card p-6 transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none sm:p-7">
                         <div className="flex items-start justify-between">
                           <span className="grid size-12 place-items-center rounded-2xl bg-muted">
                             <Icon className="size-5" aria-hidden="true" />
@@ -156,7 +156,7 @@ function App() {
 
                         <div className="mt-auto border-t border-border pt-5">
                           <p
-                            className="mb-4 text-sm font-medium text-muted-foreground"
+                            className="mb-4 flex min-h-6 items-center text-sm font-medium text-muted-foreground"
                             id={
                               service.type === "tracking"
                                 ? "application-number-help"
@@ -166,55 +166,57 @@ function App() {
                             {service.meta}
                           </p>
 
-                          {service.type === "tracking" ? (
-                            <form
-                              className="space-y-2"
-                              onSubmit={(event) => {
-                                event.preventDefault()
-                                const formData = new FormData(
-                                  event.currentTarget
-                                )
-                                const applicationNumber = String(
-                                  formData.get("application-number") ?? ""
-                                ).trim()
+                          <div className="flex min-h-[132px] flex-col justify-end">
+                            {service.type === "tracking" ? (
+                              <form
+                                className="space-y-2"
+                                onSubmit={(event) => {
+                                  event.preventDefault()
+                                  const formData = new FormData(
+                                    event.currentTarget
+                                  )
+                                  const applicationNumber = String(
+                                    formData.get("application-number") ?? ""
+                                  ).trim()
 
-                                if (applicationNumber) {
-                                  window.location.href = `/services/track-application?application=${encodeURIComponent(applicationNumber)}`
-                                }
-                              }}
-                            >
-                              <label
-                                className="mb-2 block text-sm font-medium"
-                                htmlFor="application-number"
+                                  if (applicationNumber) {
+                                    window.location.href = `/services/track-application?application=${encodeURIComponent(applicationNumber)}`
+                                  }
+                                }}
                               >
-                                Application number
-                              </label>
-                              <input
-                                id="application-number"
-                                name="application-number"
-                                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                                placeholder="Application number"
-                                inputMode="text"
-                                autoComplete="off"
-                                required
-                                aria-describedby="application-number-help"
-                              />
-                              <Button className="h-11 w-full" type="submit">
-                                Track status
-                              </Button>
-                            </form>
-                          ) : (
-                            <a
-                              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-4 text-base font-medium text-background transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transition-none"
-                              href={service.href}
-                            >
-                              {service.action}
-                              <ArrowUpRight
-                                className="size-4"
-                                aria-hidden="true"
-                              />
-                            </a>
-                          )}
+                                <label
+                                  className="mb-2 block text-sm font-medium"
+                                  htmlFor="application-number"
+                                >
+                                  Application number
+                                </label>
+                                <input
+                                  id="application-number"
+                                  name="application-number"
+                                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                                  placeholder="Application number"
+                                  inputMode="text"
+                                  autoComplete="off"
+                                  required
+                                  aria-describedby="application-number-help"
+                                />
+                                <Button className="h-11 w-full" type="submit">
+                                  Track status
+                                </Button>
+                              </form>
+                            ) : (
+                              <a
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-4 text-base font-medium text-background transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transition-none"
+                                href={service.href}
+                              >
+                                {service.action}
+                                <ArrowUpRight
+                                  className="size-4"
+                                  aria-hidden="true"
+                                />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </article>
                     </CarouselItem>
