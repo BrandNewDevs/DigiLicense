@@ -51,21 +51,19 @@ def test_production_rejects_unsafe_backend_combinations(
         )
 
 
-def test_production_accepts_only_planned_safe_backends() -> None:
-    settings = Settings(
-        profile=EnvironmentProfile.PRODUCTION,
-        provider_backend=ProviderBackend.OPENAI,
-        retrieval_backend=RetrievalBackend.BM25,
-        dlp_backend=LocalBackend.LOCAL,
-        context_backend=LocalBackend.LOCAL,
-        intent_backend=LocalBackend.LOCAL,
-        openai_api_key="sk-synthetic-test-only",
-        openai_project_id="proj_synthetic_test",
-        openai_budget_controls_confirmed=True,
-    )
-
-    assert settings.provider_backend is ProviderBackend.OPENAI
-    assert settings.retrieval_backend is RetrievalBackend.BM25
+def test_production_is_rejected_until_required_local_backends_exist() -> None:
+    with pytest.raises(ValidationError, match="production profile is unavailable"):
+        Settings(
+            profile=EnvironmentProfile.PRODUCTION,
+            provider_backend=ProviderBackend.OPENAI,
+            retrieval_backend=RetrievalBackend.BM25,
+            dlp_backend=LocalBackend.LOCAL,
+            context_backend=LocalBackend.LOCAL,
+            intent_backend=LocalBackend.LOCAL,
+            openai_api_key="sk-synthetic-test-only",
+            openai_project_id="proj_synthetic_test",
+            openai_budget_controls_confirmed=True,
+        )
 
 
 @pytest.mark.parametrize(

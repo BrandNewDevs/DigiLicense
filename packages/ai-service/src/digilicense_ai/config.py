@@ -77,6 +77,11 @@ class Settings(BaseSettings):
             if invalid:
                 fields = ", ".join(sorted(invalid))
                 raise ValueError(f"production profile has unsafe backend selection: {fields}")
+            if not self.openai_budget_controls_confirmed:
+                raise ValueError("production profile requires confirmed OpenAI budget controls")
+            raise ValueError(
+                "production profile is unavailable until local context and intent backends exist"
+            )
 
         if (
             self.provider_backend is ProviderBackend.OPENAI
@@ -102,11 +107,6 @@ class Settings(BaseSettings):
             ):
                 raise ValueError("File Search requires an explicit vector store ID")
 
-        if (
-            self.profile is EnvironmentProfile.PRODUCTION
-            and not self.openai_budget_controls_confirmed
-        ):
-            raise ValueError("production profile requires confirmed OpenAI budget controls")
         return self
 
 
