@@ -1,6 +1,6 @@
 import { ArrowUpRight } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import type { ReactNode } from "react"
+import type { ElementType, ReactNode } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 
@@ -22,12 +22,12 @@ function ServiceCard({
   title,
 }: ServiceCardProps) {
   return (
-    <article className="group flex h-full min-h-0 flex-col rounded-[1.6rem] border border-border bg-card p-6 transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none sm:p-7">
+    <article className="group flex h-full min-h-0 flex-col rounded-[1.6rem] border border-border bg-card p-5 transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none sm:p-6">
       <span className="grid size-12 place-items-center rounded-2xl bg-muted">
         <Icon className="size-5" aria-hidden="true" />
       </span>
 
-      <div className="mt-8">
+      <div className="mt-6">
         <h3 className="max-w-[280px] font-heading text-2xl font-medium tracking-[-0.05em]">
           {title}
         </h3>
@@ -36,14 +36,14 @@ function ServiceCard({
         </p>
       </div>
 
-      <div className="mt-auto border-t border-border pt-5">
+      <div className="mt-auto pt-5">
         <p
           className="mb-4 flex min-h-6 items-center text-sm font-medium text-muted-foreground"
           id={metaId}
         >
           {meta}
         </p>
-        <div className="flex min-h-[132px] flex-col justify-end">
+        <div className="flex min-h-24 flex-col justify-end">
           {children}
         </div>
       </div>
@@ -54,17 +54,24 @@ function ServiceCard({
 type ServiceCardActionProps = {
   href: string
   label: string
+  linkComponent?: ElementType
 }
 
-function ServiceCardAction({ href, label }: ServiceCardActionProps) {
+function ServiceCardAction({
+  href,
+  label,
+  linkComponent,
+}: ServiceCardActionProps) {
+  const LinkElement = linkComponent ?? "a"
+
   return (
-    <a
+    <LinkElement
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-4 text-base font-medium text-background transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transition-none"
-      href={href}
+      {...(linkComponent ? { to: href } : { href })}
     >
       {label}
       <ArrowUpRight className="size-4" aria-hidden="true" />
-    </a>
+    </LinkElement>
   )
 }
 
