@@ -1,15 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { BadgeCheck, FileCheck2, ScanLine } from "lucide-react"
 import { useState } from "react"
 
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@workspace/ui/components/carousel"
 import {
   ServiceCard,
   ServiceCardAction,
@@ -57,7 +50,7 @@ const services = [
     meta: "For current licence holders",
     type: "action",
     action: "Update details",
-    href: "/services/update-details",
+    href: "/services/change-address",
   },
 ] as const
 
@@ -75,17 +68,21 @@ function App() {
         brand="DigiLicense"
         brandHref="/"
         brandLabel="DigiLicense home"
-        navigation={[{ href: "/services", label: "Services" }]}
+        linkComponent={Link}
+        navigation={[
+          { href: "/services", label: "Services" },
+          { href: "/applicant/login?returnTo=%2F", label: "Sign in" },
+        ]}
       />
 
       <main id="main-content">
-        <section className="border-b border-border">
-          <div className="mx-auto flex min-h-[470px] max-w-[1240px] items-center px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
+        <section>
+          <div className="mx-auto flex max-w-[1240px] items-center px-5 py-10 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
             <div className="max-w-3xl">
               <h1 className="font-heading text-4xl leading-tight font-medium tracking-[-0.06em] sm:text-6xl lg:text-7xl">
                 What do you need to do?
               </h1>
-              <p className="mt-8 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
                 Apply for a learner&apos;s licence, renew an existing licence,
                 update your details, or check your application status. Choose a
                 service below to get started.
@@ -96,11 +93,11 @@ function App() {
 
         <section
           id="services"
-          className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:px-10 lg:py-28"
+          className="mx-auto max-w-[1240px] px-5 py-10 sm:px-8 sm:py-12 lg:px-10 lg:py-14"
         >
-          <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <p className="mb-4 text-base font-medium text-muted-foreground">
+              <p className="mb-2 text-base font-medium text-muted-foreground">
                 Quick Links
               </p>
               <h2 className="max-w-xl font-heading text-4xl leading-tight font-medium tracking-[-0.065em] sm:text-5xl">
@@ -112,98 +109,85 @@ function App() {
             </p>
           </div>
 
-          <div className="relative mt-12 px-10 sm:px-12">
-            <Carousel
-              className="w-full"
-              opts={{ align: "start", loop: true }}
-              aria-label="Licence services"
-            >
-              <CarouselContent className="items-stretch">
-                {services.map((service, index) => (
-                  <CarouselItem
-                    className="h-[430px] md:basis-1/2 lg:basis-1/3"
-                    key={service.title}
-                    aria-label={`${service.title}, service ${index + 1} of ${services.length}`}
-                  >
-                    <ServiceCard
-                      description={service.description}
-                      icon={service.icon}
-                      meta={service.meta}
-                      metaId={
-                        service.type === "tracking"
-                          ? "application-number-help"
-                          : undefined
-                      }
-                      title={service.title}
-                    >
-                      {service.type === "tracking" ? (
-                        <ServiceLookupForm
-                          describedBy="application-number-help"
-                          fieldId="application-number"
-                          fieldLabel="Application number"
-                          fieldName="application-number"
-                          placeholder="Application number"
-                          submitLabel="Track status"
-                          isSubmitting={isLookingUpApplication}
-                          feedback={
-                            lookupFeedback ? (
-                              <p
-                                className={
-                                  lookupFeedback.kind === "success"
-                                    ? "text-sm text-foreground"
-                                    : "text-sm text-destructive"
-                                }
-                                role="status"
-                                aria-live="polite"
-                              >
-                                {lookupFeedback.message}
-                              </p>
-                            ) : undefined
-                          }
-                          onSubmit={async (applicationNumber) => {
-                            setIsLookingUpApplication(true)
-                            setLookupFeedback(undefined)
-
-                            try {
-                              const result = await lookupApplicationStatusFn({
-                                data: { applicationNumber },
-                              })
-
-                              if (result.kind === "found") {
-                                setLookupFeedback({
-                                  kind: "success",
-                                  message: `${result.service}: ${result.status}. ${result.nextAction}`,
-                                })
-                              } else {
-                                setLookupFeedback({
-                                  kind: "error",
-                                  message: result.message,
-                                })
-                              }
-                            } catch {
-                              setLookupFeedback({
-                                kind: "error",
-                                message:
-                                  "Check the application number and try again.",
-                              })
-                            } finally {
-                              setIsLookingUpApplication(false)
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {services.map((service) => (
+              <div className="min-h-[380px]" key={service.title}>
+                <ServiceCard
+                  description={service.description}
+                  icon={service.icon}
+                  meta={service.meta}
+                  metaId={
+                    service.type === "tracking"
+                      ? "application-number-help"
+                      : undefined
+                  }
+                  title={service.title}
+                >
+                  {service.type === "tracking" ? (
+                    <ServiceLookupForm
+                      describedBy="application-number-help"
+                      fieldId="application-number"
+                      fieldLabel="Application number"
+                      fieldName="application-number"
+                      placeholder="Application number"
+                      submitLabel="Track status"
+                      isSubmitting={isLookingUpApplication}
+                      feedback={
+                        lookupFeedback ? (
+                          <p
+                            className={
+                              lookupFeedback.kind === "success"
+                                ? "text-sm text-foreground"
+                                : "text-sm text-destructive"
                             }
-                          }}
-                        />
-                      ) : (
-                        <ServiceCardAction
-                          href={service.href}
-                          label={service.action}
-                        />
-                      )}
-                    </ServiceCard>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious aria-label="Previous service" />
-              <CarouselNext aria-label="Next service" />
-            </Carousel>
+                            role="status"
+                            aria-live="polite"
+                          >
+                            {lookupFeedback.message}
+                          </p>
+                        ) : undefined
+                      }
+                      onSubmit={async (applicationNumber) => {
+                        setIsLookingUpApplication(true)
+                        setLookupFeedback(undefined)
+
+                        try {
+                          const result = await lookupApplicationStatusFn({
+                            data: { applicationNumber },
+                          })
+
+                          if (result.kind === "found") {
+                            setLookupFeedback({
+                              kind: "success",
+                              message: `${result.service}: ${result.status}. ${result.nextAction}`,
+                            })
+                          } else {
+                            setLookupFeedback({
+                              kind: "error",
+                              message: result.message,
+                            })
+                          }
+                        } catch {
+                          setLookupFeedback({
+                            kind: "error",
+                            message:
+                              "Check the application number and try again.",
+                          })
+                        } finally {
+                          setIsLookingUpApplication(false)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <ServiceCardAction
+                      href={service.href}
+                      label={service.action}
+                      linkComponent={Link}
+                    />
+                  )}
+                </ServiceCard>
+              </div>
+            ))}
           </div>
         </section>
       </main>
