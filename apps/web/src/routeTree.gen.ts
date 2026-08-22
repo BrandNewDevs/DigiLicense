@@ -11,7 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ServicesIndexRouteImport } from './routes/services.index'
 import { Route as ServicesServiceIdRouteImport } from './routes/services.$serviceId'
+import { Route as OperatorLoginRouteImport } from './routes/operator.login'
+import { Route as ApplicantLoginRouteImport } from './routes/applicant.login'
 
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
@@ -23,39 +26,82 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ServicesIndexRoute = ServicesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ServicesRoute,
+} as any)
 const ServicesServiceIdRoute = ServicesServiceIdRouteImport.update({
   id: '/$serviceId',
   path: '/$serviceId',
   getParentRoute: () => ServicesRoute,
 } as any)
+const OperatorLoginRoute = OperatorLoginRouteImport.update({
+  id: '/operator/login',
+  path: '/operator/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApplicantLoginRoute = ApplicantLoginRouteImport.update({
+  id: '/applicant/login',
+  path: '/applicant/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/services': typeof ServicesRouteWithChildren
+  '/applicant/login': typeof ApplicantLoginRoute
+  '/operator/login': typeof OperatorLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/services/': typeof ServicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/services': typeof ServicesRouteWithChildren
+  '/applicant/login': typeof ApplicantLoginRoute
+  '/operator/login': typeof OperatorLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/services': typeof ServicesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/services': typeof ServicesRouteWithChildren
+  '/applicant/login': typeof ApplicantLoginRoute
+  '/operator/login': typeof OperatorLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/services/': typeof ServicesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/services' | '/services/$serviceId'
+  fullPaths:
+    | '/'
+    | '/services'
+    | '/applicant/login'
+    | '/operator/login'
+    | '/services/$serviceId'
+    | '/services/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/services' | '/services/$serviceId'
-  id: '__root__' | '/' | '/services' | '/services/$serviceId'
+  to:
+    | '/'
+    | '/applicant/login'
+    | '/operator/login'
+    | '/services/$serviceId'
+    | '/services'
+  id:
+    | '__root__'
+    | '/'
+    | '/services'
+    | '/applicant/login'
+    | '/operator/login'
+    | '/services/$serviceId'
+    | '/services/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ServicesRoute: typeof ServicesRouteWithChildren
+  ApplicantLoginRoute: typeof ApplicantLoginRoute
+  OperatorLoginRoute: typeof OperatorLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -74,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/services/': {
+      id: '/services/'
+      path: '/'
+      fullPath: '/services/'
+      preLoaderRoute: typeof ServicesIndexRouteImport
+      parentRoute: typeof ServicesRoute
+    }
     '/services/$serviceId': {
       id: '/services/$serviceId'
       path: '/$serviceId'
@@ -81,15 +134,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesServiceIdRouteImport
       parentRoute: typeof ServicesRoute
     }
+    '/operator/login': {
+      id: '/operator/login'
+      path: '/operator/login'
+      fullPath: '/operator/login'
+      preLoaderRoute: typeof OperatorLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applicant/login': {
+      id: '/applicant/login'
+      path: '/applicant/login'
+      fullPath: '/applicant/login'
+      preLoaderRoute: typeof ApplicantLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface ServicesRouteChildren {
   ServicesServiceIdRoute: typeof ServicesServiceIdRoute
+  ServicesIndexRoute: typeof ServicesIndexRoute
 }
 
 const ServicesRouteChildren: ServicesRouteChildren = {
   ServicesServiceIdRoute: ServicesServiceIdRoute,
+  ServicesIndexRoute: ServicesIndexRoute,
 }
 
 const ServicesRouteWithChildren = ServicesRoute._addFileChildren(
@@ -99,6 +168,8 @@ const ServicesRouteWithChildren = ServicesRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ServicesRoute: ServicesRouteWithChildren,
+  ApplicantLoginRoute: ApplicantLoginRoute,
+  OperatorLoginRoute: OperatorLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
