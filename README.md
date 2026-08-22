@@ -166,6 +166,7 @@ Run these commands from the repository root:
 | ---------------- | ----------------------------------------------- |
 | `pnpm dev`       | Start the development server for the workspace. |
 | `pnpm build`     | Build all workspace packages and applications.  |
+| `pnpm test:clean-build` | Verify a root build generates the Prisma client. |
 | `pnpm lint`      | Run ESLint across the workspace.                |
 | `pnpm format`    | Format TypeScript and TSX files with Prettier.  |
 | `pnpm typecheck` | Run TypeScript checks without emitting files.   |
@@ -179,17 +180,22 @@ pnpm --filter web lint
 pnpm --filter web typecheck
 ```
 
+`pnpm test:clean-build` temporarily removes the ignored generated Prisma
+client, runs the root build, verifies generation, then restores the prior
+generated output.
+
 ## Database setup and migrations
 
 Copy `apps/web/.env.example` to `apps/web/.env`, point `DATABASE_URL` at a
-synthetic development database, and set a session secret. Remote hosts must
-require TLS (`sslmode=require`, `verify-ca`, or `verify-full`).
+synthetic development database, and set a session secret. The database package
+uses that same uncommitted file for Prisma commands. Remote hosts must require
+TLS (`sslmode=require`, `verify-ca`, or `verify-full`).
 
 For an **empty development database**, create the schema with:
 
 ```bash
-pnpm --filter web db:migrate   # prisma migrate dev
-pnpm --filter web db:seed      # synthetic demo data only
+pnpm --filter @digilicense/db db:migrate   # prisma migrate dev
+pnpm --filter @digilicense/db db:seed      # synthetic demo data only
 ```
 
 Do not treat `prisma migrate dev --name init` as a production baseline.
@@ -202,9 +208,9 @@ resetting it:
 1. Generate the SQL for review instead of applying it blindly:
 
    ```bash
-   pnpm --filter web exec prisma migrate diff \
+   pnpm --filter @digilicense/db exec prisma migrate diff \
      --from-empty --to-schema prisma/schema.prisma --script \
-     > apps/web/prisma/migrations/0_init/migration.sql
+     > packages/db/prisma/migrations/0_init/migration.sql
    ```
 
 2. Review `0_init/migration.sql` carefully before it touches any database.
@@ -216,8 +222,8 @@ resetting it:
 4. Mark the baseline as applied, then deploy:
 
    ```bash
-   pnpm --filter web exec prisma migrate resolve --applied 0_init
-   pnpm --filter web exec prisma migrate deploy
+   pnpm --filter @digilicense/db exec prisma migrate resolve --applied 0_init
+   pnpm --filter @digilicense/db db:migrate:deploy
    ```
 
 In production, apply committed migrations only with `prisma migrate deploy`.

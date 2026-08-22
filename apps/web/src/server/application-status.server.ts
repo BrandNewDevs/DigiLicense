@@ -1,7 +1,8 @@
 import "@tanstack/react-start/server-only"
 
+import { prisma } from "@digilicense/db/server"
+
 import { getStatusLabel } from "../lib/operator-workflow"
-import { prisma } from "./db.server"
 import { requireApplicant } from "./demo-session.server"
 import { recordDependencyFailure } from "./logger.server"
 

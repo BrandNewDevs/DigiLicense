@@ -2,11 +2,11 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
-import { WorkflowActor } from "../generated/prisma/enums"
-import type { ApplicationStatus } from "../generated/prisma/enums"
+import { prisma, WorkflowActor } from "@digilicense/db/server"
+import type { ApplicationStatus } from "@digilicense/db/server"
+
 import { getDecisionLabel, operatorActions } from "../lib/operator-workflow"
 import type { OperatorAction } from "../lib/operator-workflow"
-import { prisma } from "./db.server"
 import { requireOperator } from "./demo-session.server"
 import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"

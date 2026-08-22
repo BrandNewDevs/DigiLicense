@@ -1,11 +1,17 @@
-import "dotenv/config"
+import { fileURLToPath } from "node:url"
+
+import { config } from "dotenv"
 
 import { PrismaClient } from "../src/generated/prisma/client.ts"
 import {
   ApplicationStatus,
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
-import { createDatabaseAdapter } from "../src/server/database-adapter.ts"
+import { createDatabaseAdapter } from "../src/database-adapter.ts"
+
+config({
+  path: fileURLToPath(new URL("../../../apps/web/.env", import.meta.url)),
+})
 
 const databaseUrl = process.env.DATABASE_URL
 
@@ -56,9 +62,6 @@ const scenarios = [
 ] as const
 
 for (const scenario of scenarios) {
-  // The initial workflow event is nested inside the create branch, so it is
-  // inserted atomically with the application. Concurrent seed runs cannot
-  // produce duplicate initial events.
   await prisma.application.upsert({
     where: { applicationNumber: scenario.applicationNumber },
     update: {},
