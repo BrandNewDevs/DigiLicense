@@ -35,20 +35,6 @@ const sessionKeys: Record<MockRole, string> = {
 
 const sessionEvent = "digilicense:mock-session-change"
 
-function validateMockCredentials(
-  role: MockRole,
-  values: Record<string, FormDataEntryValue>
-) {
-  const expectedCredentials = mockCredentials[role]
-
-  return (
-    Object.keys(values).length === Object.keys(expectedCredentials).length &&
-    Object.entries(expectedCredentials).every(
-      ([name, expectedValue]) => values[name] === expectedValue
-    )
-  )
-}
-
 function isValidStoredMockSession(
   storedValue: string | null,
   expectedRole: MockRole,
@@ -146,6 +132,5 @@ export {
   mockSessionDurationMs,
   startMockSession,
   useMockSession,
-  validateMockCredentials,
 }
 export type { MockRole }
