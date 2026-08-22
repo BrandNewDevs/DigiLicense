@@ -1,8 +1,9 @@
 """Validated configuration profiles for the AI service."""
 
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,11 +50,31 @@ class Settings(BaseSettings):
     service_name: str = "digilicense-ai"
     max_request_body_bytes: int = Field(default=4096, ge=1024, le=65536)
     dlp_timeout_ms: int = Field(default=250, ge=10, le=2000)
-    model_id: str = "gpt-5.4-mini-2026-03-17"
+    model_id: Literal["gpt-5.4-mini-2026-03-17"] = "gpt-5.4-mini-2026-03-17"
+    openai_api_key: SecretStr | None = Field(default=None, repr=False)
+    openai_project_id: str | None = Field(default=None, min_length=1, max_length=128)
+    openai_max_output_tokens: int = Field(default=800, ge=128, le=1200)
+    openai_request_timeout_seconds: float = Field(default=12.0, ge=1.0, le=30.0)
+    openai_connect_timeout_seconds: float = Field(default=3.0, ge=0.5, le=10.0)
+    openai_max_concurrency: int = Field(default=4, ge=1, le=32)
+    openai_budget_controls_confirmed: bool = False
     log_level: str = "INFO"
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
+        if self.provider_backend is ProviderBackend.OPENAI:
+            missing = []
+            if (
+                self.openai_api_key is None
+                or not self.openai_api_key.get_secret_value().strip()
+            ):
+                missing.append("openai_api_key")
+            if self.openai_project_id is None or not self.openai_project_id.strip():
+                missing.append("openai_project_id")
+            if missing:
+                fields = ", ".join(missing)
+                raise ValueError(f"OpenAI provider configuration is incomplete: {fields}")
+
         if self.profile is not EnvironmentProfile.PRODUCTION:
             return self
 
@@ -68,6 +89,8 @@ class Settings(BaseSettings):
         if invalid:
             fields = ", ".join(sorted(invalid))
             raise ValueError(f"production profile has unsafe backend selection: {fields}")
+        if not self.openai_budget_controls_confirmed:
+            raise ValueError("production profile requires confirmed OpenAI budget controls")
         return self
 
 
