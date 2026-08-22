@@ -2,8 +2,6 @@ type DatabaseUrlCheck = { ok: true } | { ok: false; message: string }
 
 const postgresProtocols = new Set(["postgres:", "postgresql:"])
 
-const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1"])
-
 const tlsRequiredSslModes = new Set(["require", "verify-ca", "verify-full"])
 
 function validateDatabaseUrl(databaseUrl: string): DatabaseUrlCheck {
@@ -25,19 +23,13 @@ function validateDatabaseUrl(databaseUrl: string): DatabaseUrlCheck {
     }
   }
 
-  const hostname = parsedUrl.hostname.replace(/^\[|\]$/g, "")
-
-  if (loopbackHosts.has(hostname)) {
-    return { ok: true }
-  }
-
   const sslMode = parsedUrl.searchParams.get("sslmode")?.trim().toLowerCase()
 
   if (!sslMode || !tlsRequiredSslModes.has(sslMode)) {
     return {
       ok: false,
       message:
-        "DATABASE_URL must require TLS for remote hosts. Add sslmode=require (or verify-ca / verify-full) to the connection URL.",
+        "DATABASE_URL must require TLS. Add sslmode=require (or verify-ca / verify-full) to the connection URL.",
     }
   }
 
