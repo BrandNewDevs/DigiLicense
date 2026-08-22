@@ -84,7 +84,7 @@ are replaced only in transient memory. They are never persisted, logged, or plac
 responses, and no anonymization/deanonymization vault exists. Raw questions remain structurally
 excluded from provider requests even if DLP misses an entity.
 
-## OpenAI provider boundary
+## Provider and retrieval boundaries
 
 Phase 3 adds an adapter for the official OpenAI Python SDK and Responses API. The adapter accepts
 only `CanonicalProviderRequest`, so raw questions, context tokens, identities, and application
@@ -118,10 +118,42 @@ an operator must configure spending alerts and a hard operational budget in the 
 project, then set `DIGILICENSE_AI_OPENAI_BUDGET_CONTROLS_CONFIRMED=true`. This flag is an explicit
 deployment gate, not a substitute for configuring the controls in the provider dashboard.
 
-Runtime File Search remains disabled because production is constrained to reviewed local BM25
-retrieval. No applicant or conversation data is uploaded or stored in a vector store. Phase 2's
-curated corpus and local retrieval implementations are not included in this phase, so production
-composition continues to reject those unavailable backends rather than substituting fake data.
+### Reviewed corpus and production BM25
+
+Reviewed sources are packaged under `src/digilicense_ai/corpus/data/v1/`. Each release has stable
+source and section IDs, publication/retrieval metadata, reviewer status, SHA-256 checksums, source
+allowlists, and structured fact packets. The loader accepts only that bundled release; it has no
+HTTP fetch, scraping, user-file, or arbitrary-path ingestion interface. Public-policy sources and
+internal prototype-behavior sources are distinct, so a simulated waitlist or payment flow cannot
+be cited as public policy.
+
+`DIGILICENSE_AI_RETRIEVAL_BACKEND=bm25` builds the local index during container startup. Retrieval
+uses only a canonical intent/topic/locale template, intersects the intent source allowlist, returns
+at most three chunks within a 420-token budget, and returns a deterministic no-evidence fallback
+without calling the provider when the threshold is not met. Retrieval logs backend, latency,
+source IDs, and scores only—never query or evidence text.
+
+### Controlled File Search evaluation
+
+File Search is prohibited in production. It can be selected only with all of the following
+server-only evaluation settings:
+
+```bash
+export DIGILICENSE_AI_PROFILE=evaluation
+export DIGILICENSE_AI_RETRIEVAL_BACKEND=file_search
+export DIGILICENSE_AI_FILE_SEARCH_ENABLED=true
+export DIGILICENSE_AI_FILE_SEARCH_VECTOR_STORE_ID='vs_<evaluation-store>'
+export DIGILICENSE_AI_OPENAI_API_KEY='<dedicated-project-key>'
+export DIGILICENSE_AI_OPENAI_PROJECT_ID='<dedicated-project-id>'
+```
+
+The evaluation adapter uses the same canonical query and `EvidenceChunk` contract as BM25, and
+validates File Search metadata against the promoted local corpus before returning any chunk. It
+never runs alongside BM25 for a request. `scripts/file_search_corpus.py` provides explicit
+`upload`, `inspect`, `expire`, and `delete` commands. Uploads receive a 1–30 day expiry; expiry or
+deletion requires `--confirm`, removes each vector-store attachment before its uploaded file, and
+can then delete the vector store with `--delete-vector-store`. The resource manifest printed by
+`upload` must be stored in approved operational tooling, never in application logs.
 
 ## Configuration profiles
 
@@ -136,5 +168,5 @@ All variables use the `DIGILICENSE_AI_` prefix.
 
 Production configuration is accepted only when it selects local DLP, local semantic context,
 local intent routing, local BM25 retrieval, OpenAI, dedicated project credentials, and confirmed
-provider budget controls. Until the missing Phase 2 local intent and BM25 implementations land,
-the container fails honestly instead of starting a production profile with fake components.
+provider budget controls. The current container still fails honestly for the not-yet-implemented
+local semantic-context and intent components rather than silently substituting fake behavior.
