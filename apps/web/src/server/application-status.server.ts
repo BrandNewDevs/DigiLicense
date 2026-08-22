@@ -23,17 +23,26 @@ async function lookupAuthorizedApplicationStatus(applicationNumber: string) {
     }
   }
 
-  const record = await prisma.application.findFirst({
-    where: {
-      applicantId: applicant.applicantId,
-      applicationNumber,
-    },
-    select: {
-      service: true,
-      status: true,
-      nextAction: true,
-    },
-  })
+  let record
+
+  try {
+    record = await prisma.application.findFirst({
+      where: {
+        applicantId: applicant.applicantId,
+        applicationNumber,
+      },
+      select: {
+        service: true,
+        status: true,
+        nextAction: true,
+      },
+    })
+  } catch {
+    return {
+      kind: "unavailable" as const,
+      message: "Application tracking is temporarily unavailable.",
+    }
+  }
 
   if (!record) {
     return {
