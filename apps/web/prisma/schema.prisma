@@ -76,3 +76,15 @@ model AuditEvent {
   @@index([applicationId, createdAt])
   @@index([createdAt])
 }
+
+// Fixed-window rate-limit counters shared across instances. Keys are hashed,
+// so raw identifiers are never stored.
+model RateLimitWindow {
+  id          String   @id @default(cuid())
+  bucketKey   String
+  windowStart DateTime
+  hits        Int      @default(0)
+
+  @@unique([bucketKey, windowStart])
+  @@index([windowStart])
+}

@@ -98,7 +98,7 @@ function OperatorActionPanel({
               }
 
               setMessage(
-                result.kind === "conflict"
+                result.kind === "conflict" || result.kind === "rate-limited"
                   ? result.message
                   : "The action could not be completed. Sign in again or reload the case."
               )

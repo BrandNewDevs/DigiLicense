@@ -1,0 +1,48 @@
+import { createHash } from "node:crypto"
+
+type RateLimitRule = {
+  limit: number
+  windowMs: number
+}
+
+// Login attempts are counted before credentials are checked so failures act
+// as a cooldown. Operator actions get their own, more generous budget.
+const rateLimitRules = {
+  "login-ip": { limit: 30, windowMs: 15 * 60_000 },
+  "login-account": { limit: 5, windowMs: 5 * 60_000 },
+  "operator-action": { limit: 30, windowMs: 60_000 },
+} as const
+
+type RateLimitRuleName = keyof typeof rateLimitRules
+
+function getWindowStart(now: Date, windowMs: number): Date {
+  return new Date(Math.floor(now.getTime() / windowMs) * windowMs)
+}
+
+function getRetryAfterSeconds(
+  now: Date,
+  windowStart: Date,
+  windowMs: number
+): number {
+  const windowEnd = windowStart.getTime() + windowMs
+  return Math.max(1, Math.ceil((windowEnd - now.getTime()) / 1000))
+}
+
+function hashIdentity(purpose: string, value: string): string {
+  return createHash("sha256")
+    .update(`${purpose}:${value.trim().toLowerCase()}`)
+    .digest("hex")
+}
+
+function buildBucketKey(ruleName: RateLimitRuleName, identity: string): string {
+  return `${ruleName}:${hashIdentity(ruleName, identity)}`
+}
+
+export {
+  buildBucketKey,
+  getRetryAfterSeconds,
+  getWindowStart,
+  hashIdentity,
+  rateLimitRules,
+}
+export type { RateLimitRule, RateLimitRuleName }

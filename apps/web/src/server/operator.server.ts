@@ -8,6 +8,7 @@ import { operatorActions } from "../lib/operator-workflow"
 import type { OperatorAction } from "../lib/operator-workflow"
 import { prisma } from "./db.server"
 import { requireOperator } from "./demo-session.server"
+import { consumeRateLimit } from "./rate-limit.server"
 
 function serializeApplication(application: {
   id: string
@@ -120,6 +121,20 @@ async function applyOperatorAction(input: {
   const operator = await requireOperator()
 
   if (!operator) return { kind: "authentication-required" as const }
+
+  const actionLimit = await consumeRateLimit(
+    "operator-action",
+    operator.operatorId
+  )
+
+  if (!actionLimit.allowed) {
+    return {
+      kind: "rate-limited" as const,
+      message:
+        "Too many actions in a short time. Wait a moment, reload the case, and try again.",
+      retryAfterSeconds: actionLimit.retryAfterSeconds,
+    }
+  }
 
   const transition = operatorActions[input.action]
 

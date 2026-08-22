@@ -8,6 +8,36 @@ import {
 const loginDemoSession = createServerFn({ method: "POST" })
   .validator((input: unknown) => demoCredentialsSchema.parse(input))
   .handler(async ({ data }) => {
+    const { getRequestIP } = await import("@tanstack/react-start/server")
+    const { consumeRateLimit } = await import("../server/rate-limit.server")
+
+    const clientIp = getRequestIP({ xForwardedFor: true }) ?? "unknown"
+
+    const ipLimit = await consumeRateLimit("login-ip", clientIp)
+
+    if (!ipLimit.allowed) {
+      return {
+        ok: false as const,
+        message:
+          "Too many sign-in attempts from this network. Please try again later.",
+      }
+    }
+
+    const accountIdentifier =
+      data.role === "applicant" ? data.mobileNumber : data.username
+    const accountLimit = await consumeRateLimit(
+      "login-account",
+      `${data.role}:${accountIdentifier}`
+    )
+
+    if (!accountLimit.allowed) {
+      return {
+        ok: false as const,
+        message:
+          "Too many attempts for these credentials. Please try again in a few minutes.",
+      }
+    }
+
     const { getApplicantSession, getOperatorSession } =
       await import("../server/demo-session.server")
 
