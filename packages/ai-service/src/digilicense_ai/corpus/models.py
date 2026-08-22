@@ -61,6 +61,10 @@ class CorpusSource(ContractModel):
 
     @model_validator(mode="after")
     def validate_section_kinds(self) -> "CorpusSource":
+        if self.retrieved_date > date.today():
+            raise ValueError("retrieved date cannot be in the future")
+        if self.publication_date is not None and self.publication_date > self.retrieved_date:
+            raise ValueError("publication date cannot be after retrieved date")
         if any(section.claim_kind is not self.kind for section in self.sections):
             raise ValueError("a source cannot mix policy and prototype claims")
         return self

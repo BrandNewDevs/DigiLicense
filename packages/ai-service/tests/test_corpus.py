@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+from datetime import date, timedelta
 from importlib.resources import files
 from typing import Any, cast
 
@@ -70,6 +71,19 @@ def test_invalid_or_missing_manifest_metadata_is_rejected() -> None:
         CorpusManifest.model_validate(missing_reviewer)
 
 
+def test_source_provenance_dates_must_be_ordered_and_not_future_dated() -> None:
+    future = _payload()
+    future["sources"][0]["retrievedDate"] = (date.today() + timedelta(days=1)).isoformat()
+    with pytest.raises(ValidationError, match="retrieved date cannot be in the future"):
+        CorpusManifest.model_validate(future)
+
+    out_of_order = _payload()
+    out_of_order["sources"][1]["publicationDate"] = "2026-08-24"
+    out_of_order["sources"][1]["retrievedDate"] = "2026-08-23"
+    with pytest.raises(ValidationError, match="publication date cannot be after"):
+        CorpusManifest.model_validate(out_of_order)
+
+
 def test_checksum_and_review_status_gate_retrieval() -> None:
     checksum = _payload()
     checksum["sources"][0]["sha256"] = "0" * 64
@@ -80,6 +94,17 @@ def test_checksum_and_review_status_gate_retrieval() -> None:
     unreviewed["sources"][0]["reviewStatus"] = "reviewed"
     with pytest.raises(CorpusError, match="unreviewed source"):
         _validated(unreviewed)
+
+
+def test_invalid_utf8_is_rejected_through_the_corpus_error_contract() -> None:
+    payload = _payload()
+    markdown = _files(payload)
+    file_name = payload["sources"][0]["markdownFile"]
+    markdown[file_name] = b"\xff"
+    payload["sources"][0]["sha256"] = hashlib.sha256(markdown[file_name]).hexdigest()
+
+    with pytest.raises(CorpusError, match="not UTF-8"):
+        validate_corpus(CorpusManifest.model_validate(payload), markdown)
 
 
 def test_url_allowlist_fact_consistency_and_claim_separation_are_enforced() -> None:

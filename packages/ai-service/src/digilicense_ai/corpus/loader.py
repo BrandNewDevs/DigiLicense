@@ -49,13 +49,14 @@ def load_promoted_corpus(version: str = "v1") -> PromotedCorpus:
         manifest = CorpusManifest.model_validate(payload)
     except (OSError, json.JSONDecodeError, ValidationError) as error:
         raise CorpusError("bundled corpus manifest is invalid") from error
-    return validate_corpus(
-        manifest,
-        {
+    try:
+        markdown_files = {
             source.markdown_file: root.joinpath(source.markdown_file).read_bytes()
             for source in manifest.sources
-        },
-    )
+        }
+    except OSError as error:
+        raise CorpusError("bundled reviewed Markdown is unavailable") from error
+    return validate_corpus(manifest, markdown_files)
 
 
 def validate_corpus(
@@ -84,7 +85,10 @@ def validate_corpus(
         actual_checksum = hashlib.sha256(content).hexdigest()
         if actual_checksum != source.sha256:
             raise CorpusError("reviewed Markdown checksum mismatch")
-        markdown = " ".join(content.decode("utf-8").split())
+        try:
+            markdown = " ".join(content.decode("utf-8").split())
+        except UnicodeDecodeError as error:
+            raise CorpusError("reviewed Markdown is not UTF-8") from error
         for section in source.sections:
             expected_section = " ".join((f"## {section.heading} {section.text}").split())
             if expected_section not in markdown:
