@@ -56,7 +56,10 @@ const scenarios = [
 ] as const
 
 for (const scenario of scenarios) {
-  const application = await prisma.application.upsert({
+  // The initial workflow event is nested inside the create branch, so it is
+  // inserted atomically with the application. Concurrent seed runs cannot
+  // produce duplicate initial events.
+  await prisma.application.upsert({
     where: { applicationNumber: scenario.applicationNumber },
     update: {},
     create: {
@@ -65,26 +68,18 @@ for (const scenario of scenarios) {
       service: scenario.service,
       status: scenario.status,
       nextAction: scenario.nextAction,
+      workflowEvents: {
+        create: {
+          actor: WorkflowActor.SYSTEM,
+          actorId: "synthetic-seed",
+          title: scenario.title,
+          description:
+            "Created as synthetic DigiLicense data. No government service was contacted.",
+          toStatus: scenario.status,
+        },
+      },
     },
   })
-
-  const eventCount = await prisma.workflowEvent.count({
-    where: { applicationId: application.id },
-  })
-
-  if (eventCount === 0) {
-    await prisma.workflowEvent.create({
-      data: {
-        applicationId: application.id,
-        actor: WorkflowActor.SYSTEM,
-        actorId: "synthetic-seed",
-        title: scenario.title,
-        description:
-          "Created as synthetic DigiLicense data. No government service was contacted.",
-        toStatus: scenario.status,
-      },
-    })
-  }
 }
 
 await prisma.$disconnect()

@@ -3,6 +3,7 @@ import "@tanstack/react-start/server-only"
 import { PrismaClient } from "@/generated/prisma/client"
 
 import { createDatabaseAdapter } from "./database-adapter"
+import { validateDatabaseUrl } from "./database-url"
 
 function getDatabaseUrl() {
   const databaseUrl = process.env.DATABASE_URL?.trim()
@@ -11,18 +12,10 @@ function getDatabaseUrl() {
     throw new Error("DATABASE_URL is required to connect to PostgreSQL.")
   }
 
-  let parsedUrl: URL
+  const check = validateDatabaseUrl(databaseUrl)
 
-  try {
-    parsedUrl = new URL(databaseUrl)
-  } catch {
-    throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL.")
-  }
-
-  if (!["postgres:", "postgresql:"].includes(parsedUrl.protocol)) {
-    throw new Error(
-      "DATABASE_URL must use the postgres or postgresql protocol."
-    )
+  if (!check.ok) {
+    throw new Error(check.message)
   }
 
   return databaseUrl
