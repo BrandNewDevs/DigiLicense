@@ -51,3 +51,8 @@ class Retriever(Protocol):
 @runtime_checkable
 class AssistantProvider(Protocol):
     async def generate(self, request: CanonicalProviderRequest) -> ProviderResult: ...
+
+
+@runtime_checkable
+class AsyncClosable(Protocol):
+    async def close(self) -> None: ...

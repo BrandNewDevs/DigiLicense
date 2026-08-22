@@ -1,5 +1,7 @@
 """FastAPI application factory."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Any
 from uuid import uuid4
@@ -27,10 +29,17 @@ def create_app(
     configure_logging(resolved_settings.log_level)
     resolved_container = container or build_container(resolved_settings)
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        del app
+        yield
+        await resolved_container.close()
+
     app = FastAPI(
         title="DigiLicense AI service",
-        version="0.2.0",
-        description="Private AI explanation boundary with self-hosted PII protection.",
+        version="0.3.0",
+        description="Private AI explanation boundary with PII protection and bounded providers.",
+        lifespan=lifespan,
     )
     app.state.container = resolved_container
     app.state.ready = True

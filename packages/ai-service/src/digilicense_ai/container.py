@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from digilicense_ai.components import (
     AssistantProvider,
+    AsyncClosable,
     DlpGateway,
     IntentRouter,
     Retriever,
@@ -23,6 +24,7 @@ from digilicense_ai.fakes import (
     FakeRetriever,
     FakeSemanticContextManager,
 )
+from digilicense_ai.providers import OpenAIProvider
 
 
 class BackendNotImplementedError(RuntimeError):
@@ -48,6 +50,10 @@ class ServiceContainer:
             "provider": self.settings.provider_backend.value,
         }
 
+    async def close(self) -> None:
+        if isinstance(self.provider, AsyncClosable):
+            await self.provider.close()
+
 
 def build_container(settings: Settings) -> ServiceContainer:
     """Build available components and reject later-phase backends honestly."""
@@ -59,7 +65,7 @@ def build_container(settings: Settings) -> ServiceContainer:
         unsupported.append("intent")
     if settings.retrieval_backend is not RetrievalBackend.FAKE:
         unsupported.append("retrieval")
-    if settings.provider_backend is not ProviderBackend.FAKE:
+    if settings.provider_backend is ProviderBackend.GEMINI:
         unsupported.append("provider")
     if unsupported:
         names = ", ".join(unsupported)
@@ -71,11 +77,17 @@ def build_container(settings: Settings) -> ServiceContainer:
         else FakeDlpGateway()
     )
 
+    provider: AssistantProvider = (
+        OpenAIProvider.from_settings(settings)
+        if settings.provider_backend is ProviderBackend.OPENAI
+        else FakeProvider()
+    )
+
     return ServiceContainer(
         settings=settings,
         dlp=dlp,
         context=FakeSemanticContextManager(),
         intent=FakeIntentRouter(),
         retriever=FakeRetriever(),
-        provider=FakeProvider(),
+        provider=provider,
     )

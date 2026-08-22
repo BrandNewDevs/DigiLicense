@@ -23,5 +23,5 @@ class CanonicalProviderRequest(ContractModel):
 
 class ProviderResult(ContractModel):
     answer: str = Field(min_length=1, max_length=1200)
-    source_ids: tuple[str, ...] = Field(max_length=3)
-    uncertain: bool = False
+    source_ids: tuple[str, ...] = Field(min_length=1, max_length=3)
+    uncertain: bool
