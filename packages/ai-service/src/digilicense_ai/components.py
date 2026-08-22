@@ -7,6 +7,7 @@ from digilicense_ai.schemas import (
     CanonicalProviderRequest,
     ContextSeed,
     DlpResult,
+    DlpScope,
     EvidenceChunk,
     IntentResult,
     ProviderResult,
@@ -17,7 +18,12 @@ from digilicense_ai.schemas import (
 
 @runtime_checkable
 class DlpGateway(Protocol):
-    async def analyze(self, question: str) -> DlpResult: ...
+    async def analyze(
+        self,
+        text: str,
+        *,
+        scope: DlpScope = DlpScope.INBOUND,
+    ) -> DlpResult: ...
 
 
 @runtime_checkable

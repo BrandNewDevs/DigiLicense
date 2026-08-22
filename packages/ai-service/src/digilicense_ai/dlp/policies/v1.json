@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "name_cues": [
+    "my name is",
+    "mera naam",
+    "merā nām",
+    "मेरा नाम"
+  ],
+  "name_terminators": [
+    "hai",
+    "है",
+    "and",
+    "aur",
+    "और"
+  ],
+  "address_cues": [
+    "my address is",
+    "i live at",
+    "mera pata",
+    "merā patā",
+    "मेरा पता"
+  ],
+  "address_terminators": [
+    "hai",
+    "है"
+  ]
+}
