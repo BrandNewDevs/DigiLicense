@@ -8,6 +8,7 @@ import { operatorActions } from "../lib/operator-workflow"
 import type { OperatorAction } from "../lib/operator-workflow"
 import { prisma } from "./db.server"
 import { requireOperator } from "./demo-session.server"
+import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
 
 function serializeApplication(application: {
@@ -30,32 +31,43 @@ async function readOperatorDashboard() {
 
   if (!operator) return { kind: "authentication-required" as const }
 
-  const [applications, audits] = await Promise.all([
-    prisma.application.findMany({
-      orderBy: [{ submittedAt: "asc" }],
-      take: 25,
-      select: {
-        id: true,
-        applicationNumber: true,
-        service: true,
-        status: true,
-        nextAction: true,
-        version: true,
-        submittedAt: true,
-      },
-    }),
-    prisma.auditEvent.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        action: true,
-        entityId: true,
-        reasonCode: true,
-        createdAt: true,
-      },
-    }),
-  ])
+  let applications, audits
+
+  try {
+    ;[applications, audits] = await Promise.all([
+      prisma.application.findMany({
+        orderBy: [{ submittedAt: "asc" }],
+        take: 25,
+        select: {
+          id: true,
+          applicationNumber: true,
+          service: true,
+          status: true,
+          nextAction: true,
+          version: true,
+          submittedAt: true,
+        },
+      }),
+      prisma.auditEvent.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          action: true,
+          entityId: true,
+          reasonCode: true,
+          createdAt: true,
+        },
+      }),
+    ])
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "operator_dashboard_read",
+    })
+
+    throw error
+  }
 
   return {
     kind: "ready" as const,
@@ -73,30 +85,41 @@ async function readOperatorApplication(applicationId: string) {
 
   if (!operator) return { kind: "authentication-required" as const }
 
-  const application = await prisma.application.findUnique({
-    where: { id: applicationId },
-    select: {
-      id: true,
-      applicationNumber: true,
-      service: true,
-      status: true,
-      nextAction: true,
-      version: true,
-      submittedAt: true,
-      workflowEvents: {
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        select: {
-          id: true,
-          actor: true,
-          title: true,
-          description: true,
-          toStatus: true,
-          createdAt: true,
+  let application
+
+  try {
+    application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        applicationNumber: true,
+        service: true,
+        status: true,
+        nextAction: true,
+        version: true,
+        submittedAt: true,
+        workflowEvents: {
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            actor: true,
+            title: true,
+            description: true,
+            toStatus: true,
+            createdAt: true,
+          },
         },
       },
-    },
-  })
+    })
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "operator_application_read",
+    })
+
+    throw error
+  }
 
   if (!application) return { kind: "not-found" as const }
 
@@ -122,10 +145,18 @@ async function applyOperatorAction(input: {
 
   if (!operator) return { kind: "authentication-required" as const }
 
-  const actionLimit = await consumeRateLimit(
-    "operator-action",
-    operator.operatorId
-  )
+  let actionLimit
+
+  try {
+    actionLimit = await consumeRateLimit("operator-action", operator.operatorId)
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "rate_limit_operator_action",
+    })
+
+    return { kind: "action-unavailable" as const }
+  }
 
   if (!actionLimit.allowed) {
     return {
@@ -138,78 +169,87 @@ async function applyOperatorAction(input: {
 
   const transition = operatorActions[input.action]
 
-  return prisma.$transaction(async (transaction) => {
-    const application = await transaction.application.findUnique({
-      where: { id: input.applicationId },
-      select: {
-        id: true,
-        applicationNumber: true,
-        status: true,
-        version: true,
-      },
-    })
+  try {
+    return await prisma.$transaction(async (transaction) => {
+      const application = await transaction.application.findUnique({
+        where: { id: input.applicationId },
+        select: {
+          id: true,
+          applicationNumber: true,
+          status: true,
+          version: true,
+        },
+      })
 
-    if (!application) return { kind: "not-found" as const }
+      if (!application) return { kind: "not-found" as const }
 
-    if (
-      application.status !== transition.from ||
-      application.version !== input.expectedVersion
-    ) {
-      return {
-        kind: "conflict" as const,
-        message:
-          "This application changed. Reload it before taking another action.",
+      if (
+        application.status !== transition.from ||
+        application.version !== input.expectedVersion
+      ) {
+        return {
+          kind: "conflict" as const,
+          message:
+            "This application changed. Reload it before taking another action.",
+        }
       }
-    }
 
-    const update = await transaction.application.updateMany({
-      where: {
-        id: application.id,
-        status: transition.from,
-        version: input.expectedVersion,
-      },
-      data: {
-        status: transition.to,
-        nextAction: transition.nextAction,
-        version: { increment: 1 },
-      },
-    })
+      const update = await transaction.application.updateMany({
+        where: {
+          id: application.id,
+          status: transition.from,
+          version: input.expectedVersion,
+        },
+        data: {
+          status: transition.to,
+          nextAction: transition.nextAction,
+          version: { increment: 1 },
+        },
+      })
 
-    if (update.count !== 1) {
-      return {
-        kind: "conflict" as const,
-        message:
-          "Another operator changed this application. Reload and try again.",
+      if (update.count !== 1) {
+        return {
+          kind: "conflict" as const,
+          message:
+            "Another operator changed this application. Reload and try again.",
+        }
       }
-    }
 
-    await transaction.workflowEvent.create({
-      data: {
-        applicationId: application.id,
-        actor: WorkflowActor.OPERATOR,
-        actorId: operator.operatorId,
-        title: transition.eventTitle,
-        description: `${input.justification} This action changed synthetic DigiLicense data only.`,
-        fromStatus: transition.from,
-        toStatus: transition.to,
-      },
+      await transaction.workflowEvent.create({
+        data: {
+          applicationId: application.id,
+          actor: WorkflowActor.OPERATOR,
+          actorId: operator.operatorId,
+          title: transition.eventTitle,
+          description: `${input.justification} This action changed synthetic DigiLicense data only.`,
+          fromStatus: transition.from,
+          toStatus: transition.to,
+        },
+      })
+
+      await transaction.auditEvent.create({
+        data: {
+          applicationId: application.id,
+          actorId: operator.operatorId,
+          action: input.action,
+          entityType: "APPLICATION",
+          entityId: application.applicationNumber,
+          reasonCode: transition.reasonCode,
+          justification: input.justification,
+          requestId: randomUUID(),
+        },
+      })
+
+      return { kind: "updated" as const }
+    })
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "operator_action_transaction",
     })
 
-    await transaction.auditEvent.create({
-      data: {
-        applicationId: application.id,
-        actorId: operator.operatorId,
-        action: input.action,
-        entityType: "APPLICATION",
-        entityId: application.applicationNumber,
-        reasonCode: transition.reasonCode,
-        justification: input.justification,
-        requestId: randomUUID(),
-      },
-    })
-
-    return { kind: "updated" as const }
-  })
+    return { kind: "action-unavailable" as const }
+  }
 }
 
 export { applyOperatorAction, readOperatorApplication, readOperatorDashboard }

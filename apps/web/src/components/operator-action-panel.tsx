@@ -97,6 +97,13 @@ function OperatorActionPanel({
                 return
               }
 
+              if (result.kind === "action-unavailable") {
+                setMessage(
+                  "The mock action is unavailable. No record was changed."
+                )
+                return
+              }
+
               setMessage(
                 result.kind === "conflict" || result.kind === "rate-limited"
                   ? result.message
