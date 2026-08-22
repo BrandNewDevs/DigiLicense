@@ -4,8 +4,6 @@ const postgresProtocols = new Set(["postgres:", "postgresql:"])
 
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1"])
 
-// "allow" and "prefer" can fall back to plaintext, so only modes that
-// guarantee an encrypted connection are accepted for remote hosts.
 const tlsRequiredSslModes = new Set(["require", "verify-ca", "verify-full"])
 
 function validateDatabaseUrl(databaseUrl: string): DatabaseUrlCheck {

@@ -1,6 +1,4 @@
-import "@tanstack/react-start/server-only"
-
-import { PrismaClient } from "@/generated/prisma/client"
+import { PrismaClient } from "./generated/prisma/client"
 
 import { createDatabaseAdapter } from "./database-adapter"
 import { validateDatabaseUrl } from "./database-url"
@@ -22,9 +20,7 @@ function getDatabaseUrl() {
 }
 
 function createPrismaClient() {
-  const adapter = createDatabaseAdapter(getDatabaseUrl())
-
-  return new PrismaClient({ adapter })
+  return new PrismaClient({ adapter: createDatabaseAdapter(getDatabaseUrl()) })
 }
 
 const globalForPrisma = globalThis as typeof globalThis & {

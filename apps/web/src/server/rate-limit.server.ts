@@ -2,9 +2,9 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
+import { prisma } from "@digilicense/db/server"
 import { getRequestIP } from "@tanstack/react-start/server"
 
-import { prisma } from "./db.server"
 import { recordDependencyFailure } from "./logger.server"
 import {
   buildBucketKey,
@@ -88,8 +88,5 @@ async function consumeRateLimit(
   return result
 }
 
-export {
-  consumeRateLimit,
-  getRateLimitClientIp,
-}
+export { consumeRateLimit, getRateLimitClientIp }
 export type { ConsumeRateLimitResult }
