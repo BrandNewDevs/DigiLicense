@@ -1,8 +1,9 @@
 # DigiLicense AI service
 
-This package is the private, stateless AI boundary for the DigiLicense prototype. Phase 1 adds
-an in-process PII DLP gateway while retaining deterministic fake intent, retrieval, and provider
-components. It makes no external model, database, or product-workflow calls.
+This package is the private, stateless AI boundary for the DigiLicense prototype. It contains the
+in-process PII DLP gateway and a bounded OpenAI provider adapter while retaining deterministic fake
+components for offline development and fallback testing. It has no product-database credentials
+and makes no product-workflow calls.
 
 ## Requirements
 
@@ -83,6 +84,45 @@ are replaced only in transient memory. They are never persisted, logged, or plac
 responses, and no anonymization/deanonymization vault exists. Raw questions remain structurally
 excluded from provider requests even if DLP misses an entity.
 
+## OpenAI provider boundary
+
+Phase 3 adds an adapter for the official OpenAI Python SDK and Responses API. The adapter accepts
+only `CanonicalProviderRequest`, so raw questions, context tokens, identities, and application
+records cannot be passed to it. Calls use the pinned `gpt-5.4-mini-2026-03-17` snapshot with:
+
+- `store=false`
+- strict JSON Schema output
+- an 800-token default output limit
+- separate connection and total-request timeouts
+- a four-request default concurrency limit
+- zero automatic SDK retries
+- no tools or runtime web/File Search access
+- citation IDs validated against the evidence supplied in that request
+
+Provider output is validated before outbound DLP runs. Timeout, rate-limit, network, provider, and
+invalid-output failures return deterministic English or Hindi fallback guidance. Logs contain only
+the configured model ID, token counts, latency, a fixed failure category, and whether fallback was
+used; prompts, evidence text, answers, exception messages, and API keys are excluded.
+
+For controlled evaluation, set these server-only variables:
+
+```bash
+export DIGILICENSE_AI_PROFILE=evaluation
+export DIGILICENSE_AI_PROVIDER_BACKEND=openai
+export DIGILICENSE_AI_OPENAI_API_KEY='<dedicated-project-key>'
+export DIGILICENSE_AI_OPENAI_PROJECT_ID='<dedicated-project-id>'
+```
+
+Do not put these values in frontend configuration or commit them. Before production deployment,
+an operator must configure spending alerts and a hard operational budget in the dedicated OpenAI
+project, then set `DIGILICENSE_AI_OPENAI_BUDGET_CONTROLS_CONFIRMED=true`. This flag is an explicit
+deployment gate, not a substitute for configuring the controls in the provider dashboard.
+
+Runtime File Search remains disabled because production is constrained to reviewed local BM25
+retrieval. No applicant or conversation data is uploaded or stored in a vector store. Phase 2's
+curated corpus and local retrieval implementations are not included in this phase, so production
+composition continues to reject those unavailable backends rather than substituting fake data.
+
 ## Configuration profiles
 
 All variables use the `DIGILICENSE_AI_` prefix.
@@ -91,9 +131,10 @@ All variables use the `DIGILICENSE_AI_` prefix.
 | --- | --- |
 | `development` | Fake vertical slice, with optional local DLP |
 | `test` | Deterministic automated tests |
-| `evaluation` | Future controlled provider/retrieval comparison |
+| `evaluation` | Controlled OpenAI comparison with fake upstream fixtures available |
 | `production` | Validates the final safe backend combination |
 
 Production configuration is accepted only when it selects local DLP, local semantic context,
-local intent routing, local BM25 retrieval, and OpenAI. Those production implementations are
-added only in their designated phases; Phase 1 implements the local DLP selection.
+local intent routing, local BM25 retrieval, OpenAI, dedicated project credentials, and confirmed
+provider budget controls. Until the missing Phase 2 local intent and BM25 implementations land,
+the container fails honestly instead of starting a production profile with fake components.
