@@ -1,25 +1,217 @@
-# DigiLicence
+# DigiLicense
 
-Better than SARATHI
+DigiLicense is a hackathon project for [Build What Moves India](https://www.buildwhatmovesindia.com/).
+We are building a faster, safer, and more citizen-centred alternative to the
+current online driving licence experience in India's government transport
+services.
 
-## shadcn/ui monorepo template
+The project responds to common problems people face while using Parivahan:
+the service is hard to navigate, some features do not work as expected,
+application updates can be slow, fee payments can fail, and progress tracking
+is not clear enough. DigiLicense puts the service a citizen needs first, then
+guides them through the next step with clearer information.
 
-This is a TanStack Start monorepo template with shadcn/ui.
+The long-term goal is a secure, reliable, and easy-to-use licence service that
+gives people a clear path from application to completion. That includes simple
+navigation, useful status updates, dependable payments, and careful handling
+of personal information.
 
-### Adding components
+The current repository contains a frontend prototype. Its service pages and
+status lookup show the intended user flow, but they do not yet submit data to a
+government system or a project backend. DigiLicense is an independent project,
+not a government website, and is not affiliated with or endorsed by any
+government department or agency.
 
-To add components to your app, run the following command from the repo root:
+## Why DigiLicense
+
+People should not have to search through a large portal to find one licence
+service or wonder whether a payment and application update went through. The
+product is designed around the questions a citizen has at each step:
+
+- What service do I need?
+- What information should I have ready?
+- What happens after I submit it?
+- How do I know whether my application is moving forward?
+
+The first version focuses on making those entry points clear. Future versions
+will connect the flows to real application, payment, identity, and status
+systems.
+
+## Current features
+
+- A responsive home page at `/` with the main licence services.
+- A keyboard-accessible service carousel with previous and next controls.
+- A tracking form that sends the entered application number to
+  `/services/track-application?application=...`.
+- A shared dynamic service route at `/services/$serviceId` for renewal,
+  learner's licence, application tracking, and detail updates.
+- A skip link, labelled navigation, visible focus styles, form labels, and
+  reduced-motion handling for the main interactive elements.
+- A shared `@workspace/ui` package containing the button, carousel, utility,
+  and global style code used by the web app.
+
+## Hackathon direction
+
+DigiLicense is being developed around four product goals:
+
+- Make the main licence services easy to find and understand.
+- Show application progress in language people can act on.
+- Build payment and submission flows that are dependable and secure.
+- Treat accessibility, privacy, and citizen trust as product requirements.
+
+The current code demonstrates the navigation and interaction layer. It does
+not yet provide production authentication, backend storage, payment
+processing, or integration with Parivahan or another government system.
+
+## Tech stack
+
+- React 19
+- TanStack Start and TanStack Router
+- Vite
+- TypeScript
+- Tailwind CSS v4
+- shadcn/ui component conventions
+- Lucide React icons
+- pnpm workspaces and Turborepo
+- Geist Variable font
+
+## Repository structure
+
+```text
+.
+├── apps/
+│   └── web/
+│       ├── src/routes/index.tsx                # Home page
+│       ├── src/routes/services.$serviceId.tsx  # Service pages
+│       ├── src/routes/__root.tsx               # Document shell and metadata
+│       ├── src/router.tsx                      # Router setup
+│       └── package.json
+├── packages/
+│   └── ui/
+│       ├── src/components/                     # Shared React components
+│       ├── src/lib/utils.ts                    # Shared class-name helper
+│       ├── src/styles/globals.css              # Tailwind and theme styles
+│       └── package.json
+├── package.json                                # Workspace scripts
+├── pnpm-workspace.yaml                         # Workspace package paths
+├── turbo.json                                  # Turborepo task pipeline
+└── README.md
+```
+
+The generated file `apps/web/src/routeTree.gen.ts` is maintained by TanStack
+Router. It updates when file-based routes change, so it should not be edited
+by hand.
+
+## Requirements
+
+- Node.js 20 or newer
+- pnpm 10.33.4, or a compatible pnpm 10 release
+
+Check the installed versions before starting:
+
+```bash
+node --version
+pnpm --version
+```
+
+## Getting started
+
+Install dependencies from the repository root:
+
+```bash
+pnpm install
+```
+
+Start the web app in development mode:
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Vite and TanStack Start
+will rebuild the app as source files change.
+
+## Available commands
+
+Run these commands from the repository root:
+
+| Command          | Purpose                                         |
+| ---------------- | ----------------------------------------------- |
+| `pnpm dev`       | Start the development server for the workspace. |
+| `pnpm build`     | Build all workspace packages and applications.  |
+| `pnpm lint`      | Run ESLint across the workspace.                |
+| `pnpm format`    | Format TypeScript and TSX files with Prettier.  |
+| `pnpm typecheck` | Run TypeScript checks without emitting files.   |
+
+To work only on the web app, use its package directly:
+
+```bash
+pnpm --filter web dev
+pnpm --filter web build
+pnpm --filter web lint
+pnpm --filter web typecheck
+```
+
+## Application routes
+
+| Route                         | Description                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| `/`                           | Home page with the available licence services.                                           |
+| `/services/renew-licence`     | Renewal service page.                                                                    |
+| `/services/learner-licence`   | Learner's licence application page.                                                      |
+| `/services/track-application` | Application status page. The home page adds the application number as a query parameter. |
+| `/services/update-details`    | Personal details update page.                                                            |
+
+The service page is driven by the `serviceContent` map in
+`apps/web/src/routes/services.$serviceId.tsx`. Unknown service IDs render a
+simple not-found state with a link back to the home page.
+
+## Adding shared UI components
+
+The UI package follows the shadcn/ui layout. Add a component from the
+repository root and point the CLI at the web app:
 
 ```bash
 pnpm dlx shadcn@latest add button -c apps/web
 ```
 
-This will place UI components in `packages/ui/src/components`.
-
-### Using components
-
-Import components from the `ui` package:
+The component is placed in `packages/ui/src/components`. Import it in the web
+app through the workspace package alias:
 
 ```tsx
 import { Button } from "@workspace/ui/components/button"
 ```
+
+The package exports component files, hooks, utilities, and the global style
+sheet through `packages/ui/package.json`.
+
+## Styling
+
+Global styles live in `packages/ui/src/styles/globals.css`. That file imports
+Tailwind CSS, the shadcn theme, animation utilities, and the Geist Variable
+font. The web app loads it from the root route with the `@workspace/ui`
+package alias.
+
+The project uses CSS variables for colors, borders, focus rings, radii, and
+dark-mode values. Component classes use the Tailwind tokens defined in that
+stylesheet rather than hard-coded colors wherever possible.
+
+## Development notes
+
+- Add new pages as files under `apps/web/src/routes` so TanStack Router can
+  include them in the generated route tree.
+- Keep reusable components in `packages/ui/src/components` when they may be
+  used by more than one app.
+- Run `pnpm typecheck` after changing route params, shared component props, or
+  workspace exports.
+- Run `pnpm lint` before opening a pull request.
+- Keep generated route files out of manual edits.
+- Replace the placeholder service-page text and client-only tracking redirect
+  when the real application and status APIs are available.
+
+## Project status
+
+The current implementation covers the information architecture and the first
+interaction layer. It does not yet include authentication, persistent data,
+form validation beyond the browser's required-field check, API calls, or
+production deployment configuration.
