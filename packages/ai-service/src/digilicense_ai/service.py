@@ -13,9 +13,23 @@ from digilicense_ai.schemas import (
 
 class AssistantService:
     def __init__(self, container: ServiceContainer) -> None:
+        """Initialize the service with its dependency container.
+        
+        Parameters:
+            container (ServiceContainer): Container providing the services used by the assistant workflow.
+        """
         self._container = container
 
     async def answer(self, request: AssistantMessageRequest) -> AssistantMessageResponse:
+        """
+        Generate an assistant response using the request, resolved context, retrieved evidence, and provider output.
+        
+        Parameters:
+        	request (AssistantMessageRequest): The user's question and associated request metadata.
+        
+        Returns:
+        	AssistantMessageResponse: The generated answer, routed intent, selected source references, uncertainty flag, and updated context token.
+        """
         dlp_result = await self._container.dlp.analyze(request.question)
         context = self._container.context.resolve(request.context_token)
         intent_result = await self._container.intent.route(

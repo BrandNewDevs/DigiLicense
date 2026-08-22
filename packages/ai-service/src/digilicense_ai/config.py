@@ -53,6 +53,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
+        """
+        Enforce the backend selections required for the production profile.
+        
+        Raises:
+            ValueError: If production uses an unsupported provider, retrieval, DLP,
+                context, or intent backend.
+        
+        Returns:
+            Settings: This settings instance.
+        """
         if self.profile is not EnvironmentProfile.PRODUCTION:
             return self
 

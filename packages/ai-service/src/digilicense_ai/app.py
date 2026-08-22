@@ -22,6 +22,16 @@ def create_app(
     settings: Settings | None = None,
     container: ServiceContainer | None = None,
 ) -> FastAPI:
+    """
+    Create and configure the FastAPI application.
+    
+    Parameters:
+    	settings (Settings | None): Application settings. Defaults to a new Settings instance.
+    	container (ServiceContainer | None): Service container. Defaults to a container built from the resolved settings.
+    
+    Returns:
+    	FastAPI: The configured application instance.
+    """
     resolved_settings = settings or Settings()
     configure_logging(resolved_settings.log_level)
     resolved_container = container or build_container(resolved_settings)
@@ -40,6 +50,11 @@ def create_app(
 
     @app.middleware("http")
     async def sanitized_request_logging(request: Request, call_next: Any) -> Any:
+        """Process a request with a sanitized request ID and record its completion details.
+        
+        Returns:
+            Any: The response produced by the downstream request handler.
+        """
         request_id = safe_request_id(request.headers.get("x-request-id")) or str(uuid4())
         started = perf_counter()
         response = await call_next(request)
@@ -57,6 +72,16 @@ def create_app(
 
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, error: Exception) -> JSONResponse:
+        """
+        Handle an unexpected request failure with a generic internal service error response.
+        
+        Parameters:
+        	request (Request): The failed HTTP request.
+        	error (Exception): The unexpected exception raised while handling the request.
+        
+        Returns:
+        	JSONResponse: An HTTP 500 response containing a generic error detail and request ID.
+        """
         request_id = safe_request_id(request.headers.get("x-request-id")) or str(uuid4())
         await logger.aerror(
             "request_failed",
@@ -77,6 +102,15 @@ def create_app(
 
 
 def _build_router(settings: Settings) -> APIRouter:
+    """
+    Build the application's API router with assistant messaging and health endpoints.
+    
+    Parameters:
+    	settings (Settings): Application settings used to populate health responses.
+    
+    Returns:
+    	APIRouter: Router containing the assistant message, liveness, and readiness endpoints.
+    """
     router = APIRouter()
 
     @router.post(
@@ -88,11 +122,25 @@ def _build_router(settings: Settings) -> APIRouter:
         payload: AssistantMessageRequest,
         request: Request,
     ) -> AssistantMessageResponse:
+        """Handle an assistant message and return the generated response.
+        
+        Parameters:
+            payload (AssistantMessageRequest): The submitted assistant message.
+            request (Request): The current request context used to access application services.
+        
+        Returns:
+            AssistantMessageResponse: The assistant's response.
+        """
         service = AssistantService(request.app.state.container)
         return await service.answer(payload)
 
     @router.get("/health/live", response_model=HealthResponse, response_model_by_alias=True)
     async def live() -> HealthResponse:
+        """Report that the service is running and provide its identifying metadata.
+        
+        Returns:
+        	HealthResponse: A health response with an "ok" status, service name, and profile.
+        """
         return HealthResponse(
             status="ok",
             service=settings.service_name,
@@ -101,6 +149,12 @@ def _build_router(settings: Settings) -> APIRouter:
 
     @router.get("/health/ready", response_model=HealthResponse, response_model_by_alias=True)
     async def ready(request: Request) -> HealthResponse | JSONResponse:
+        """
+        Report the application's readiness status and component health.
+        
+        Returns:
+        	HealthResponse | JSONResponse: The health status, service metadata, and component statuses; an HTTP 503 response when the application is not ready.
+        """
         container: ServiceContainer = request.app.state.container
         body = HealthResponse(
             status="ready" if request.app.state.ready else "not_ready",

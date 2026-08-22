@@ -20,6 +20,15 @@ class SemanticContext(ContextSeed):
 
     @model_validator(mode="after")
     def expiry_follows_issue(self) -> "SemanticContext":
+        """
+        Validate that the semantic context expires after it is issued.
+        
+        Raises:
+            ValueError: If the expiration timestamp is less than or equal to the issue timestamp.
+        
+        Returns:
+            SemanticContext: This validated context.
+        """
         if self.expires_at <= self.issued_at:
             raise ValueError("semantic context must expire after it is issued")
         return self

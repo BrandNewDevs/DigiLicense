@@ -11,6 +11,12 @@ _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def configure_logging(level: str = "INFO") -> None:
+    """
+    Configure standard logging and structured JSON event output.
+    
+    Parameters:
+    	level (str): Logging threshold, such as ``"INFO"`` or ``"DEBUG"``.
+    """
     logging.basicConfig(format="%(message)s", level=level.upper(), force=True)
     structlog.configure(
         processors=[
@@ -26,6 +32,15 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def safe_request_id(candidate: str | None) -> str | None:
+    """
+    Validate a candidate request identifier for safe use in logging.
+    
+    Parameters:
+    	candidate (str | None): The request identifier to validate.
+    
+    Returns:
+    	str | None: The candidate if it matches the accepted request-ID format; otherwise, `None`.
+    """
     if candidate and _REQUEST_ID_PATTERN.fullmatch(candidate):
         return candidate
     return None

@@ -23,6 +23,15 @@ from digilicense_ai.schemas import (
 
 class FakeDlpGateway:
     async def analyze(self, question: str) -> DlpResult:
+        """
+        Analyze a question for data loss prevention handling.
+        
+        Parameters:
+        	question (str): The original question to preserve for routing.
+        
+        Returns:
+        	DlpResult: An allowed result with no detected entities, the original question as routing text, and provider use permitted.
+        """
         return DlpResult(
             action=DlpAction.ALLOW,
             entity_types=(),
@@ -33,10 +42,27 @@ class FakeDlpGateway:
 
 class FakeSemanticContextManager:
     def resolve(self, token: str | None) -> SemanticContext | None:
+        """
+        Resolve a semantic context token.
+        
+        Parameters:
+        	token (str | None): A semantic context token.
+        
+        Returns:
+        	SemanticContext | None: Always `None`.
+        """
         del token
         return None
 
     def issue(self, seed: ContextSeed) -> str | None:
+        """Declines to issue a semantic context token.
+        
+        Parameters:
+        	seed (ContextSeed): Context information considered for token issuance.
+        
+        Returns:
+        	str | None: Always `None`.
+        """
         del seed
         return None
 
@@ -74,6 +100,17 @@ class FakeIntentRouter:
         safe_routing_text: str,
         context: SemanticContext | None,
     ) -> IntentResult:
+        """
+        Route an assistant request to a canonical intent and service topic.
+        
+        Parameters:
+        	request (AssistantMessageRequest): The request containing the reason code and service.
+        	safe_routing_text (str): Sanitized text associated with the request.
+        	context (SemanticContext | None): Optional semantic context.
+        
+        Returns:
+        	IntentResult: The selected intent and service topic with confidence 1.0.
+        """
         del safe_routing_text, context
         return IntentResult(
             intent=_REASON_INTENTS.get(
@@ -87,6 +124,18 @@ class FakeIntentRouter:
 
 class FakeRetriever:
     async def retrieve(self, query: RetrievalQuery) -> tuple[EvidenceChunk, ...]:
+        """
+        Return the fixed Phase 0 guidance evidence for a retrieval query.
+        
+        Parameters:
+        	query (RetrievalQuery): The canonical query used to request evidence.
+        
+        Returns:
+        	tuple[EvidenceChunk, ...]: A single reviewed guidance evidence chunk.
+        
+        Raises:
+        	TypeError: If `query` is not a `RetrievalQuery`.
+        """
         if not isinstance(query, RetrievalQuery):
             raise TypeError("FakeRetriever accepts only RetrievalQuery")
         return (
@@ -103,6 +152,18 @@ class FakeRetriever:
 
 class FakeProvider:
     async def generate(self, request: CanonicalProviderRequest) -> ProviderResult:
+        """
+        Generate deterministic guidance for a canonical provider request.
+        
+        Parameters:
+            request (CanonicalProviderRequest): Request containing the response locale and evidence.
+        
+        Returns:
+            ProviderResult: Localized guidance with the request's evidence source IDs and certainty.
+        
+        Raises:
+            TypeError: If request is not a CanonicalProviderRequest.
+        """
         if not isinstance(request, CanonicalProviderRequest):
             raise TypeError("FakeProvider accepts only CanonicalProviderRequest")
 

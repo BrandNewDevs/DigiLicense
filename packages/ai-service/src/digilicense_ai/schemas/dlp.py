@@ -14,6 +14,15 @@ class DlpResult(ContractModel):
 
     @model_validator(mode="after")
     def action_matches_provider_permission(self) -> "DlpResult":
+        """
+        Validate that provider permission matches the DLP action.
+        
+        Returns:
+            DlpResult: This result after validation.
+        
+        Raises:
+            ValueError: If provider permission does not match whether the action allows provider access.
+        """
         expected = self.action is DlpAction.ALLOW
         if self.provider_allowed is not expected:
             raise ValueError("provider permission does not match DLP action")

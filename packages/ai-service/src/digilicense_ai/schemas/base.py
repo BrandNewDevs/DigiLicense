@@ -6,6 +6,9 @@ from pydantic import BaseModel, ConfigDict
 
 
 def to_camel(value: str) -> str:
+    """
+    Convert a snake_case name to camelCase.
+    """
     first, *rest = value.split("_")
     return first + "".join(part.capitalize() for part in rest)
 
@@ -22,4 +25,10 @@ class ContractModel(BaseModel):
     )
 
     def public_dump(self) -> dict[str, Any]:
+        """
+        Return the model data in a JSON-compatible format using camelCase field aliases.
+        
+        Returns:
+        	dict[str, Any]: JSON-compatible model data with aliased field names.
+        """
         return self.model_dump(mode="json", by_alias=True)

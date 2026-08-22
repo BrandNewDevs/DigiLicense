@@ -39,6 +39,12 @@ class ServiceContainer:
 
     @property
     def component_statuses(self) -> dict[str, str]:
+        """
+        Report the configured backend for each service component.
+        
+        Returns:
+            dict[str, str]: A mapping of component names to their configured backend values.
+        """
         return {
             "dlp": self.settings.dlp_backend.value,
             "context": self.settings.context_backend.value,
@@ -49,7 +55,18 @@ class ServiceContainer:
 
 
 def build_container(settings: Settings) -> ServiceContainer:
-    """Build the Phase 0 fake container and reject unimplemented backends honestly."""
+    """
+    Build a service container using the supported fake implementations.
+    
+    Parameters:
+    	settings (Settings): Application settings containing the configured component backends.
+    
+    Returns:
+    	ServiceContainer: A container populated with the settings and fake service implementations.
+    
+    Raises:
+    	BackendNotImplementedError: If any configured backend is not supported.
+    """
 
     unsupported = []
     if settings.dlp_backend is not LocalBackend.FAKE:

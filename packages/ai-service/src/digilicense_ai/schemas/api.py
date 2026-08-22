@@ -27,6 +27,18 @@ class AssistantMessageRequest(ContractModel):
     @field_validator("question")
     @classmethod
     def question_must_not_be_blank(cls, value: str) -> str:
+        """
+        Validate that the question is not empty.
+        
+        Parameters:
+            value (str): The question value to validate.
+        
+        Returns:
+            str: The original question value.
+        
+        Raises:
+            ValueError: If the question is empty.
+        """
         if not value:
             raise ValueError("question must not be blank")
         return value

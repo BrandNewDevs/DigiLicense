@@ -16,10 +16,24 @@ class RequestBodyTooLargeError(Exception):
 
 class BodySizeLimitMiddleware:
     def __init__(self, app: Any, max_bytes: int) -> None:
+        """
+        Initialize middleware with an application and maximum request body size.
+        
+        Parameters:
+            app (Any): The ASGI application to wrap.
+            max_bytes (int): Maximum permitted request body size in bytes.
+        """
         self.app = app
         self.max_bytes = max_bytes
 
     async def __call__(self, scope: ASGIScope, receive: ASGIReceive, send: ASGISend) -> None:
+        """
+        Enforces the configured maximum size for HTTP request bodies.
+        
+        Non-HTTP scopes are passed through unchanged. HTTP requests with an oversized
+        or invalid `Content-Length` header, or whose streamed body exceeds the limit,
+        receive a 413 response.
+        """
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -38,6 +52,14 @@ class BodySizeLimitMiddleware:
         received = 0
 
         async def limited_receive() -> ASGIMessage:
+            """Receive the next request message while enforcing the configured body size limit.
+            
+            Returns:
+            	ASGIMessage: The next ASGI message.
+            
+            Raises:
+            	RequestBodyTooLargeError: If the accumulated request body exceeds the maximum allowed size.
+            """
             nonlocal received
             message = await receive()
             received += len(message.get("body", b""))
@@ -52,6 +74,12 @@ class BodySizeLimitMiddleware:
 
     @staticmethod
     async def _send_too_large(send: ASGISend) -> None:
+        """
+        Send a JSON HTTP 413 response indicating that the request body exceeds the permitted size.
+        
+        Parameters:
+        	send (ASGISend): Callable used to send ASGI response messages.
+        """
         body = json.dumps({"detail": "request body too large"}).encode()
         await send(
             {
