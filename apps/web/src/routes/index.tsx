@@ -15,7 +15,6 @@ export const Route = createFileRoute("/")({ component: App })
 const services = [
   {
     icon: FileCheck2,
-    number: "01",
     title: "Renew your driving licence",
     description: "Renew an existing licence online when it is due to expire.",
     meta: "For existing licence holders",
@@ -25,7 +24,6 @@ const services = [
   },
   {
     icon: ScanLine,
-    number: "02",
     title: "Apply for a learner's licence",
     description:
       "Start your first licence application with the details you have ready.",
@@ -36,7 +34,6 @@ const services = [
   },
   {
     icon: BadgeCheck,
-    number: "03",
     title: "Check application status",
     description: "Enter your application number to see what happens next.",
     meta: "Have your application number ready",
@@ -44,7 +41,6 @@ const services = [
   },
   {
     icon: FileCheck2,
-    number: "04",
     title: "Update your details",
     description:
       "Keep your address and personal details up to date on your licence record.",
@@ -133,17 +129,9 @@ function App() {
                       aria-label={`${service.title}, service ${index + 1} of ${services.length}`}
                     >
                       <article className="group flex h-full min-h-0 flex-col rounded-[1.6rem] border border-border bg-card p-6 transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none sm:p-7">
-                        <div className="flex items-start justify-between">
-                          <span className="grid size-12 place-items-center rounded-2xl bg-muted">
-                            <Icon className="size-5" aria-hidden="true" />
-                          </span>
-                          <span
-                            className="font-mono text-sm text-muted-foreground"
-                            aria-hidden="true"
-                          >
-                            {service.number}
-                          </span>
-                        </div>
+                        <span className="grid size-12 place-items-center rounded-2xl bg-muted">
+                          <Icon className="size-5" aria-hidden="true" />
+                        </span>
 
                         <div className="mt-8">
                           <h3 className="max-w-[280px] font-heading text-2xl font-medium tracking-[-0.05em]">
@@ -229,56 +217,6 @@ function App() {
           </div>
         </section>
 
-        <section id="how-it-works" className="border-y border-border bg-muted">
-          <div className="mx-auto grid max-w-[1240px] gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:items-center lg:px-10 lg:py-24">
-            <div>
-              <p className="mb-4 text-base font-medium text-muted-foreground">
-                How it works
-              </p>
-              <h2 className="max-w-md font-heading text-4xl leading-tight font-medium tracking-[-0.065em] sm:text-5xl">
-                A shorter route to done.
-              </h2>
-              <p className="mt-5 max-w-sm text-base leading-7 text-muted-foreground">
-                Start with a service, provide the needed details, and keep track
-                of what happens next.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                [
-                  "01",
-                  "Choose a service",
-                  "Pick the licence service you need.",
-                ],
-                [
-                  "02",
-                  "Share your details",
-                  "Add the information needed to continue.",
-                ],
-                ["03", "Follow the status", "Keep up with the next step."],
-              ].map(([number, title, text]) => (
-                <div
-                  className="rounded-2xl border border-border bg-background p-5"
-                  key={number}
-                >
-                  <span
-                    className="font-mono text-sm text-muted-foreground"
-                    aria-hidden="true"
-                  >
-                    {number}
-                  </span>
-                  <h3 className="mt-12 font-heading text-lg font-medium tracking-[-0.035em]">
-                    {title}
-                  </h3>
-                  <p className="mt-2 text-base leading-6 text-muted-foreground">
-                    {text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer className="border-t border-border bg-background">

@@ -171,7 +171,7 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
 
 function CarouselPrevious({
   className,
-  variant = "outline",
+  variant = "ghost",
   size = "icon",
   ...props
 }: React.ComponentProps<typeof Button>) {
@@ -183,9 +183,9 @@ function CarouselPrevious({
       variant={variant}
       size={size}
       className={cn(
-        "absolute size-11 rounded-full",
+        "absolute size-11 rounded-xl border border-foreground/10 bg-foreground text-background shadow-lg shadow-foreground/10 transition-[color,background-color,border-color,box-shadow,scale] duration-150 hover:bg-foreground/85 hover:text-background hover:shadow-xl active:scale-95 active:bg-foreground/75 active:text-background",
         orientation === "horizontal"
-          ? "top-1/2 -left-12 -translate-y-1/2"
+          ? "inset-y-0 -left-12 my-auto"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
         className
       )}
@@ -193,7 +193,7 @@ function CarouselPrevious({
       onClick={scrollPrev}
       {...props}
     >
-      <ArrowLeft />
+      <ArrowLeft className="size-5" strokeWidth={1.8} />
       <span className="sr-only">Previous slide</span>
     </Button>
   )
@@ -201,7 +201,7 @@ function CarouselPrevious({
 
 function CarouselNext({
   className,
-  variant = "outline",
+  variant = "ghost",
   size = "icon",
   ...props
 }: React.ComponentProps<typeof Button>) {
@@ -213,9 +213,9 @@ function CarouselNext({
       variant={variant}
       size={size}
       className={cn(
-        "absolute size-11 rounded-full",
+        "absolute size-11 rounded-xl border border-foreground/10 bg-foreground text-background shadow-lg shadow-foreground/10 transition-[color,background-color,border-color,box-shadow,scale] duration-150 hover:bg-foreground/85 hover:text-background hover:shadow-xl active:scale-95 active:bg-foreground/75 active:text-background",
         orientation === "horizontal"
-          ? "top-1/2 -right-12 -translate-y-1/2"
+          ? "inset-y-0 -right-12 my-auto"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
         className
       )}
@@ -223,7 +223,7 @@ function CarouselNext({
       onClick={scrollNext}
       {...props}
     >
-      <ArrowRight />
+      <ArrowRight className="size-5" strokeWidth={1.8} />
       <span className="sr-only">Next slide</span>
     </Button>
   )
