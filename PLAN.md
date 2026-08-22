@@ -7,8 +7,8 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Add the independent-prototype, Delhi-only, and synthetic-data disclosures
 - [ ] Extend the TanStack Start application shell and accessible, mobile-first design system
 - [ ] Define TanStack Router route groups for isolated applicant, operator, and public experiences
-- [ ] Implement applicant login with a seeded synthetic mobile number and simulated OTP
-- [ ] Implement a separate operator login using synthetic username/password credentials
+- [x] Implement applicant login with a seeded synthetic mobile number and simulated OTP
+- [x] Implement a separate operator login using synthetic username/password credentials
 - [ ] Add server-side sessions, role authorization, rate limits, and security headers through TanStack Start server code
 - [ ] Configure Neon-hosted PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data
 - [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models
@@ -46,11 +46,11 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 
 ## Operator frontend
 
-- [ ] Build an isolated operator dashboard and navigation
-- [ ] Add controls for simulated verification, payments, learner-test outcomes, and approvals
+- [x] Build an isolated operator dashboard and navigation
+- [x] Add controls for simulated verification, payments, learner-test outcomes, and approvals
 - [ ] Add appointment inventory and cancellation simulation controls
 - [ ] Show allocation reasoning, active offers, queue state, and audit history
-- [ ] Require confirmation and justification for consequential operator actions
+- [x] Require confirmation and justification for consequential operator actions
 
 ## Backend and data
 
@@ -60,7 +60,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Persist drafts, validation results, submissions, status changes, and immutable workflow events
 - [ ] Add mock document checks, payments, notifications, and government-action markers
 - [ ] Implement transactional appointment allocation, offer expiry, and confirmation
-- [ ] Add append-only audit events for authentication, workflow, operator, appointment, and AI activity
+- [x] Add append-only workflow and operator-action audit events
 - [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation
 - [ ] Keep applicant and operator authorization checks at every server boundary
 

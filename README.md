@@ -42,8 +42,14 @@ payment, identity, and government-action adapters.
 - A responsive home page at `/` with the main licence services.
 - A keyboard-accessible service carousel with previous and next controls.
 - A tracking form that posts the application number to a TanStack Start server
-  function for validation and applicant-scoped lookup. The number is never put
-  in the URL, and the browser receives only safe status fields.
+  function for validation and applicant-scoped PostgreSQL lookup. The number is
+  never put in the URL, and the browser receives only safe status fields.
+- Separate synthetic applicant and operator sign-ins backed by short-lived,
+  HTTP-only, role-bound server sessions.
+- An operator work queue at `/operator` with seeded synthetic applications,
+  explicit workflow commands, decision notes, and audit history.
+- A case page where simulated document, payment, learner-test, and approval
+  actions update the same record shown by applicant tracking.
 - A shared dynamic service route at `/services/$serviceId` for renewal,
   learner's licence, application tracking, and detail updates.
 - A skip link, labelled navigation, visible focus styles, form labels, and
@@ -176,6 +182,8 @@ pnpm --filter web typecheck
 | Route                         | Description                                                                              |
 | ----------------------------- | ---------------------------------------------------------------------------------------- |
 | `/`                           | Home page with the available licence services.                                           |
+| `/operator/login`             | Synthetic operator sign-in.                                                              |
+| `/operator`                   | Protected mock operator work queue.                                                       |
 | `/services/renew-licence`     | Placeholder for the renewal service.                                                     |
 | `/services/learner-licence`   | Placeholder for the learner's-licence service.                                           |
 | `/services/track-application` | Placeholder for the future full application-status page.                                |
@@ -232,7 +240,8 @@ stylesheet rather than hard-coded colors wherever possible.
 
 ## Project status
 
-The current implementation covers the information architecture and the first
-interaction layer. It does not yet include authentication, persistent data,
-form validation beyond the browser's required-field check, API calls, or
-production deployment configuration.
+The current implementation includes server-issued synthetic sessions and a
+persisted operator-to-applicant status workflow. The other service forms remain
+UI simulations. DigiLicense does not connect to government identity, licence,
+payment, test, appointment, or notification systems, and production deployment
+configuration is not complete.
