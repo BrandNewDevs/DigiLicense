@@ -73,6 +73,17 @@ _PROVIDER_FALLBACK_RESPONSES = {
     ),
 }
 
+_EVIDENCE_FALLBACK_RESPONSES = {
+    Locale.ENGLISH: (
+        "I do not have enough reviewed guidance to answer that safely. Please use the public "
+        "guidance shown on this page."
+    ),
+    Locale.HINDI: (
+        "मेरे पास इसका सुरक्षित उत्तर देने के लिए पर्याप्त समीक्षित मार्गदर्शन नहीं है। कृपया इस "
+        "पेज पर दिया गया सार्वजनिक मार्गदर्शन देखें।"
+    ),
+}
+
 
 class AssistantService:
     def __init__(self, container: ServiceContainer) -> None:
@@ -115,6 +126,15 @@ class AssistantService:
                 locale=request.locale,
             )
         )
+        if not evidence:
+            return AssistantMessageResponse(
+                answer=_EVIDENCE_FALLBACK_RESPONSES[request.locale],
+                intent=intent_result.intent,
+                sources=(),
+                uncertain=True,
+                fallback_used=True,
+                blocked_reason=BlockedReason.NO_EVIDENCE,
+            )
         provider_request = CanonicalProviderRequest(
             intent=intent_result.intent,
             topic=intent_result.topic,
@@ -128,7 +148,9 @@ class AssistantService:
                 if self._container.settings.provider_backend is ProviderBackend.OPENAI
                 else "phase0-fake-v1"
             ),
-            corpus_version="phase0-fixture-v1",
+            corpus_version=getattr(
+                self._container.retriever, "corpus_version", "phase0-fixture-v1"
+            ),
         )
         payload_dlp_result = await self._container.dlp.analyze(
             provider_request.model_dump_json(by_alias=True),

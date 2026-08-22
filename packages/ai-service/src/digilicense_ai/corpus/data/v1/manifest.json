@@ -1,0 +1,188 @@
+{
+  "corpusVersion": "v1",
+  "citationUrlAllowlist": [
+    "https://transport.delhi.gov.in/transport/learner-licence-0",
+    "https://transport.delhi.gov.in/transport/permanent-driving-licence",
+    "https://transport.delhi.gov.in/transport/driving-license",
+    "https://transport.delhi.gov.in/transport/renewal-driving-licence",
+    "https://digilicense.invalid/prototype/assistant-behavior"
+  ],
+  "sources": [
+    {
+      "sourceId": "delhi-driving-licence-guidance-2026",
+      "markdownFile": "delhi-public-driving-licence-guidance.md",
+      "title": "Delhi driving-licence public guidance",
+      "publisher": "Delhi Transport Department",
+      "jurisdiction": "Delhi, India",
+      "publicUrl": "https://transport.delhi.gov.in/transport/driving-license",
+      "publicationDate": null,
+      "retrievedDate": "2026-08-23",
+      "sha256": "c539cc21597d387de7279c81984ba40e8d5583f58d5c867680ec59e44c5348bb",
+      "reviewer": "digilicense-ai-content-review",
+      "reviewStatus": "promoted",
+      "corpusVersion": "v1",
+      "kind": "public_policy",
+      "sections": [
+        {
+          "sectionId": "delhi-ll-validity-preparation-v1",
+          "heading": "Learner licence and preparation",
+          "claimKind": "public_policy",
+          "text": "Delhi public guidance describes a learner licence as temporary and valid for up to six months. It also directs learners to prepare on vehicle controls, road signs, and traffic rules."
+        },
+        {
+          "sectionId": "delhi-permanent-licence-timing-v1",
+          "heading": "Permanent licence timing",
+          "claimKind": "public_policy",
+          "text": "Delhi public guidance says a valid learner licence must be held for at least 30 days before the competence test, and the permanent licence application should be made within six months of learner-licence issue."
+        },
+        {
+          "sectionId": "delhi-appointments-fees-v1",
+          "heading": "Appointments and fees",
+          "claimKind": "public_policy",
+          "text": "Delhi public guidance identifies appointment and fee payment as driving-licence service topics. Current availability, fee amounts, and any transaction must be checked in the approved public source; DigiLicense does not carry out that transaction."
+        },
+        {
+          "sectionId": "delhi-renewal-replacement-v1",
+          "heading": "Renewal and replacement",
+          "claimKind": "public_policy",
+          "text": "Delhi public guidance lists renewal and duplicate-licence requirements separately. This corpus is reference material only and does not determine an applicant's eligibility or submit a request."
+        }
+      ],
+      "allowedIntents": [
+        "WAITING_PERIOD_EXPLANATION",
+        "LEARNER_LICENCE_EXPIRY_EXPLANATION",
+        "PREPARATION_CHECKLIST_EXPLANATION",
+        "CURRENT_STEP_EXPLANATION"
+      ]
+    },
+    {
+      "sourceId": "delhi-permanent-driving-licence-fee-2026",
+      "markdownFile": "delhi-permanent-driving-licence-fee.md",
+      "title": "Delhi permanent driving-licence fee guidance",
+      "publisher": "Delhi Transport Department",
+      "jurisdiction": "Delhi, India",
+      "publicUrl": "https://transport.delhi.gov.in/transport/permanent-driving-licence",
+      "publicationDate": null,
+      "retrievedDate": "2026-08-23",
+      "sha256": "8f8c0326efb0be753f242642c35fae71793a9ef84339f5ecede541340366fd8f",
+      "reviewer": "digilicense-ai-content-review",
+      "reviewStatus": "promoted",
+      "corpusVersion": "v1",
+      "kind": "public_policy",
+      "sections": [
+        {
+          "sectionId": "delhi-permanent-licence-fee-v1",
+          "heading": "Permanent driving-licence fee",
+          "claimKind": "public_policy",
+          "text": "The reviewed Delhi public permanent driving-licence page lists a revised fee of 400 Indian rupees, including the smart-card amount shown there. Fees can change, and DigiLicense does not accept payment."
+        }
+      ],
+      "allowedIntents": [
+        "CURRENT_STEP_EXPLANATION",
+        "MOCK_VS_REAL_EXPLANATION"
+      ]
+    },
+    {
+      "sourceId": "digilicense-prototype-behavior-v1",
+      "markdownFile": "digilicense-prototype-behavior.md",
+      "title": "DigiLicense prototype behavior",
+      "publisher": "DigiLicense prototype team",
+      "jurisdiction": "DigiLicense independent prototype",
+      "publicUrl": "https://digilicense.invalid/prototype/assistant-behavior",
+      "publicationDate": "2026-08-23",
+      "retrievedDate": "2026-08-23",
+      "sha256": "44cc205ba6ecba240aff807fe1901c8c89db2fc3b35848c66c76cd77e7a51362",
+      "reviewer": "digilicense-ai-content-review",
+      "reviewStatus": "promoted",
+      "corpusVersion": "v1",
+      "kind": "prototype_behavior",
+      "sections": [
+        {
+          "sectionId": "prototype-guided-actions-v1",
+          "heading": "Guided steps and locked actions",
+          "claimKind": "prototype_behavior",
+          "text": "DigiLicense explains the current prototype step and why a displayed action is locked. It does not decide legal eligibility, verify records, or change an application."
+        },
+        {
+          "sectionId": "prototype-waitlist-offers-v1",
+          "heading": "Waitlist and offers",
+          "claimKind": "prototype_behavior",
+          "text": "The DigiLicense appointment waitlist and any offer timer are simulated prototype behavior. They demonstrate a transparent workflow and do not reserve a real appointment."
+        },
+        {
+          "sectionId": "prototype-synthetic-service-flows-v1",
+          "heading": "Status, payment, address, and mobile updates",
+          "claimKind": "prototype_behavior",
+          "text": "DigiLicense status, payment, address-change, and mobile-update flows are synthetic. The assistant can explain a displayed reason code but cannot inspect or alter personal records."
+        },
+        {
+          "sectionId": "prototype-assistant-scope-v1",
+          "heading": "Scope and fallback",
+          "claimKind": "prototype_behavior",
+          "text": "The assistant provides evidence-grounded explanations only. If reviewed evidence is insufficient, it returns deterministic guidance instead of guessing."
+        }
+      ],
+      "allowedIntents": [
+        "CURRENT_STEP_EXPLANATION",
+        "LOCKED_ACTION_EXPLANATION",
+        "NO_APPOINTMENT_EXPLANATION",
+        "WAITLIST_EXPLANATION",
+        "OFFER_EXPIRY_EXPLANATION",
+        "MOCK_VS_REAL_EXPLANATION",
+        "UNSUPPORTED_QUESTION"
+      ]
+    }
+  ],
+  "factPackets": [
+    {
+      "factId": "delhi-learner-validity-six-months-v1",
+      "sourceId": "delhi-driving-licence-guidance-2026",
+      "sectionId": "delhi-ll-validity-preparation-v1",
+      "claimKind": "public_policy",
+      "label": "Learner licence validity",
+      "value": "6",
+      "unit": "months",
+      "intents": ["LEARNER_LICENCE_EXPIRY_EXPLANATION"]
+    },
+    {
+      "factId": "delhi-permanent-licence-waiting-period-v1",
+      "sourceId": "delhi-driving-licence-guidance-2026",
+      "sectionId": "delhi-permanent-licence-timing-v1",
+      "claimKind": "public_policy",
+      "label": "Minimum learner licence holding period before competence test",
+      "value": "30",
+      "unit": "days",
+      "intents": ["WAITING_PERIOD_EXPLANATION"]
+    },
+    {
+      "factId": "delhi-permanent-licence-fee-400-inr-v1",
+      "sourceId": "delhi-permanent-driving-licence-fee-2026",
+      "sectionId": "delhi-permanent-licence-fee-v1",
+      "claimKind": "public_policy",
+      "label": "Permanent driving-licence revised fee",
+      "value": "400",
+      "unit": "INR",
+      "intents": ["CURRENT_STEP_EXPLANATION"]
+    },
+    {
+      "factId": "prototype-appointment-reservation-v1",
+      "sourceId": "digilicense-prototype-behavior-v1",
+      "sectionId": "prototype-waitlist-offers-v1",
+      "claimKind": "prototype_behavior",
+      "label": "Appointment reservation status",
+      "value": "simulated",
+      "unit": "workflow",
+      "intents": ["NO_APPOINTMENT_EXPLANATION", "WAITLIST_EXPLANATION", "OFFER_EXPIRY_EXPLANATION"]
+    },
+    {
+      "factId": "prototype-payment-status-v1",
+      "sourceId": "digilicense-prototype-behavior-v1",
+      "sectionId": "prototype-synthetic-service-flows-v1",
+      "claimKind": "prototype_behavior",
+      "label": "Payment behavior",
+      "value": "simulated",
+      "unit": "workflow",
+      "intents": ["MOCK_VS_REAL_EXPLANATION"]
+    }
+  ]
+}

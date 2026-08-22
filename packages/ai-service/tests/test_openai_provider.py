@@ -216,7 +216,9 @@ async def test_request_timeout_is_sanitized() -> None:
         (
             RateLimitError(
                 "sensitive upstream rate-limit details",
-                response=httpx.Response(429, request=httpx.Request("POST", "https://api.openai.com")),
+                response=httpx.Response(
+                    429, request=httpx.Request("POST", "https://api.openai.com")
+                ),
                 body=None,
             ),
             ProviderFailureReason.RATE_LIMITED,
