@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "digilicense-ai"
+version = "0.1.0"
+description = "Private, stateless AI explanation service for the DigiLicense prototype"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.116,<1",
+  "openai>=2,<3",
+  "presidio-analyzer>=2.2.360,<3",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.10,<3",
+  "rank-bm25>=0.2.2,<0.3",
+  "spacy>=3.8,<4",
+  "structlog>=25.4,<26",
+  "uvicorn>=0.35,<1",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28,<1",
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<10",
+  "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=6.2,<8",
+  "ruff>=0.12,<1",
+]
+security = [
+  "bandit>=1.8,<2",
+  "pip-audit>=2.9,<3",
+]
+gemini = [
+  "google-genai>=1.30,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/digilicense_ai"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers --cov=digilicense_ai --cov-report=term-missing"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["digilicense_ai"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ASYNC", "B", "E", "F", "I", "RUF", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ASYNC230"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["digilicense_ai"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]
+
