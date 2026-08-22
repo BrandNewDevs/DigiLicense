@@ -81,6 +81,7 @@ async def test_invalid_enum_is_rejected(
     response = await client.post("/v1/assistant/messages", json=valid_payload)
 
     assert response.status_code == 422
+    assert response.json() == {"detail": "invalid request"}
 
 
 async def test_request_body_larger_than_limit_is_rejected(client: AsyncClient) -> None:

@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 from digilicense_ai.app import create_app
 from digilicense_ai.config import EnvironmentProfile, Settings
+from digilicense_ai.dlp import LocalDlpGateway
 
 
 @pytest.fixture
@@ -34,3 +35,8 @@ def valid_payload() -> dict[str, object]:
         "page": "appointment-waitlist",
         "reasonCode": "NO_MATCHING_SLOT",
     }
+
+
+@pytest.fixture(scope="session")
+def local_dlp_gateway() -> LocalDlpGateway:
+    return LocalDlpGateway.create()
