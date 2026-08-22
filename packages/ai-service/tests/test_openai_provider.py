@@ -60,9 +60,11 @@ class RecordingResponses:
         self.calls: list[dict[str, Any]] = []
         self.active = 0
         self.max_active = 0
+        self.call_started = asyncio.Event()
 
     async def create(self, **kwargs: Any) -> FakeResponse:
         self.calls.append(kwargs)
+        self.call_started.set()
         self.active += 1
         self.max_active = max(self.max_active, self.active)
         try:
@@ -356,6 +358,42 @@ async def test_circuit_opens_without_an_additional_provider_call() -> None:
 
     assert result.source_ids == (_SOURCE_ID,)
     assert len(responses.calls) == 3
+
+
+async def test_cancelled_half_open_probe_is_released_for_the_next_request() -> None:
+    now = 0.0
+
+    def clock() -> float:
+        return now
+
+    responses = RecordingResponses(error=RuntimeError("synthetic failure"))
+    provider = _provider(
+        responses,
+        circuit_breaker=ProviderCircuitBreaker(
+            failure_threshold=2,
+            reset_seconds=10,
+            clock=clock,
+        ),
+    )
+    for _ in range(2):
+        with pytest.raises(ProviderFailure, match="unavailable"):
+            await provider.generate(_request())
+
+    now = 11.0
+    responses.error = None
+    responses.delay_seconds = 1
+    responses.call_started.clear()
+    probe = asyncio.create_task(provider.generate(_request()))
+    await responses.call_started.wait()
+    probe.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await probe
+
+    responses.delay_seconds = 0
+    result = await provider.generate(_request())
+
+    assert result.source_ids == (_SOURCE_ID,)
+    assert len(responses.calls) == 4
 
 
 async def test_provider_closes_owned_client() -> None:

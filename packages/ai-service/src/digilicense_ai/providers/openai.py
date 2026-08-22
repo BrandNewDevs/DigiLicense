@@ -147,6 +147,10 @@ class OpenAIProvider:
                     )
             response = cast(_Response, raw_response)
             result = validated_result(response, request)
+            await self._circuit_breaker.record_success()
+        except asyncio.CancelledError:
+            await self._circuit_breaker.release_recovery_probe()
+            raise
         except TimeoutError:
             await self._circuit_breaker.record_failure()
             await self._log_failure(started, ProviderFailureReason.TIMEOUT)
@@ -156,8 +160,6 @@ class OpenAIProvider:
             await self._circuit_breaker.record_failure()
             await self._log_failure(started, reason)
             raise ProviderFailure(reason) from None
-
-        await self._circuit_breaker.record_success()
 
         usage = response.usage
         await logger.ainfo(

@@ -49,3 +49,9 @@ class ProviderCircuitBreaker:
             self._recovery_probe_in_flight = False
             if self._failures >= self._failure_threshold:
                 self._opened_at = self._clock()
+
+    async def release_recovery_probe(self) -> None:
+        """Release a cancelled half-open probe without changing circuit failure state."""
+
+        async with self._lock:
+            self._recovery_probe_in_flight = False
