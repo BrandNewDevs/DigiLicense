@@ -2,6 +2,8 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
+import { getRequestIP } from "@tanstack/react-start/server"
+
 import { prisma } from "./db.server"
 import {
   buildBucketKey,
@@ -15,6 +17,21 @@ type ConsumeRateLimitResult = {
   allowed: boolean
   remaining: number
   retryAfterSeconds: number
+}
+
+// X-Forwarded-For is only trusted when the deployment explicitly declares a
+// proxy that replaces (never appends) client-supplied header values. Without
+// that guarantee, attackers could rotate the header to bypass the per-IP
+// bucket, so the direct connection address is used instead.
+function getRateLimitClientIp(): string {
+  const trustProxyHeaders =
+    process.env.DIGILICENSE_TRUST_PROXY_HEADERS === "true"
+
+  return (
+    (trustProxyHeaders
+      ? getRequestIP({ xForwardedFor: true })
+      : getRequestIP()) ?? "unknown"
+  )
 }
 
 async function consumeRateLimit(
@@ -53,4 +70,4 @@ async function consumeRateLimit(
   }
 }
 
-export { consumeRateLimit }
+export { consumeRateLimit, getRateLimitClientIp }

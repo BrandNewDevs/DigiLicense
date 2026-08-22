@@ -8,12 +8,11 @@ import {
 const loginDemoSession = createServerFn({ method: "POST" })
   .validator((input: unknown) => demoCredentialsSchema.parse(input))
   .handler(async ({ data }) => {
-    const { getRequestIP } = await import("@tanstack/react-start/server")
-    const { consumeRateLimit } = await import("../server/rate-limit.server")
+    const { consumeRateLimit, getRateLimitClientIp } = await import(
+      "../server/rate-limit.server"
+    )
 
-    const clientIp = getRequestIP({ xForwardedFor: true }) ?? "unknown"
-
-    const ipLimit = await consumeRateLimit("login-ip", clientIp)
+    const ipLimit = await consumeRateLimit("login-ip", getRateLimitClientIp())
 
     if (!ipLimit.allowed) {
       return {
