@@ -1,0 +1,29 @@
+# Install the AI package itself so its src/ layout is importable.
+-e .
+
+# Runtime dependencies
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+fastapi==0.141.1
+openai==2.54.0
+presidio-analyzer==2.2.364
+pydantic==2.13.4
+pydantic-settings==2.15.0
+rank-bm25==0.2.2
+spacy==3.8.15
+structlog==25.5.0
+uvicorn==0.52.4
+
+# Development and test dependencies
+httpx==0.28.1
+mypy==1.20.2
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
+ruff==0.16.4
+
+# Security checks
+bandit==1.9.4
+pip-audit==2.10.1
+
+# Optional development/evaluation provider
+google-genai==1.75.0
