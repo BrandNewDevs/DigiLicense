@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import { BadgeCheck, FileCheck2, ScanLine } from "lucide-react"
+import { useState } from "react"
 
 import {
   Carousel,
@@ -15,6 +17,8 @@ import {
 } from "@workspace/ui/components/service-card"
 import { SiteFooter } from "@workspace/ui/components/site-footer"
 import { SiteHeader } from "@workspace/ui/components/site-header"
+
+import { lookupApplicationStatus } from "../server-functions/application-status"
 
 export const Route = createFileRoute("/")({ component: App })
 
@@ -58,6 +62,13 @@ const services = [
 ] as const
 
 function App() {
+  const lookupApplicationStatusFn = useServerFn(lookupApplicationStatus)
+  const [lookupFeedback, setLookupFeedback] = useState<{
+    kind: "error" | "success"
+    message: string
+  }>()
+  const [isLookingUpApplication, setIsLookingUpApplication] = useState(false)
+
   return (
     <div className="min-h-svh overflow-hidden bg-background text-foreground">
       <SiteHeader
@@ -133,8 +144,51 @@ function App() {
                           fieldName="application-number"
                           placeholder="Application number"
                           submitLabel="Track status"
-                          onSubmit={(applicationNumber) => {
-                            window.location.href = `/services/track-application?application=${encodeURIComponent(applicationNumber)}`
+                          isSubmitting={isLookingUpApplication}
+                          feedback={
+                            lookupFeedback ? (
+                              <p
+                                className={
+                                  lookupFeedback.kind === "success"
+                                    ? "text-sm text-foreground"
+                                    : "text-sm text-destructive"
+                                }
+                                role="status"
+                                aria-live="polite"
+                              >
+                                {lookupFeedback.message}
+                              </p>
+                            ) : undefined
+                          }
+                          onSubmit={async (applicationNumber) => {
+                            setIsLookingUpApplication(true)
+                            setLookupFeedback(undefined)
+
+                            try {
+                              const result = await lookupApplicationStatusFn({
+                                data: { applicationNumber },
+                              })
+
+                              if (result.kind === "found") {
+                                setLookupFeedback({
+                                  kind: "success",
+                                  message: `${result.service}: ${result.status}. ${result.nextAction}`,
+                                })
+                              } else {
+                                setLookupFeedback({
+                                  kind: "error",
+                                  message: result.message,
+                                })
+                              }
+                            } catch {
+                              setLookupFeedback({
+                                kind: "error",
+                                message:
+                                  "Check the application number and try again.",
+                              })
+                            } finally {
+                              setIsLookingUpApplication(false)
+                            }
                           }}
                         />
                       ) : (

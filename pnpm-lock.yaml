@@ -59,6 +59,9 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.3.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@tanstack/devtools-vite':
         specifier: latest
