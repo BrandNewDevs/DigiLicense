@@ -9,13 +9,14 @@ description = "Private, stateless AI explanation service for the DigiLicense pro
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
   "fastapi>=0.116,<1",
   "openai>=2,<3",
-  "presidio-analyzer>=2.2.360,<3",
+  "presidio-analyzer==2.2.364",
   "pydantic>=2.11,<3",
   "pydantic-settings>=2.10,<3",
   "rank-bm25>=0.2.2,<0.3",
-  "spacy>=3.8,<4",
+  "spacy==3.8.15",
   "structlog>=25.4,<26",
   "uvicorn>=0.35,<1",
 ]
@@ -40,10 +41,16 @@ gemini = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/digilicense_ai"]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers --cov=digilicense_ai --cov-report=term-missing"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+  "performance: local latency and concurrency acceptance tests",
+]
 
 [tool.coverage.run]
 branch = true
@@ -73,4 +80,3 @@ packages = ["digilicense_ai"]
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101"]
-
