@@ -33,9 +33,9 @@ product is designed around the questions a citizen has at each step:
 - What happens after I submit it?
 - How do I know whether my application is moving forward?
 
-The first version focuses on making those entry points clear. Future versions
-will connect the flows to real application, payment, identity, and status
-systems.
+The first version focuses on making those entry points clear. Later versions
+will connect the flows to the project backend and clearly labelled simulated
+payment, identity, and government-action adapters.
 
 ## Current features
 
@@ -74,6 +74,24 @@ processing, or integration with Parivahan or another government system.
 - Lucide React icons
 - pnpm workspaces and Turborepo
 - Geist Variable font
+
+## Architecture
+
+The web application uses TanStack Start as its full-stack React framework and
+TanStack Router for file-based routing. Browser code renders the interface and
+submits user actions. TanStack Start server functions or server routes will own
+authenticated reads and mutations, input validation, workflow enforcement,
+auditing, and database access.
+
+PostgreSQL on Neon will store synthetic product data, with Prisma handling the
+schema, migrations, queries, and seed data. The application must run on a
+server-capable deployment target so server-side rendering and server functions
+remain available. It is not designed as a static-only Vite deployment.
+
+The bilingual assistant will run as a separate stateless FastAPI service. Only
+the TanStack Start server may call it. The browser will not call it directly,
+and the AI service will not have database credentials or access to applicant
+records.
 
 ## Repository structure
 
@@ -157,14 +175,14 @@ pnpm --filter web typecheck
 | Route                         | Description                                                                              |
 | ----------------------------- | ---------------------------------------------------------------------------------------- |
 | `/`                           | Home page with the available licence services.                                           |
-| `/services/renew-licence`     | Renewal service page.                                                                    |
-| `/services/learner-licence`   | Learner's licence application page.                                                      |
-| `/services/track-application` | Application status page. The home page adds the application number as a query parameter. |
-| `/services/update-details`    | Personal details update page.                                                            |
+| `/services/renew-licence`     | Placeholder for the renewal service.                                                     |
+| `/services/learner-licence`   | Placeholder for the learner's-licence service.                                           |
+| `/services/track-application` | Placeholder status page. The home page adds the application number as a query parameter. |
+| `/services/update-details`    | Placeholder for the details-update service.                                              |
 
-The service page is driven by the `serviceContent` map in
-`apps/web/src/routes/services.$serviceId.tsx`. Unknown service IDs render a
-simple not-found state with a link back to the home page.
+The dynamic route in `apps/web/src/routes/services.$serviceId.tsx` currently
+renders the same coming-soon state for every service ID. It does not validate
+known service IDs or load service data yet.
 
 ## Adding shared UI components
 
@@ -200,6 +218,8 @@ stylesheet rather than hard-coded colors wherever possible.
 
 - Add new pages as files under `apps/web/src/routes` so TanStack Router can
   include them in the generated route tree.
+- Put privileged reads and mutations in TanStack Start server functions or
+  server routes. Do not import Prisma or server secrets into browser code.
 - Keep reusable components in `packages/ui/src/components` when they may be
   used by more than one app.
 - Run `pnpm typecheck` after changing route params, shared component props, or

@@ -5,10 +5,11 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 ## Product foundation
 
 - [ ] Add the independent-prototype, Delhi-only, and synthetic-data disclosures
-- [ ] Define the accessible, mobile-first design system and responsive application shell
+- [ ] Extend the TanStack Start application shell and accessible, mobile-first design system
+- [ ] Define TanStack Router route groups for isolated applicant, operator, and public experiences
 - [ ] Implement applicant login with a seeded synthetic mobile number and simulated OTP
 - [ ] Implement a separate operator login using synthetic username/password credentials
-- [ ] Add server-side sessions, role authorization, rate limits, and security headers
+- [ ] Add server-side sessions, role authorization, rate limits, and security headers through TanStack Start server code
 - [ ] Configure Neon-hosted PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data
 - [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models
 
@@ -53,6 +54,8 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 
 ## Backend and data
 
+- [ ] Add TanStack Start server functions or server routes for all privileged reads and mutations
+- [ ] Keep Prisma, session secrets, and external-service credentials in server-only modules
 - [ ] Implement reusable server-validated workflow definitions for all ten capabilities
 - [ ] Persist drafts, validation results, submissions, status changes, and immutable workflow events
 - [ ] Add mock document checks, payments, notifications, and government-action markers
@@ -70,7 +73,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Return a validated English or Hindi answer with citations, uncertainty, and escalation data
 - [ ] Prevent the assistant from mutating state, deciding eligibility, or ranking applicants
 - [ ] Add timeouts, rate limits, prompt-injection handling, and deterministic bilingual fallback guidance
-- [ ] Keep the AI service server-to-server, stateless, and isolated from PostgreSQL
+- [ ] Keep the AI service stateless and isolated from PostgreSQL, and call it only from the TanStack Start server
 
 ## Testing and quality
 
@@ -85,7 +88,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 
 ## Delivery
 
-- [ ] Deploy the web app, Neon database, and private AI service
+- [ ] Deploy the TanStack Start app to an SSR and server-function capable runtime, along with the Neon database and private AI service
 - [ ] Verify production security settings, mock labels, and independent-prototype disclosures
 - [ ] Seed safe demo credentials and resettable synthetic scenarios
 - [ ] Verify all public links and the complete demo flow while signed out
