@@ -71,3 +71,18 @@ AssistantMessageRequest
 
 The fake provider is deterministic and does not read an API key or make a network request.
 
+## DLP decision enforcement
+
+The orchestrator treats the DLP result as a mandatory control decision before retrieval or
+provider generation:
+
+| DLP action | Local routing | Retrieval | Provider | Response |
+| --- | --- | --- | --- | --- |
+| `ALLOW` | Scrubbed text only | Allowed | Allowed | Evidence-grounded answer |
+| `BLOCK_PROVIDER_WITH_LOCAL_HELP` | Scrubbed text only | Denied | Denied | Deterministic local guidance |
+| `UNSUPPORTED` | Denied | Denied | Denied | Deterministic scope guidance |
+| `FAIL_CLOSED` | Denied | Denied | Denied | Deterministic safety response |
+
+Every denied response sets `fallbackUsed` and `blockedReason`, contains no sources, and sends no
+raw question to a provider. The local-help path can preserve a safe semantic context containing
+only allowlisted intent, topic, and locale values.

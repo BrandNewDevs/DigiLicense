@@ -25,6 +25,11 @@ Raw text may be inspected only by local DLP and local intent components. Externa
 interfaces accept `CanonicalProviderRequest`, which contains only allowlisted enums and reviewed
 public evidence. This is enforced structurally and with runtime guards and tests.
 
+The DLP decision is enforced before retrieval or provider generation. When PII is detected, only
+scrubbed text may reach the local intent router so the service can return deterministic local
+help. Unsupported and fail-closed outcomes stop all downstream processing. No denied DLP outcome
+can reach retrieval or an external provider.
+
 ### AI service to external providers
 
 Phase 0 makes no external provider calls. Later production phases may add the OpenAI Responses
@@ -57,4 +62,3 @@ tokens, headers, and request bodies are not logged.
 Configuration names for later components are present so unsafe production combinations can be
 rejected before those implementations exist. Selecting a later-phase backend during Phase 0
 fails startup rather than silently substituting a fake.
-
