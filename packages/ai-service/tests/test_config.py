@@ -11,6 +11,7 @@ from digilicense_ai.config import (
 from digilicense_ai.container import BackendNotImplementedError, build_container
 from digilicense_ai.dlp import LocalDlpGateway
 from digilicense_ai.providers import OpenAIProvider
+from digilicense_ai.retrieval import Bm25Retriever
 
 
 def test_default_profile_requires_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -80,7 +81,7 @@ def test_openai_selection_requires_dedicated_credentials(
     field: str,
     invalid_value: str | None,
 ) -> None:
-    values = {
+    values: dict[str, object] = {
         "profile": EnvironmentProfile.EVALUATION,
         "provider_backend": ProviderBackend.OPENAI,
         "openai_api_key": "sk-synthetic-test-only",
@@ -106,15 +107,51 @@ def test_production_requires_budget_controls_confirmation() -> None:
         )
 
 
-def test_later_phase_backends_fail_honestly_during_phase_zero() -> None:
+def test_unimplemented_gemini_backend_still_fails_honestly() -> None:
     settings = Settings(
         profile=EnvironmentProfile.EVALUATION,
         provider_backend=ProviderBackend.GEMINI,
-        retrieval_backend=RetrievalBackend.FILE_SEARCH,
     )
 
     with pytest.raises(BackendNotImplementedError, match="reserved for later phases"):
         build_container(settings)
+
+
+def test_file_search_requires_explicit_evaluation_configuration() -> None:
+    with pytest.raises(ValidationError, match="evaluation profile"):
+        Settings(
+            profile=EnvironmentProfile.DEVELOPMENT,
+            retrieval_backend=RetrievalBackend.FILE_SEARCH,
+            file_search_enabled=True,
+            file_search_vector_store_id="vs_test",
+            openai_api_key="sk-synthetic-test-only",
+            openai_project_id="proj_synthetic_test",
+        )
+
+    with pytest.raises(ValidationError, match="explicit file_search_enabled"):
+        Settings(
+            profile=EnvironmentProfile.EVALUATION,
+            retrieval_backend=RetrievalBackend.FILE_SEARCH,
+            file_search_vector_store_id="vs_test",
+            openai_api_key="sk-synthetic-test-only",
+            openai_project_id="proj_synthetic_test",
+        )
+
+
+async def test_evaluation_file_search_wires_without_a_network_call() -> None:
+    settings = Settings(
+        profile=EnvironmentProfile.EVALUATION,
+        retrieval_backend=RetrievalBackend.FILE_SEARCH,
+        file_search_enabled=True,
+        file_search_vector_store_id="vs_test",
+        openai_api_key="sk-synthetic-test-only",
+        openai_project_id="proj_synthetic_test",
+    )
+
+    container = build_container(settings)
+
+    assert container.component_statuses["retrieval"] == "file_search"
+    await container.close()
 
 
 def test_local_dlp_model_is_loaded_when_container_is_built() -> None:
@@ -127,6 +164,15 @@ def test_local_dlp_model_is_loaded_when_container_is_built() -> None:
 
     assert isinstance(container.dlp, LocalDlpGateway)
     assert container.component_statuses["dlp"] == "local"
+
+
+def test_bm25_is_built_during_container_startup() -> None:
+    container = build_container(
+        Settings(profile=EnvironmentProfile.TEST, retrieval_backend=RetrievalBackend.BM25)
+    )
+
+    assert isinstance(container.retriever, Bm25Retriever)
+    assert container.component_statuses["retrieval"] == "bm25"
 
 
 async def test_evaluation_profile_wires_openai_without_a_startup_network_call() -> None:

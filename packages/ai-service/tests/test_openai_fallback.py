@@ -17,6 +17,7 @@ from digilicense_ai.schemas import (
     Page,
     ProviderResult,
     ReasonCode,
+    RetrievalQuery,
     Service,
 )
 from digilicense_ai.service import AssistantService
@@ -31,6 +32,22 @@ class FailingProvider:
         del request
         self.calls += 1
         raise ProviderFailure(self.reason)
+
+
+class EmptyRetriever:
+    async def retrieve(self, query: RetrievalQuery) -> tuple[()]:
+        del query
+        return ()
+
+
+class ProviderSpy:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def generate(self, request: CanonicalProviderRequest) -> ProviderResult:
+        del request
+        self.calls += 1
+        raise AssertionError("provider must not run without reviewed evidence")
 
 
 def _service(provider: FailingProvider) -> AssistantService:
@@ -89,3 +106,24 @@ async def test_hindi_provider_failure_has_hindi_fallback() -> None:
 
     assert response.fallback_used is True
     assert "उपलब्ध नहीं" in response.answer
+
+
+async def test_missing_evidence_returns_local_fallback_without_provider_call() -> None:
+    provider = ProviderSpy()
+    service = AssistantService(
+        ServiceContainer(
+            settings=Settings(profile=EnvironmentProfile.TEST),
+            dlp=FakeDlpGateway(),
+            context=FakeSemanticContextManager(),
+            intent=FakeIntentRouter(),
+            retriever=EmptyRetriever(),
+            provider=provider,
+        )
+    )
+
+    response = await service.answer(_request())
+
+    assert provider.calls == 0
+    assert response.blocked_reason is BlockedReason.NO_EVIDENCE
+    assert response.fallback_used is True
+    assert response.uncertain is True

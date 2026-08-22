@@ -1,5 +1,8 @@
 from fastapi import FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
+
+from digilicense_ai.app import create_app
+from digilicense_ai.config import EnvironmentProfile, RetrievalBackend, Settings
 
 
 async def test_fake_end_to_end_path(
@@ -119,3 +122,15 @@ async def test_not_ready_returns_503(client: AsyncClient, app: FastAPI) -> None:
 
     assert response.status_code == 503
     assert response.json()["status"] == "not_ready"
+
+
+async def test_bm25_startup_is_reported_ready() -> None:
+    app = create_app(
+        settings=Settings(profile=EnvironmentProfile.TEST, retrieval_backend=RetrievalBackend.BM25)
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+        response = await test_client.get("/health/ready")
+
+    assert response.status_code == 200
+    assert response.json()["components"]["retrieval"] == "bm25"

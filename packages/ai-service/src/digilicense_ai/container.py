@@ -1,6 +1,10 @@
 """Dependency selection for implemented and future AI components."""
 
 from dataclasses import dataclass
+from typing import cast
+
+import httpx
+from openai import AsyncOpenAI
 
 from digilicense_ai.components import (
     AssistantProvider,
@@ -16,6 +20,7 @@ from digilicense_ai.config import (
     RetrievalBackend,
     Settings,
 )
+from digilicense_ai.corpus import load_promoted_corpus
 from digilicense_ai.dlp import LocalDlpGateway
 from digilicense_ai.fakes import (
     FakeDlpGateway,
@@ -25,6 +30,8 @@ from digilicense_ai.fakes import (
     FakeSemanticContextManager,
 )
 from digilicense_ai.providers import OpenAIProvider
+from digilicense_ai.retrieval import Bm25Retriever, FileSearchRetriever
+from digilicense_ai.retrieval.file_search import FileSearchClient
 
 
 class BackendNotImplementedError(RuntimeError):
@@ -53,6 +60,8 @@ class ServiceContainer:
     async def close(self) -> None:
         if isinstance(self.provider, AsyncClosable):
             await self.provider.close()
+        if isinstance(self.retriever, AsyncClosable):
+            await self.retriever.close()
 
 
 def build_container(settings: Settings) -> ServiceContainer:
@@ -63,8 +72,6 @@ def build_container(settings: Settings) -> ServiceContainer:
         unsupported.append("context")
     if settings.intent_backend is not LocalBackend.FAKE:
         unsupported.append("intent")
-    if settings.retrieval_backend is not RetrievalBackend.FAKE:
-        unsupported.append("retrieval")
     if settings.provider_backend is ProviderBackend.GEMINI:
         unsupported.append("provider")
     if unsupported:
@@ -82,12 +89,39 @@ def build_container(settings: Settings) -> ServiceContainer:
         if settings.provider_backend is ProviderBackend.OPENAI
         else FakeProvider()
     )
+    corpus = load_promoted_corpus()
+    retriever: Retriever
+    if settings.retrieval_backend is RetrievalBackend.BM25:
+        retriever = Bm25Retriever(corpus)
+    elif settings.retrieval_backend is RetrievalBackend.FILE_SEARCH:
+        if settings.openai_api_key is None or settings.openai_project_id is None:
+            raise ValueError("File Search settings were not validated")
+        timeout = httpx.Timeout(
+            settings.openai_request_timeout_seconds,
+            connect=settings.openai_connect_timeout_seconds,
+        )
+        client = cast(
+            FileSearchClient,
+            AsyncOpenAI(
+                api_key=settings.openai_api_key.get_secret_value(),
+                project=settings.openai_project_id,
+                timeout=timeout,
+                max_retries=0,
+            ),
+        )
+        retriever = FileSearchRetriever(
+            client=client,
+            corpus=corpus,
+            vector_store_id=settings.file_search_vector_store_id or "",
+        )
+    else:
+        retriever = FakeRetriever()
 
     return ServiceContainer(
         settings=settings,
         dlp=dlp,
         context=FakeSemanticContextManager(),
         intent=FakeIntentRouter(),
-        retriever=FakeRetriever(),
+        retriever=retriever,
         provider=provider,
     )
