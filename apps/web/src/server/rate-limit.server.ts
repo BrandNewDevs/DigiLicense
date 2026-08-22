@@ -63,14 +63,19 @@ async function consumeRateLimit(
     retryAfterSeconds: getRetryAfterSeconds(now, windowStart, rule.windowMs),
   }
 
-  // Best-effort retention: sampled, bounded to rows older than one day, and
-  // isolated from the decision above so a failed cleanup can never fail
-  // sign-in or an operator action after the upsert has succeeded.
+  // Best-effort retention: sampled and capped to a small batch so the delete
+  // stays O(batch) regardless of backlog and cannot stall the request with
+  // long lock or WAL work. A scheduled worker owns full cleanup in
+  // production; this in-path drain only bounds growth between deployments.
   if (Math.random() < 0.01) {
     try {
       await prisma.$executeRaw`
         DELETE FROM "RateLimitWindow"
-        WHERE "windowStart" < ${new Date(now.getTime() - 24 * 60 * 60_000)}
+        WHERE "id" IN (
+          SELECT "id" FROM "RateLimitWindow"
+          WHERE "windowStart" < ${new Date(now.getTime() - 24 * 60 * 60_000)}
+          LIMIT 200
+        )
       `
     } catch (error) {
       recordDependencyFailure(error, {
