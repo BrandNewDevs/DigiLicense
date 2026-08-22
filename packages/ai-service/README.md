@@ -25,8 +25,17 @@ Run these commands from `packages/ai-service`:
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements.txt
+python -m pip install --no-deps -e .
 uvicorn digilicense_ai.main:app --host 127.0.0.1 --port 8000 --no-access-log
+```
+
+`requirements.txt` is a fully hashed export of every dependency in `uv.lock`. The local package
+is installed separately because editable installs cannot participate in pip's hash-checking mode.
+After changing dependencies, regenerate the export from this directory:
+
+```bash
+uv export --frozen --all-groups --no-emit-project --no-header --format requirements.txt --output-file requirements.txt
 ```
 
 ### Conda
@@ -36,6 +45,7 @@ Run these commands from `packages/ai-service` so the relative requirements path 
 ```bash
 conda env create -f environment.yml
 conda activate bwmi
+python -m pip install --no-deps -e .
 uvicorn digilicense_ai.main:app --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
