@@ -1,0 +1,37 @@
+language: "en-US"
+
+reviews:
+  profile: "chill"
+
+  high_level_summary: true
+  review_status: true
+  review_details: false
+
+  collapse_walkthrough: true
+  changed_files_summary: true
+
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  suggested_labels: false
+  suggested_reviewers: false
+  related_issues: false
+  related_prs: false
+
+  in_progress_fortune: false
+  poem: false
+
+  request_changes_workflow: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+chat:
+  art: false
+  auto_reply: true
