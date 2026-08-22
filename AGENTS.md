@@ -64,6 +64,7 @@ Public official documentation may be used as evidence. Do not experiment with tr
 ## Engineering guardrails
 
 - Use only synthetic seed, test, screenshot, demo, and log data.
+- In TypeScript, never use the `any` type: no explicit `any`, no `as any`, no implicit `any` parameters, returns, or catches. This is a ban on `any`, not an instruction to always rely on inference; where inference is not enough, write a precise explicit type or use `unknown` with narrowing.
 - Enforce workflow transitions and applicant/operator roles on the server.
 - Keep applicant and operator experiences on isolated routes with separate login flows.
 - Persist product data in PostgreSQL/Neon; keep workflow and audit histories append-only.

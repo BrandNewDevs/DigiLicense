@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ApplicationStatus {
+  DOCUMENT_REVIEW
+  DOCUMENTS_VERIFIED
+  CORRECTION_REQUIRED
+  PAYMENT_REVIEW
+  PAYMENT_CONFIRMED
+  TEST_PENDING
+  TEST_PASSED
+  TEST_FAILED
+  APPROVAL_PENDING
+  APPROVED
+  REJECTED
+  WAITLISTED
+}
+
+enum WorkflowActor {
+  APPLICANT
+  OPERATOR
+  SYSTEM
+}
+
+model Application {
+  id                String            @id @default(cuid())
+  applicantId       String
+  applicationNumber String            @unique
+  service           String
+  status            ApplicationStatus
+  nextAction        String
+  version           Int               @default(1)
+  submittedAt       DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  workflowEvents    WorkflowEvent[]
+  auditEvents       AuditEvent[]
+
+  @@index([applicantId, applicationNumber])
+  @@index([status, submittedAt])
+}
+
+model WorkflowEvent {
+  id            String             @id @default(cuid())
+  applicationId String
+  actor         WorkflowActor
+  actorId       String
+  title         String
+  description   String
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  createdAt     DateTime           @default(now())
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+}
+
+model AuditEvent {
+  id            String       @id @default(cuid())
+  applicationId String?
+  actorId       String
+  action        String
+  entityType    String
+  entityId      String
+  reasonCode    String
+  justification String?
+  requestId     String
+  createdAt     DateTime     @default(now())
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+  @@index([createdAt])
+}
+
+// Fixed-window rate-limit counters shared across instances. Keys are hashed,
+// so raw identifiers are never stored.
+model RateLimitWindow {
+  id          String   @id @default(cuid())
+  bucketKey   String
+  windowStart DateTime
+  hits        Int      @default(0)
+
+  @@unique([bucketKey, windowStart])
+  @@index([windowStart])
+}

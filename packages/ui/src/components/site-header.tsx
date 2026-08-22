@@ -6,6 +6,7 @@ type NavigationItem = {
 }
 
 type SiteHeaderProps = {
+  actions?: readonly NavigationItem[]
   brand: ReactNode
   brandHref: string
   brandLabel?: string
@@ -14,6 +15,7 @@ type SiteHeaderProps = {
 }
 
 function SiteHeader({
+  actions = [],
   brand,
   brandHref,
   brandLabel,
@@ -21,12 +23,11 @@ function SiteHeader({
   navigation,
 }: SiteHeaderProps) {
   const LinkElement = linkComponent ?? "a"
-  const linkTarget = (href: string) =>
-    linkComponent ? { to: href } : { href }
+  const linkTarget = (href: string) => (linkComponent ? { to: href } : { href })
 
   return (
     <header className="bg-background">
-      <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between px-5 sm:px-8 lg:px-10">
+      <div className="mx-auto grid h-16 max-w-[1240px] grid-cols-[1fr_auto_1fr] items-center px-5 sm:px-8 lg:px-10">
         <LinkElement
           {...linkTarget(brandHref)}
           className="inline-flex min-h-11 items-center font-heading text-lg font-semibold tracking-[-0.04em] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
@@ -36,7 +37,7 @@ function SiteHeader({
         </LinkElement>
 
         <nav
-          className="flex items-center gap-5 text-sm font-medium text-muted-foreground"
+          className="flex items-center justify-center gap-5 text-sm font-medium text-muted-foreground"
           aria-label="Main navigation"
         >
           {navigation.map((item) => (
@@ -49,6 +50,25 @@ function SiteHeader({
             </LinkElement>
           ))}
         </nav>
+
+        {actions.length > 0 ? (
+          <nav
+            className="flex items-center justify-end gap-4 text-sm font-medium"
+            aria-label="Account"
+          >
+            {actions.map((item) => (
+              <LinkElement
+                {...linkTarget(item.href)}
+                className="inline-flex min-h-11 items-center transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                key={item.href}
+              >
+                {item.label}
+              </LinkElement>
+            ))}
+          </nav>
+        ) : (
+          <div aria-hidden="true" />
+        )}
       </div>
     </header>
   )
