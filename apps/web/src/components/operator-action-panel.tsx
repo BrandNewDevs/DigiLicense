@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
 
-import { getActionsForStatus } from "../lib/operator-workflow"
+import { getActionsForStatus, getDecisionReasons } from "../lib/operator-workflow"
 import type { OperatorAction } from "../lib/operator-workflow"
 import { runOperatorApplicationAction } from "../server-functions/operator"
 
@@ -51,8 +51,8 @@ function OperatorActionPanel({
         Operator actions
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Select an action, explain the decision, and confirm that it affects
-        synthetic data only.
+        Select an action, choose an allowlisted decision reason, and confirm
+        that it affects synthetic data only. Free-text notes are not stored.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -86,8 +86,10 @@ function OperatorActionPanel({
                 data: {
                   applicationId,
                   action: selectedAction,
+                  decisionReasonCode: String(
+                    formData.get("decisionReasonCode") ?? ""
+                  ),
                   expectedVersion: version,
-                  justification: String(formData.get("justification") ?? ""),
                 },
               })
 
@@ -118,18 +120,26 @@ function OperatorActionPanel({
             }
           }}
         >
-          <label className="block text-sm font-medium" htmlFor="justification">
-            Decision note
-          </label>
-          <textarea
-            className="mt-2 min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-base"
-            id="justification"
-            maxLength={300}
-            minLength={10}
-            name="justification"
-            placeholder="Explain this simulated decision"
-            required
-          />
+          <fieldset>
+            <legend className="text-sm font-medium">Decision reason</legend>
+            <div className="mt-2 space-y-2">
+              {getDecisionReasons(selectedAction).map((reason) => (
+                <label
+                  className="flex items-start gap-3 text-sm leading-6"
+                  key={reason.code}
+                >
+                  <input
+                    className="mt-1 size-4"
+                    name="decisionReasonCode"
+                    required
+                    type="radio"
+                    value={reason.code}
+                  />
+                  <span>{reason.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <label className="mt-4 flex items-start gap-3 text-sm leading-6">
             <input
               className="mt-1 size-4"

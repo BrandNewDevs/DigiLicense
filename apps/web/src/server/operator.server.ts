@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto"
 
 import { WorkflowActor } from "../generated/prisma/enums"
 import type { ApplicationStatus } from "../generated/prisma/enums"
-import { operatorActions } from "../lib/operator-workflow"
+import { getDecisionLabel, operatorActions } from "../lib/operator-workflow"
 import type { OperatorAction } from "../lib/operator-workflow"
 import { prisma } from "./db.server"
 import { requireOperator } from "./demo-session.server"
@@ -138,12 +138,19 @@ async function readOperatorApplication(applicationId: string) {
 async function applyOperatorAction(input: {
   applicationId: string
   action: OperatorAction
+  decisionReasonCode: string
   expectedVersion: number
-  justification: string
 }) {
   const operator = await requireOperator()
 
   if (!operator) return { kind: "authentication-required" as const }
+
+  // Only the fixed allowlisted label is ever persisted. The narrative-free
+  // decision reason keeps contact details or application data out of these
+  // append-only records.
+  const decisionLabel = getDecisionLabel(input.action, input.decisionReasonCode)
+
+  if (!decisionLabel) return { kind: "action-unavailable" as const }
 
   let actionLimit
 
@@ -221,7 +228,7 @@ async function applyOperatorAction(input: {
           actor: WorkflowActor.OPERATOR,
           actorId: operator.operatorId,
           title: transition.eventTitle,
-          description: `${input.justification} This action changed synthetic DigiLicense data only.`,
+          description: `${decisionLabel}. This action changed synthetic DigiLicense data only.`,
           fromStatus: transition.from,
           toStatus: transition.to,
         },
@@ -235,7 +242,7 @@ async function applyOperatorAction(input: {
           entityType: "APPLICATION",
           entityId: application.applicationNumber,
           reasonCode: transition.reasonCode,
-          justification: input.justification,
+          justification: `Allowlisted decision reason: ${decisionLabel}`,
           requestId: randomUUID(),
         },
       })

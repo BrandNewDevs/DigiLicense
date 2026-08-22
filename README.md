@@ -47,7 +47,9 @@ payment, identity, and government-action adapters.
 - Separate synthetic applicant and operator sign-ins backed by short-lived,
   HTTP-only, role-bound server sessions.
 - An operator work queue at `/operator` with seeded synthetic applications,
-  explicit workflow commands, decision notes, and audit history.
+  explicit workflow commands, allowlisted decision reasons, and audit history.
+  Free-text decision notes are not accepted, so contact details or application
+  data cannot enter the append-only records.
 - A case page where simulated document, payment, learner-test, and approval
   actions update the same record shown by applicant tracking.
 - A shared dynamic service route at `/services/$serviceId` for renewal,
