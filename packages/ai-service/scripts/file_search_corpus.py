@@ -14,10 +14,12 @@ from openai import AsyncOpenAI
 from digilicense_ai.config import EnvironmentProfile, RetrievalBackend, Settings
 from digilicense_ai.corpus import load_promoted_corpus
 from digilicense_ai.retrieval.lifecycle import (
+    EvaluationResourceManifest,
     FileSearchLifecycleClient,
     UploadedSection,
     delete_evaluation_corpus,
     inspect_uploaded_sections,
+    require_matching_vector_store,
     upload_promoted_sections,
 )
 
@@ -58,9 +60,15 @@ def _client(settings: Settings) -> FileSearchLifecycleClient:
     )
 
 
-def _load_uploaded(path: Path) -> tuple[UploadedSection, ...]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return tuple(UploadedSection(**item) for item in payload["uploaded"])
+def _load_resource_manifest(path: Path) -> EvaluationResourceManifest:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return EvaluationResourceManifest(
+            vector_store_id=payload["vector_store_id"],
+            uploaded=tuple(UploadedSection(**item) for item in payload["uploaded"]),
+        )
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise ValueError("resource manifest is invalid") from error
 
 
 async def _run(args: argparse.Namespace) -> None:
@@ -77,23 +85,18 @@ async def _run(args: argparse.Namespace) -> None:
                 vector_store_id=vector_store_id,
                 expires_after_days=settings.file_search_expiry_days,
             )
-            print(
-                json.dumps(
-                    {
-                        "vector_store_id": vector_store_id,
-                        "uploaded": [asdict(item) for item in uploaded],
-                    }
-                )
-            )
+            resource_manifest = EvaluationResourceManifest(vector_store_id, uploaded)
+            print(json.dumps(asdict(resource_manifest)))
             return
         if args.resource_manifest is None:
             raise RuntimeError("inspect, expire, and delete require --resource-manifest")
-        uploaded = _load_uploaded(args.resource_manifest)
+        resource_manifest = _load_resource_manifest(args.resource_manifest)
+        require_matching_vector_store(resource_manifest, vector_store_id)
         if args.command == "inspect":
             completed = await inspect_uploaded_sections(
                 client,
                 vector_store_id=vector_store_id,
-                uploaded=uploaded,
+                uploaded=resource_manifest.uploaded,
             )
             print(json.dumps({"completed_file_ids": completed}))
             return
@@ -102,7 +105,7 @@ async def _run(args: argparse.Namespace) -> None:
         await delete_evaluation_corpus(
             client,
             vector_store_id=vector_store_id,
-            uploaded=uploaded,
+            uploaded=resource_manifest.uploaded,
             delete_vector_store=args.delete_vector_store,
         )
         print(json.dumps({"deleted": True, "vector_store_deleted": args.delete_vector_store}))

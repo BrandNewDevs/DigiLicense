@@ -1,5 +1,6 @@
 """Explicit File Search evaluation-corpus upload, inspection, expiry, and deletion controls."""
 
+from collections.abc import Awaitable
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any, Protocol
@@ -22,6 +23,30 @@ class UploadedSection:
     source_id: str
     section_id: str
     file_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluationResourceManifest:
+    """The explicit ownership record for one evaluation corpus upload."""
+
+    vector_store_id: str
+    uploaded: tuple[UploadedSection, ...]
+
+
+class FileSearchCleanupError(RuntimeError):
+    """Cleanup completed as far as possible but one or more operations failed."""
+
+    def __init__(self, failures: tuple[str, ...]) -> None:
+        self.failures = failures
+        super().__init__(f"evaluation cleanup incomplete: {len(failures)} operation(s) failed")
+
+
+def require_matching_vector_store(
+    manifest: EvaluationResourceManifest,
+    vector_store_id: str,
+) -> None:
+    if manifest.vector_store_id != vector_store_id:
+        raise ValueError("resource manifest belongs to a different vector store")
 
 
 async def upload_promoted_sections(
@@ -90,8 +115,45 @@ async def delete_evaluation_corpus(
 
     if not vector_store_id.startswith("vs_"):
         raise ValueError("an explicit vector store ID is required")
+    failures: list[str] = []
     for item in uploaded:
-        await client.vector_stores.files.delete(item.file_id, vector_store_id=vector_store_id)
-        await client.files.delete(item.file_id)
+        detached = await _cleanup_operation(
+            f"detach:{item.file_id}",
+            client.vector_stores.files.delete(item.file_id, vector_store_id=vector_store_id),
+            failures,
+        )
+        if detached:
+            await _cleanup_operation(
+                f"delete_file:{item.file_id}",
+                client.files.delete(item.file_id),
+                failures,
+            )
     if delete_vector_store:
-        await client.vector_stores.delete(vector_store_id)
+        await _cleanup_operation(
+            "delete_vector_store",
+            client.vector_stores.delete(vector_store_id),
+            failures,
+        )
+    if failures:
+        raise FileSearchCleanupError(tuple(failures))
+
+
+async def _cleanup_operation(
+    operation_name: str,
+    operation: Awaitable[object],
+    failures: list[str],
+) -> bool:
+    try:
+        await operation
+    except Exception as error:
+        if _is_not_found(error):
+            return True
+        failures.append(operation_name)
+        return False
+    return True
+
+
+def _is_not_found(error: Exception) -> bool:
+    status_code = getattr(error, "status_code", None)
+    response = getattr(error, "response", None)
+    return status_code == 404 or getattr(response, "status_code", None) == 404

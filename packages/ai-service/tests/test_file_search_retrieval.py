@@ -7,10 +7,13 @@ import pytest
 from digilicense_ai.corpus import load_promoted_corpus
 from digilicense_ai.retrieval.file_search import FileSearchClient, FileSearchRetriever
 from digilicense_ai.retrieval.lifecycle import (
+    EvaluationResourceManifest,
+    FileSearchCleanupError,
     FileSearchLifecycleClient,
     UploadedSection,
     delete_evaluation_corpus,
     inspect_uploaded_sections,
+    require_matching_vector_store,
     upload_promoted_sections,
 )
 from digilicense_ai.schemas import CanonicalIntent, Locale, RetrievalQuery, Topic
@@ -29,8 +32,16 @@ class _SearchResult:
 
 
 class _VectorStoreFiles:
-    def __init__(self, calls: list[tuple[str, str]]) -> None:
+    def __init__(
+        self,
+        calls: list[tuple[str, str]],
+        *,
+        detach_failures: set[str],
+        detach_missing: set[str],
+    ) -> None:
         self.calls = calls
+        self._detach_failures = detach_failures
+        self._detach_missing = detach_missing
 
     async def create(self, vector_store_id: str, **kwargs: Any) -> None:
         self.calls.append(("attach", kwargs["file_id"]))
@@ -44,13 +55,30 @@ class _VectorStoreFiles:
     async def delete(self, file_id: str, *, vector_store_id: str) -> None:
         self.calls.append(("detach", file_id))
         assert vector_store_id == "vs_evaluation"
+        if file_id in self._detach_failures:
+            raise _CleanupFailure()
+        if file_id in self._detach_missing:
+            raise _NotFound()
 
 
 class _VectorStores:
-    def __init__(self, results: tuple[_SearchResult, ...], calls: list[tuple[str, str]]) -> None:
+    def __init__(
+        self,
+        results: tuple[_SearchResult, ...],
+        calls: list[tuple[str, str]],
+        *,
+        detach_failures: set[str],
+        detach_missing: set[str],
+        delete_store_failure: bool,
+    ) -> None:
         self._results = results
-        self.files = _VectorStoreFiles(calls)
+        self.files = _VectorStoreFiles(
+            calls,
+            detach_failures=detach_failures,
+            detach_missing=detach_missing,
+        )
         self.calls = calls
+        self._delete_store_failure = delete_store_failure
 
     async def search(self, vector_store_id: str, **kwargs: Any) -> object:
         self.calls.append(("search", vector_store_id))
@@ -59,12 +87,22 @@ class _VectorStores:
 
     async def delete(self, vector_store_id: str) -> None:
         self.calls.append(("delete_store", vector_store_id))
+        if self._delete_store_failure:
+            raise _CleanupFailure()
 
 
 class _Files:
-    def __init__(self, calls: list[tuple[str, str]]) -> None:
+    def __init__(
+        self,
+        calls: list[tuple[str, str]],
+        *,
+        delete_failures: set[str],
+        delete_missing: set[str],
+    ) -> None:
         self.calls = calls
         self._index = 0
+        self._delete_failures = delete_failures
+        self._delete_missing = delete_missing
 
     async def create(self, **kwargs: Any) -> object:
         self._index += 1
@@ -75,17 +113,48 @@ class _Files:
 
     async def delete(self, file_id: str) -> None:
         self.calls.append(("delete_file", file_id))
+        if file_id in self._delete_failures:
+            raise _CleanupFailure()
+        if file_id in self._delete_missing:
+            raise _NotFound()
 
 
 class _Client:
-    def __init__(self, results: tuple[_SearchResult, ...] = ()) -> None:
+    def __init__(
+        self,
+        results: tuple[_SearchResult, ...] = (),
+        *,
+        detach_failures: set[str] | None = None,
+        detach_missing: set[str] | None = None,
+        delete_failures: set[str] | None = None,
+        delete_missing: set[str] | None = None,
+        delete_store_failure: bool = False,
+    ) -> None:
         self.calls: list[tuple[str, str]] = []
-        self.vector_stores = _VectorStores(results, self.calls)
-        self.files = _Files(self.calls)
+        self.vector_stores = _VectorStores(
+            results,
+            self.calls,
+            detach_failures=detach_failures or set(),
+            detach_missing=detach_missing or set(),
+            delete_store_failure=delete_store_failure,
+        )
+        self.files = _Files(
+            self.calls,
+            delete_failures=delete_failures or set(),
+            delete_missing=delete_missing or set(),
+        )
         self.closed = False
 
     async def close(self) -> None:
         self.closed = True
+
+
+class _CleanupFailure(RuntimeError):
+    pass
+
+
+class _NotFound(RuntimeError):
+    status_code = 404
 
 
 def _query(*, allowed: tuple[str, ...] = ()) -> RetrievalQuery:
@@ -200,6 +269,51 @@ async def test_file_search_lifecycle_sets_expiry_inspects_and_deletes_all_resour
         delete_index = client.calls.index(("delete_file", item.file_id))
         assert detach_index < delete_index
     assert client.calls[-1] == ("delete_store", "vs_evaluation")
+
+
+def test_resource_manifest_must_match_the_configured_vector_store() -> None:
+    manifest = EvaluationResourceManifest(
+        vector_store_id="vs_original",
+        uploaded=(UploadedSection("source", "section", "file_1"),),
+    )
+
+    with pytest.raises(ValueError, match="different vector store"):
+        require_matching_vector_store(manifest, "vs_reconfigured")
+
+
+async def test_cleanup_continues_after_failures_and_reports_sanitized_operations() -> None:
+    client = _Client(detach_failures={"file_1"})
+    uploaded = (
+        UploadedSection("source-a", "section-a", "file_1"),
+        UploadedSection("source-b", "section-b", "file_2"),
+    )
+
+    with pytest.raises(FileSearchCleanupError) as captured:
+        await delete_evaluation_corpus(
+            cast(FileSearchLifecycleClient, client),
+            vector_store_id="vs_evaluation",
+            uploaded=uploaded,
+            delete_vector_store=True,
+        )
+
+    assert captured.value.failures == ("detach:file_1",)
+    assert ("delete_file", "file_1") not in client.calls
+    assert ("delete_file", "file_2") in client.calls
+    assert ("delete_store", "vs_evaluation") in client.calls
+
+
+async def test_cleanup_treats_already_deleted_resources_as_complete() -> None:
+    client = _Client(detach_missing={"file_1"}, delete_missing={"file_1"})
+
+    await delete_evaluation_corpus(
+        cast(FileSearchLifecycleClient, client),
+        vector_store_id="vs_evaluation",
+        uploaded=(UploadedSection("source", "section", "file_1"),),
+        delete_vector_store=False,
+    )
+
+    assert ("detach", "file_1") in client.calls
+    assert ("delete_file", "file_1") in client.calls
 
 
 @pytest.mark.parametrize("vector_store_id", ("", "store_wrong"))
