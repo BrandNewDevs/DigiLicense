@@ -4,13 +4,19 @@ import pytest
 
 from digilicense_ai.config import EnvironmentProfile, Settings
 from digilicense_ai.container import ServiceContainer
-from digilicense_ai.fakes import FakeSemanticContextManager
+from digilicense_ai.fakes import (
+    FakeIntentRouter,
+    FakeProvider,
+    FakeRetriever,
+    FakeSemanticContextManager,
+)
 from digilicense_ai.schemas import (
     AssistantMessageRequest,
     CanonicalIntent,
     CanonicalProviderRequest,
     DlpAction,
     DlpResult,
+    DlpScope,
     IntentResult,
     Locale,
     Page,
@@ -32,9 +38,33 @@ class FixedDlpGateway:
             provider_allowed=False,
         )
 
-    async def analyze(self, question: str) -> DlpResult:
-        del question
-        return self._result
+    async def analyze(
+        self,
+        text: str,
+        *,
+        scope: DlpScope = DlpScope.INBOUND,
+    ) -> DlpResult:
+        del text
+        return self._result.model_copy(update={"scope": scope})
+
+
+class ScopeRecordingDlpGateway:
+    def __init__(self) -> None:
+        self.scopes: list[DlpScope] = []
+
+    async def analyze(
+        self,
+        text: str,
+        *,
+        scope: DlpScope = DlpScope.INBOUND,
+    ) -> DlpResult:
+        self.scopes.append(scope)
+        return DlpResult(
+            action=DlpAction.ALLOW,
+            scope=scope,
+            safe_routing_text=text,
+            provider_allowed=True,
+        )
 
 
 class NeverContextManager:
@@ -139,3 +169,26 @@ async def test_terminal_dlp_actions_stop_all_downstream_processing(
     assert response.blocked_reason == blocked_reason
     assert response.uncertain is uncertain
     assert response.context_token is None
+
+
+async def test_full_path_inspects_inbound_provider_payload_and_outbound_text() -> None:
+    dlp = ScopeRecordingDlpGateway()
+    service = AssistantService(
+        ServiceContainer(
+            settings=Settings(profile=EnvironmentProfile.TEST),
+            dlp=dlp,
+            context=FakeSemanticContextManager(),
+            intent=FakeIntentRouter(),
+            retriever=FakeRetriever(),
+            provider=FakeProvider(),
+        )
+    )
+
+    response = await service.answer(_request())
+
+    assert response.fallback_used is False
+    assert dlp.scopes == [
+        DlpScope.INBOUND,
+        DlpScope.PROVIDER_PAYLOAD,
+        DlpScope.OUTBOUND,
+    ]

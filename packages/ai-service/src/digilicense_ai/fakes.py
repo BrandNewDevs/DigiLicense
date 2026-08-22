@@ -9,6 +9,7 @@ from digilicense_ai.schemas import (
     ContextSeed,
     DlpAction,
     DlpResult,
+    DlpScope,
     EvidenceChunk,
     IntentResult,
     Locale,
@@ -22,11 +23,17 @@ from digilicense_ai.schemas import (
 
 
 class FakeDlpGateway:
-    async def analyze(self, question: str) -> DlpResult:
+    async def analyze(
+        self,
+        text: str,
+        *,
+        scope: DlpScope = DlpScope.INBOUND,
+    ) -> DlpResult:
         return DlpResult(
             action=DlpAction.ALLOW,
+            scope=scope,
             entity_types=(),
-            safe_routing_text=question,
+            safe_routing_text=text,
             provider_allowed=True,
         )
 

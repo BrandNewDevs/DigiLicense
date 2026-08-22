@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     intent_backend: LocalBackend = LocalBackend.FAKE
     service_name: str = "digilicense-ai"
     max_request_body_bytes: int = Field(default=4096, ge=1024, le=65536)
+    dlp_timeout_ms: int = Field(default=250, ge=10, le=2000)
     model_id: str = "gpt-5.4-mini-2026-03-17"
     log_level: str = "INFO"
 

@@ -1,4 +1,4 @@
-"""Dependency selection and Phase 0 component container."""
+"""Dependency selection for implemented and future AI components."""
 
 from dataclasses import dataclass
 
@@ -15,6 +15,7 @@ from digilicense_ai.config import (
     RetrievalBackend,
     Settings,
 )
+from digilicense_ai.dlp import LocalDlpGateway
 from digilicense_ai.fakes import (
     FakeDlpGateway,
     FakeIntentRouter,
@@ -49,11 +50,9 @@ class ServiceContainer:
 
 
 def build_container(settings: Settings) -> ServiceContainer:
-    """Build the Phase 0 fake container and reject unimplemented backends honestly."""
+    """Build available components and reject later-phase backends honestly."""
 
     unsupported = []
-    if settings.dlp_backend is not LocalBackend.FAKE:
-        unsupported.append("dlp")
     if settings.context_backend is not LocalBackend.FAKE:
         unsupported.append("context")
     if settings.intent_backend is not LocalBackend.FAKE:
@@ -66,9 +65,15 @@ def build_container(settings: Settings) -> ServiceContainer:
         names = ", ".join(unsupported)
         raise BackendNotImplementedError(f"backends are reserved for later phases: {names}")
 
+    dlp = (
+        LocalDlpGateway.create(timeout_ms=settings.dlp_timeout_ms)
+        if settings.dlp_backend is LocalBackend.LOCAL
+        else FakeDlpGateway()
+    )
+
     return ServiceContainer(
         settings=settings,
-        dlp=FakeDlpGateway(),
+        dlp=dlp,
         context=FakeSemanticContextManager(),
         intent=FakeIntentRouter(),
         retriever=FakeRetriever(),

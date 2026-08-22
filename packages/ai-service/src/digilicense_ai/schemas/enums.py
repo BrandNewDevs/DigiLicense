@@ -86,6 +86,12 @@ class DlpAction(StrEnum):
     FAIL_CLOSED = "FAIL_CLOSED"
 
 
+class DlpScope(StrEnum):
+    INBOUND = "INBOUND"
+    PROVIDER_PAYLOAD = "PROVIDER_PAYLOAD"
+    OUTBOUND = "OUTBOUND"
+
+
 class BlockedReason(StrEnum):
     PII_DETECTED = "PII_DETECTED"
     UNSUPPORTED = "UNSUPPORTED"

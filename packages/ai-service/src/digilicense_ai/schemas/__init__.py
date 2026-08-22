@@ -8,11 +8,12 @@ from digilicense_ai.schemas.api import (
     SourceReference,
 )
 from digilicense_ai.schemas.context import ContextSeed, SemanticContext
-from digilicense_ai.schemas.dlp import DlpResult
+from digilicense_ai.schemas.dlp import DlpEntity, DlpResult
 from digilicense_ai.schemas.enums import (
     BlockedReason,
     CanonicalIntent,
     DlpAction,
+    DlpScope,
     Locale,
     Page,
     ReasonCode,
@@ -31,7 +32,9 @@ __all__ = [
     "CanonicalProviderRequest",
     "ContextSeed",
     "DlpAction",
+    "DlpEntity",
     "DlpResult",
+    "DlpScope",
     "Escalation",
     "EvidenceChunk",
     "HealthResponse",

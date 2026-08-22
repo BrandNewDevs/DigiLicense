@@ -1,4 +1,4 @@
-"""Application orchestration for the deterministic Phase 0 vertical slice."""
+"""Application orchestration across the AI service trust boundaries."""
 
 from digilicense_ai.container import ServiceContainer
 from digilicense_ai.schemas import (
@@ -10,6 +10,7 @@ from digilicense_ai.schemas import (
     ContextSeed,
     DlpAction,
     DlpResult,
+    DlpScope,
     IntentResult,
     Locale,
     RetrievalQuery,
@@ -48,13 +49,27 @@ _SAFETY_RESPONSES = {
     ),
 }
 
+_BOUNDARY_RESPONSES = {
+    Locale.ENGLISH: (
+        "I could not safely prepare that answer. Please use the public guidance on this page "
+        "and try again without personal information."
+    ),
+    Locale.HINDI: (
+        "मैं उस उत्तर को सुरक्षित रूप से तैयार नहीं कर सका। कृपया इस पेज पर सार्वजनिक मार्गदर्शन "
+        "देखें और निजी जानकारी के बिना फिर प्रयास करें।"
+    ),
+}
+
 
 class AssistantService:
     def __init__(self, container: ServiceContainer) -> None:
         self._container = container
 
     async def answer(self, request: AssistantMessageRequest) -> AssistantMessageResponse:
-        dlp_result = await self._container.dlp.analyze(request.question)
+        dlp_result = await self._container.dlp.analyze(
+            request.question,
+            scope=DlpScope.INBOUND,
+        )
 
         if not dlp_result.provider_allowed:
             return await self._blocked_response(request, dlp_result)
@@ -98,7 +113,20 @@ class AssistantService:
             prompt_version="phase0-fake-v1",
             corpus_version="phase0-fixture-v1",
         )
+        payload_dlp_result = await self._container.dlp.analyze(
+            provider_request.model_dump_json(by_alias=True),
+            scope=DlpScope.PROVIDER_PAYLOAD,
+        )
+        if not payload_dlp_result.provider_allowed:
+            return self._boundary_failure_response(request, intent_result, payload_dlp_result)
+
         provider_result = await self._container.provider.generate(provider_request)
+        outbound_dlp_result = await self._container.dlp.analyze(
+            provider_result.answer,
+            scope=DlpScope.OUTBOUND,
+        )
+        if not outbound_dlp_result.provider_allowed:
+            return self._boundary_failure_response(request, intent_result, outbound_dlp_result)
 
         evidence_by_id = {item.source_id: item for item in evidence}
         sources = tuple(
@@ -170,3 +198,23 @@ class AssistantService:
             )
 
         raise RuntimeError("DLP denied provider access without a blocked response action")
+
+    @staticmethod
+    def _boundary_failure_response(
+        request: AssistantMessageRequest,
+        intent_result: IntentResult,
+        dlp_result: DlpResult,
+    ) -> AssistantMessageResponse:
+        blocked_reason = (
+            BlockedReason.INTERNAL_SAFETY_FAILURE
+            if dlp_result.action is DlpAction.FAIL_CLOSED
+            else BlockedReason.INVALID_OUTPUT
+        )
+        return AssistantMessageResponse(
+            answer=_BOUNDARY_RESPONSES[request.locale],
+            intent=intent_result.intent,
+            sources=(),
+            uncertain=True,
+            fallback_used=True,
+            blocked_reason=blocked_reason,
+        )

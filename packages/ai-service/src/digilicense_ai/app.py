@@ -6,11 +6,12 @@ from uuid import uuid4
 
 import structlog
 from fastapi import APIRouter, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from digilicense_ai.config import Settings
 from digilicense_ai.container import ServiceContainer, build_container
-from digilicense_ai.logging import configure_logging, safe_request_id
+from digilicense_ai.logging import configure_logging, safe_request_id, safe_request_path
 from digilicense_ai.middleware import BodySizeLimitMiddleware
 from digilicense_ai.schemas import AssistantMessageRequest, AssistantMessageResponse, HealthResponse
 from digilicense_ai.service import AssistantService
@@ -28,8 +29,8 @@ def create_app(
 
     app = FastAPI(
         title="DigiLicense AI service",
-        version="0.1.0",
-        description="Private AI explanation boundary. Phase 0 uses deterministic fake components.",
+        version="0.2.0",
+        description="Private AI explanation boundary with self-hosted PII protection.",
     )
     app.state.container = resolved_container
     app.state.ready = True
@@ -49,11 +50,21 @@ def create_app(
             "request_completed",
             request_id=request_id,
             method=request.method,
-            path=request.url.path,
+            path=safe_request_path(request.url.path),
             status_code=response.status_code,
             duration_ms=duration_ms,
         )
         return response
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, error: RequestValidationError) -> JSONResponse:
+        del error
+        request_id = safe_request_id(request.headers.get("x-request-id")) or str(uuid4())
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "invalid request"},
+            headers={"x-request-id": request_id},
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, error: Exception) -> JSONResponse:
@@ -62,7 +73,7 @@ def create_app(
             "request_failed",
             request_id=request_id,
             method=request.method,
-            path=request.url.path,
+            path=safe_request_path(request.url.path),
             error_type=type(error).__name__,
         )
         return JSONResponse(
