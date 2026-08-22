@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { ArrowLeft, ArrowUpRight, LockKeyhole } from "lucide-react"
+import { ArrowLeft, ArrowRight, LockKeyhole } from "lucide-react"
 
 import { SiteFooter } from "@workspace/ui/components/site-footer"
 import { SiteHeader } from "@workspace/ui/components/site-header"
@@ -18,8 +18,8 @@ function ServicesPage() {
         brandHref="/"
         brandLabel="DigiLicense home"
         linkComponent={Link}
-        navigation={[
-          { href: "/", label: "Home" },
+        navigation={[{ href: "/", label: "Home" }]}
+        actions={[
           {
             href: "/applicant/login?returnTo=%2Fservices",
             label: "Sign in",
@@ -79,8 +79,8 @@ function ServicesPage() {
                 </p>
                 <span className="mt-auto inline-flex items-center gap-2 pt-8 text-sm font-medium">
                   Open service
-                  <ArrowUpRight
-                    className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transition-none"
+                  <ArrowRight
+                    className="size-4 -rotate-45 transition-transform group-hover:rotate-0 group-focus-visible:rotate-0 motion-reduce:transition-none"
                     aria-hidden="true"
                   />
                 </span>
