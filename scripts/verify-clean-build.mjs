@@ -57,9 +57,10 @@ try {
 
   await run(
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-    // --force disables Turbo cache reads and writes so the check always
-    // exercises a real prisma generate instead of restoring cached output.
-    ["build", "--force"],
+    // --cache=local:,remote: disables both cache reads and writes so the
+    // check always exercises a real prisma generate and leaves no cached
+    // output behind.
+    ["build", "--cache=local:,remote:"],
     repositoryRoot
   )
   await access(generatedClientEntry)

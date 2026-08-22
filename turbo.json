@@ -16,12 +16,8 @@
     "format": {
       "dependsOn": ["^format"]
     },
-    "db:generate": {
-      "inputs": ["$TURBO_DEFAULT$"],
-      "outputs": ["src/generated/prisma/**"]
-    },
     "typecheck": {
-      "dependsOn": ["^typecheck", "@digilicense/db#db:generate"]
+      "dependsOn": ["^typecheck", "@digilicense/db#build"]
     },
     "dev": {
       "cache": false,

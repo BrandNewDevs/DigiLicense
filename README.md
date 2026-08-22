@@ -181,8 +181,9 @@ pnpm --filter web typecheck
 ```
 
 `pnpm test:clean-build` temporarily removes the ignored generated Prisma
-client, runs an uncached root build (`turbo build --force`), verifies
-generation, then restores the prior generated output.
+client, runs a fully uncached root build (`turbo build
+--cache=local:,remote:`), verifies generation, then restores the prior
+generated output.
 
 ## Database setup and migrations
 
