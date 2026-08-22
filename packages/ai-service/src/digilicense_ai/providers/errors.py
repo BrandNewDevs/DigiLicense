@@ -9,6 +9,8 @@ class ProviderFailureReason(StrEnum):
     NETWORK = "network"
     INVALID_OUTPUT = "invalid_output"
     UNAVAILABLE = "unavailable"
+    CIRCUIT_OPEN = "circuit_open"
+    UNSAFE_PAYLOAD = "unsafe_payload"
 
 
 class ProviderFailure(RuntimeError):
