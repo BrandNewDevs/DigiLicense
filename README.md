@@ -201,15 +201,21 @@ resetting it:
 
    ```bash
    pnpm --filter web exec prisma migrate diff \
-     --from-empty --to-schema prisma/schema.prisma --script > baseline.sql
+     --from-empty --to-schema prisma/schema.prisma --script \
+     > apps/web/prisma/migrations/0_init/migration.sql
    ```
 
-2. Review `baseline.sql` carefully before it touches any database.
-3. Apply it with `prisma migrate deploy` (never `migrate dev`) and record the
-   baseline so history stays consistent:
+2. Review `0_init/migration.sql` carefully before it touches any database.
+3. Replace or archive any existing timestamped migrations so their changes are
+   already contained in `0_init` and they are not applied again after the
+   baseline. The repository's timestamped migrations exist for development
+   databases created with `migrate dev`; a baselined production database must
+   not replay them on top of `0_init`.
+4. Mark the baseline as applied, then deploy:
 
    ```bash
-   prisma migrate resolve --applied <migration_name>
+   pnpm --filter web exec prisma migrate resolve --applied 0_init
+   pnpm --filter web exec prisma migrate deploy
    ```
 
 In production, apply committed migrations only with `prisma migrate deploy`.
