@@ -3,6 +3,7 @@ import "@tanstack/react-start/server-only"
 import { getStatusLabel } from "../lib/operator-workflow"
 import { prisma } from "./db.server"
 import { requireApplicant } from "./demo-session.server"
+import { recordDependencyFailure } from "./logger.server"
 
 async function lookupAuthorizedApplicationStatus(applicationNumber: string) {
   let applicant
@@ -37,7 +38,12 @@ async function lookupAuthorizedApplicationStatus(applicationNumber: string) {
         nextAction: true,
       },
     })
-  } catch {
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "application_status_lookup",
+    })
+
     return {
       kind: "unavailable" as const,
       message: "Application tracking is temporarily unavailable.",
