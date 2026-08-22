@@ -10,6 +10,7 @@ from digilicense_ai.config import (
 )
 from digilicense_ai.container import BackendNotImplementedError, build_container
 from digilicense_ai.dlp import LocalDlpGateway
+from digilicense_ai.providers import OpenAIProvider
 
 
 def test_default_profile_requires_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -43,6 +44,9 @@ def test_production_rejects_unsafe_backend_combinations(
             dlp_backend=LocalBackend.LOCAL,
             context_backend=LocalBackend.LOCAL,
             intent_backend=LocalBackend.LOCAL,
+            openai_api_key="sk-synthetic-test-only",
+            openai_project_id="proj_synthetic_test",
+            openai_budget_controls_confirmed=True,
         )
 
 
@@ -54,10 +58,52 @@ def test_production_accepts_only_planned_safe_backends() -> None:
         dlp_backend=LocalBackend.LOCAL,
         context_backend=LocalBackend.LOCAL,
         intent_backend=LocalBackend.LOCAL,
+        openai_api_key="sk-synthetic-test-only",
+        openai_project_id="proj_synthetic_test",
+        openai_budget_controls_confirmed=True,
     )
 
     assert settings.provider_backend is ProviderBackend.OPENAI
     assert settings.retrieval_backend is RetrievalBackend.BM25
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("openai_api_key", None),
+        ("openai_api_key", "   "),
+        ("openai_project_id", None),
+        ("openai_project_id", "   "),
+    ],
+)
+def test_openai_selection_requires_dedicated_credentials(
+    field: str,
+    invalid_value: str | None,
+) -> None:
+    values = {
+        "profile": EnvironmentProfile.EVALUATION,
+        "provider_backend": ProviderBackend.OPENAI,
+        "openai_api_key": "sk-synthetic-test-only",
+        "openai_project_id": "proj_synthetic_test",
+    }
+    values[field] = invalid_value
+
+    with pytest.raises(ValidationError, match="OpenAI provider configuration is incomplete"):
+        Settings.model_validate(values)
+
+
+def test_production_requires_budget_controls_confirmation() -> None:
+    with pytest.raises(ValidationError, match="confirmed OpenAI budget controls"):
+        Settings(
+            profile=EnvironmentProfile.PRODUCTION,
+            provider_backend=ProviderBackend.OPENAI,
+            retrieval_backend=RetrievalBackend.BM25,
+            dlp_backend=LocalBackend.LOCAL,
+            context_backend=LocalBackend.LOCAL,
+            intent_backend=LocalBackend.LOCAL,
+            openai_api_key="sk-synthetic-test-only",
+            openai_project_id="proj_synthetic_test",
+        )
 
 
 def test_later_phase_backends_fail_honestly_during_phase_zero() -> None:
@@ -81,3 +127,18 @@ def test_local_dlp_model_is_loaded_when_container_is_built() -> None:
 
     assert isinstance(container.dlp, LocalDlpGateway)
     assert container.component_statuses["dlp"] == "local"
+
+
+async def test_evaluation_profile_wires_openai_without_a_startup_network_call() -> None:
+    settings = Settings(
+        profile=EnvironmentProfile.EVALUATION,
+        provider_backend=ProviderBackend.OPENAI,
+        openai_api_key="sk-synthetic-test-only",
+        openai_project_id="proj_synthetic_test",
+    )
+
+    container = build_container(settings)
+
+    assert isinstance(container.provider, OpenAIProvider)
+    assert container.component_statuses["provider"] == "openai"
+    await container.close()
