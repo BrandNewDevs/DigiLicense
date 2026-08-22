@@ -1,6 +1,8 @@
 """Application orchestration across the AI service trust boundaries."""
 
+from digilicense_ai.config import ProviderBackend
 from digilicense_ai.container import ServiceContainer
+from digilicense_ai.providers import ProviderFailure, ProviderFailureReason
 from digilicense_ai.schemas import (
     AssistantMessageRequest,
     AssistantMessageResponse,
@@ -60,6 +62,17 @@ _BOUNDARY_RESPONSES = {
     ),
 }
 
+_PROVIDER_FALLBACK_RESPONSES = {
+    Locale.ENGLISH: (
+        "AI guidance is temporarily unavailable. Please use the cited public guidance on this "
+        "page and try again later."
+    ),
+    Locale.HINDI: (
+        "AI मार्गदर्शन अभी उपलब्ध नहीं है। कृपया इस पेज पर दिए सार्वजनिक मार्गदर्शन का उपयोग "
+        "करें और बाद में फिर प्रयास करें।"
+    ),
+}
+
 
 class AssistantService:
     def __init__(self, container: ServiceContainer) -> None:
@@ -110,7 +123,11 @@ class AssistantService:
             reason_code=request.reason_code,
             locale=request.locale,
             evidence=evidence,
-            prompt_version="phase0-fake-v1",
+            prompt_version=(
+                "phase3-openai-v1"
+                if self._container.settings.provider_backend is ProviderBackend.OPENAI
+                else "phase0-fake-v1"
+            ),
             corpus_version="phase0-fixture-v1",
         )
         payload_dlp_result = await self._container.dlp.analyze(
@@ -120,7 +137,10 @@ class AssistantService:
         if not payload_dlp_result.provider_allowed:
             return self._boundary_failure_response(request, intent_result, payload_dlp_result)
 
-        provider_result = await self._container.provider.generate(provider_request)
+        try:
+            provider_result = await self._container.provider.generate(provider_request)
+        except ProviderFailure as error:
+            return self._provider_failure_response(request, intent_result, error.reason)
         outbound_dlp_result = await self._container.dlp.analyze(
             provider_result.answer,
             scope=DlpScope.OUTBOUND,
@@ -212,6 +232,28 @@ class AssistantService:
         )
         return AssistantMessageResponse(
             answer=_BOUNDARY_RESPONSES[request.locale],
+            intent=intent_result.intent,
+            sources=(),
+            uncertain=True,
+            fallback_used=True,
+            blocked_reason=blocked_reason,
+        )
+
+    @staticmethod
+    def _provider_failure_response(
+        request: AssistantMessageRequest,
+        intent_result: IntentResult,
+        reason: ProviderFailureReason,
+    ) -> AssistantMessageResponse:
+        blocked_reason = (
+            BlockedReason.RATE_LIMITED
+            if reason is ProviderFailureReason.RATE_LIMITED
+            else BlockedReason.INVALID_OUTPUT
+            if reason is ProviderFailureReason.INVALID_OUTPUT
+            else BlockedReason.PROVIDER_UNAVAILABLE
+        )
+        return AssistantMessageResponse(
+            answer=_PROVIDER_FALLBACK_RESPONSES[request.locale],
             intent=intent_result.intent,
             sources=(),
             uncertain=True,
