@@ -13,7 +13,7 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "TanStack Start Starter",
+        title: "DigiLicense | Your licence. Your way.",
       },
     ],
     links: [
@@ -24,7 +24,7 @@ export const Route = createRootRoute({
     ],
   }),
   notFoundComponent: () => (
-    <main className="container mx-auto p-4 pt-16">
+    <main id="main-content" className="container mx-auto p-4 pt-16">
       <h1>404</h1>
       <p>The requested page could not be found.</p>
     </main>
@@ -39,6 +39,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <a
+          href="#main-content"
+          className="sr-only fixed top-4 left-4 z-50 rounded-md bg-foreground px-4 py-3 text-sm font-medium text-background focus:not-sr-only focus:outline-2 focus:outline-offset-4 focus:outline-ring"
+        >
+          Skip to main content
+        </a>
         {children}
         <Scripts />
       </body>
