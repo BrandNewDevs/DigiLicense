@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process"
 import { access, mkdtemp, rename, rm } from "node:fs/promises"
-import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -10,7 +9,9 @@ const generatedClientDirectory = join(
   "packages/db/src/generated/prisma"
 )
 const generatedClientEntry = join(generatedClientDirectory, "client.ts")
-const backupRoot = await mkdtemp(join(tmpdir(), "digilicense-prisma-client-"))
+// Keep the backup inside the repository so rename() cannot fail with EXDEV
+// when the OS temporary directory sits on a different filesystem.
+const backupRoot = await mkdtemp(join(repositoryRoot, ".verify-clean-build-"))
 const backupDirectory = join(backupRoot, "prisma")
 
 function isMissingPathError(error) {
@@ -56,7 +57,10 @@ try {
 
   await run(
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-    ["build"],
+    // --cache=local:,remote: disables both cache reads and writes so the
+    // check always exercises a real prisma generate and leaves no cached
+    // output behind.
+    ["build", "--cache=local:,remote:"],
     repositoryRoot
   )
   await access(generatedClientEntry)

@@ -17,7 +17,7 @@
       "dependsOn": ["^format"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck", "@digilicense/db#build"]
     },
     "dev": {
       "cache": false,

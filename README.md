@@ -181,15 +181,17 @@ pnpm --filter web typecheck
 ```
 
 `pnpm test:clean-build` temporarily removes the ignored generated Prisma
-client, runs the root build, verifies generation, then restores the prior
+client, runs a fully uncached root build (`turbo build
+--cache=local:,remote:`), verifies generation, then restores the prior
 generated output.
 
 ## Database setup and migrations
 
 Copy `apps/web/.env.example` to `apps/web/.env`, point `DATABASE_URL` at a
 synthetic development database, and set a session secret. The database package
-uses that same uncommitted file for Prisma commands. Remote hosts must require
-TLS (`sslmode=require`, `verify-ca`, or `verify-full`).
+uses that same uncommitted file for Prisma commands. All database hosts,
+including loopback development hosts, must require TLS (`sslmode=require`,
+`verify-ca`, or `verify-full`).
 
 For an **empty development database**, create the schema with:
 
