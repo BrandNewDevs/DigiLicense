@@ -9,6 +9,7 @@ from digilicense_ai.config import (
     Settings,
 )
 from digilicense_ai.container import BackendNotImplementedError, build_container
+from digilicense_ai.dlp import LocalDlpGateway
 
 
 def test_default_profile_requires_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -68,3 +69,15 @@ def test_later_phase_backends_fail_honestly_during_phase_zero() -> None:
 
     with pytest.raises(BackendNotImplementedError, match="reserved for later phases"):
         build_container(settings)
+
+
+def test_local_dlp_model_is_loaded_when_container_is_built() -> None:
+    settings = Settings(
+        profile=EnvironmentProfile.TEST,
+        dlp_backend=LocalBackend.LOCAL,
+    )
+
+    container = build_container(settings)
+
+    assert isinstance(container.dlp, LocalDlpGateway)
+    assert container.component_statuses["dlp"] == "local"

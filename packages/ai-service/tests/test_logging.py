@@ -3,7 +3,7 @@ import logging
 import pytest
 from httpx import AsyncClient
 
-from digilicense_ai.logging import safe_request_id, sanitized_event
+from digilicense_ai.logging import safe_request_id, safe_request_path, sanitized_event
 
 
 def test_request_id_accepts_only_bounded_safe_characters() -> None:
@@ -19,6 +19,11 @@ def test_structured_event_includes_only_explicit_metadata() -> None:
 
     assert sentinel not in str(event)
     assert event == {"event": "request_completed", "method": "POST", "status_code": 200}
+
+
+def test_arbitrary_url_path_is_not_loggable() -> None:
+    assert safe_request_path("/v1/assistant/messages") == "/v1/assistant/messages"
+    assert safe_request_path("/raw-sensitive-path") == "unmatched"
 
 
 async def test_request_log_excludes_question_content(
