@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto"
 import { getRequestIP } from "@tanstack/react-start/server"
 
 import { prisma } from "./db.server"
+import { recordDependencyFailure } from "./logger.server"
 import {
   buildBucketKey,
   getRetryAfterSeconds,
@@ -56,18 +57,34 @@ async function consumeRateLimit(
 
   const hits = rows[0]?.hits ?? 1
 
-  if (Math.random() < 0.01) {
-    await prisma.$executeRaw`
-      DELETE FROM "RateLimitWindow"
-      WHERE "windowStart" < ${new Date(now.getTime() - 24 * 60 * 60_000)}
-    `
-  }
-
-  return {
+  const result = {
     allowed: hits <= rule.limit,
     remaining: Math.max(0, rule.limit - hits),
     retryAfterSeconds: getRetryAfterSeconds(now, windowStart, rule.windowMs),
   }
+
+  // Best-effort retention: sampled, bounded to rows older than one day, and
+  // isolated from the decision above so a failed cleanup can never fail
+  // sign-in or an operator action after the upsert has succeeded.
+  if (Math.random() < 0.01) {
+    try {
+      await prisma.$executeRaw`
+        DELETE FROM "RateLimitWindow"
+        WHERE "windowStart" < ${new Date(now.getTime() - 24 * 60 * 60_000)}
+      `
+    } catch (error) {
+      recordDependencyFailure(error, {
+        dependency: "postgres",
+        operation: "rate_limit_retention_cleanup",
+      })
+    }
+  }
+
+  return result
 }
 
-export { consumeRateLimit, getRateLimitClientIp }
+export {
+  consumeRateLimit,
+  getRateLimitClientIp,
+}
+export type { ConsumeRateLimitResult }
