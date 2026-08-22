@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { ArrowUpRight, BadgeCheck, FileCheck2, ScanLine } from "lucide-react"
+import { BadgeCheck, FileCheck2, ScanLine } from "lucide-react"
 
-import { Button } from "@workspace/ui/components/button"
 import {
   Carousel,
   CarouselContent,
@@ -9,6 +8,13 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@workspace/ui/components/carousel"
+import {
+  ServiceCard,
+  ServiceCardAction,
+  ServiceLookupForm,
+} from "@workspace/ui/components/service-card"
+import { SiteFooter } from "@workspace/ui/components/site-footer"
+import { SiteHeader } from "@workspace/ui/components/site-header"
 
 export const Route = createFileRoute("/")({ component: App })
 
@@ -54,29 +60,12 @@ const services = [
 function App() {
   return (
     <div className="min-h-svh overflow-hidden bg-background text-foreground">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-5 sm:px-8 lg:px-10">
-          <a
-            href="#main-content"
-            className="inline-flex min-h-11 items-center font-heading text-lg font-semibold tracking-[-0.04em] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            aria-label="DigiLicense home"
-          >
-            DigiLicense
-          </a>
-
-          <nav
-            className="flex items-center text-sm font-medium text-muted-foreground"
-            aria-label="Main navigation"
-          >
-            <a
-              className="inline-flex min-h-11 items-center transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-              href="/services"
-            >
-              Services
-            </a>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader
+        brand="DigiLicense"
+        brandHref="/"
+        brandLabel="DigiLicense home"
+        navigation={[{ href: "/services", label: "Services" }]}
+      />
 
       <main id="main-content">
         <section className="border-b border-border">
@@ -119,117 +108,60 @@ function App() {
               aria-label="Licence services"
             >
               <CarouselContent className="items-stretch">
-                {services.map((service, index) => {
-                  const Icon = service.icon
-
-                  return (
-                    <CarouselItem
-                      className="h-[430px] md:basis-1/2 lg:basis-1/3"
-                      key={service.title}
-                      aria-label={`${service.title}, service ${index + 1} of ${services.length}`}
+                {services.map((service, index) => (
+                  <CarouselItem
+                    className="h-[430px] md:basis-1/2 lg:basis-1/3"
+                    key={service.title}
+                    aria-label={`${service.title}, service ${index + 1} of ${services.length}`}
+                  >
+                    <ServiceCard
+                      description={service.description}
+                      icon={service.icon}
+                      meta={service.meta}
+                      metaId={
+                        service.type === "tracking"
+                          ? "application-number-help"
+                          : undefined
+                      }
+                      title={service.title}
                     >
-                      <article className="group flex h-full min-h-0 flex-col rounded-[1.6rem] border border-border bg-card p-6 transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:transform-none sm:p-7">
-                        <span className="grid size-12 place-items-center rounded-2xl bg-muted">
-                          <Icon className="size-5" aria-hidden="true" />
-                        </span>
-
-                        <div className="mt-8">
-                          <h3 className="max-w-[280px] font-heading text-2xl font-medium tracking-[-0.05em]">
-                            {service.title}
-                          </h3>
-                          <p className="mt-3 max-w-[300px] text-sm leading-6 text-muted-foreground">
-                            {service.description}
-                          </p>
-                        </div>
-
-                        <div className="mt-auto border-t border-border pt-5">
-                          <p
-                            className="mb-4 flex min-h-6 items-center text-sm font-medium text-muted-foreground"
-                            id={
-                              service.type === "tracking"
-                                ? "application-number-help"
-                                : undefined
-                            }
-                          >
-                            {service.meta}
-                          </p>
-
-                          <div className="flex min-h-[132px] flex-col justify-end">
-                            {service.type === "tracking" ? (
-                              <form
-                                className="space-y-2"
-                                onSubmit={(event) => {
-                                  event.preventDefault()
-                                  const formData = new FormData(
-                                    event.currentTarget
-                                  )
-                                  const applicationNumber = String(
-                                    formData.get("application-number") ?? ""
-                                  ).trim()
-
-                                  if (applicationNumber) {
-                                    window.location.href = `/services/track-application?application=${encodeURIComponent(applicationNumber)}`
-                                  }
-                                }}
-                              >
-                                <label
-                                  className="mb-2 block text-sm font-medium"
-                                  htmlFor="application-number"
-                                >
-                                  Application number
-                                </label>
-                                <input
-                                  id="application-number"
-                                  name="application-number"
-                                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                                  placeholder="Application number"
-                                  inputMode="text"
-                                  autoComplete="off"
-                                  required
-                                  aria-describedby="application-number-help"
-                                />
-                                <Button className="h-11 w-full" type="submit">
-                                  Track status
-                                </Button>
-                              </form>
-                            ) : (
-                              <a
-                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-4 text-base font-medium text-background transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transition-none"
-                                href={service.href}
-                              >
-                                {service.action}
-                                <ArrowUpRight
-                                  className="size-4"
-                                  aria-hidden="true"
-                                />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </article>
-                    </CarouselItem>
-                  )
-                })}
+                      {service.type === "tracking" ? (
+                        <ServiceLookupForm
+                          describedBy="application-number-help"
+                          fieldId="application-number"
+                          fieldLabel="Application number"
+                          fieldName="application-number"
+                          placeholder="Application number"
+                          submitLabel="Track status"
+                          onSubmit={(applicationNumber) => {
+                            window.location.href = `/services/track-application?application=${encodeURIComponent(applicationNumber)}`
+                          }}
+                        />
+                      ) : (
+                        <ServiceCardAction
+                          href={service.href}
+                          label={service.action}
+                        />
+                      )}
+                    </ServiceCard>
+                  </CarouselItem>
+                ))}
               </CarouselContent>
               <CarouselPrevious aria-label="Previous service" />
               <CarouselNext aria-label="Next service" />
             </Carousel>
           </div>
         </section>
-
       </main>
 
-      <footer className="border-t border-border bg-background">
-        <div className="mx-auto max-w-[1240px] px-5 py-10 text-base leading-7 text-muted-foreground sm:px-8 lg:px-10">
-          <p className="font-medium text-foreground">DigiLicense</p>
-          <p className="mt-3 max-w-3xl">
-            Disclaimer: DigiLicense is not a government website. It is an
-            independent project, and its features, content, and services are not
-            provided by, affiliated with, endorsed by, or connected to any
-            government department or agency.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter title="DigiLicense">
+        <p>
+          Disclaimer: DigiLicense is not a government website. It is an
+          independent project, and its features, content, and services are not
+          provided by, affiliated with, endorsed by, or connected to any
+          government department or agency.
+        </p>
+      </SiteFooter>
     </div>
   )
 }
