@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     openai_max_concurrency: int = Field(default=10, ge=1, le=10)
     provider_circuit_failure_threshold: int = Field(default=3, ge=1, le=10)
     provider_circuit_reset_seconds: float = Field(default=30.0, ge=1.0, le=300.0)
+    gemini_api_key: SecretStr | None = Field(default=None, repr=False)
+    gemini_model_id: Literal["gemini-2.5-flash-lite"] = "gemini-2.5-flash-lite"
     openai_budget_controls_confirmed: bool = False
     file_search_enabled: bool = False
     file_search_vector_store_id: str | None = Field(default=None, min_length=4, max_length=128)
@@ -97,6 +99,12 @@ class Settings(BaseSettings):
             if missing:
                 fields = ", ".join(missing)
                 raise ValueError(f"OpenAI provider configuration is incomplete: {fields}")
+
+        if self.provider_backend is ProviderBackend.GEMINI:
+            if self.profile is not EnvironmentProfile.DEVELOPMENT:
+                raise ValueError("Gemini is allowed only in the development profile")
+            if self.gemini_api_key is None or not self.gemini_api_key.get_secret_value().strip():
+                raise ValueError("Gemini development configuration requires gemini_api_key")
 
         if self.retrieval_backend is RetrievalBackend.FILE_SEARCH:
             if self.profile is not EnvironmentProfile.EVALUATION:

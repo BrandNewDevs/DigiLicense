@@ -29,7 +29,7 @@ from digilicense_ai.fakes import (
     FakeRetriever,
     FakeSemanticContextManager,
 )
-from digilicense_ai.providers import OpenAIProvider
+from digilicense_ai.providers import GeminiProvider, OpenAIProvider
 from digilicense_ai.retrieval import Bm25Retriever, FileSearchRetriever
 from digilicense_ai.retrieval.file_search import FileSearchClient
 
@@ -72,8 +72,6 @@ def build_container(settings: Settings) -> ServiceContainer:
         unsupported.append("context")
     if settings.intent_backend is not LocalBackend.FAKE:
         unsupported.append("intent")
-    if settings.provider_backend is ProviderBackend.GEMINI:
-        unsupported.append("provider")
     if unsupported:
         names = ", ".join(unsupported)
         raise BackendNotImplementedError(f"backends are reserved for later phases: {names}")
@@ -84,11 +82,12 @@ def build_container(settings: Settings) -> ServiceContainer:
         else FakeDlpGateway()
     )
 
-    provider: AssistantProvider = (
-        OpenAIProvider.from_settings(settings)
-        if settings.provider_backend is ProviderBackend.OPENAI
-        else FakeProvider()
-    )
+    if settings.provider_backend is ProviderBackend.OPENAI:
+        provider: AssistantProvider = OpenAIProvider.from_settings(settings, payload_dlp=dlp)
+    elif settings.provider_backend is ProviderBackend.GEMINI:
+        provider = GeminiProvider.from_settings(settings, payload_dlp=dlp)
+    else:
+        provider = FakeProvider()
     corpus = load_promoted_corpus()
     retriever: Retriever
     if settings.retrieval_backend is RetrievalBackend.BM25:

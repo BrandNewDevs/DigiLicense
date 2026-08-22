@@ -8,7 +8,7 @@ from digilicense_ai.config import (
     RetrievalBackend,
     Settings,
 )
-from digilicense_ai.container import BackendNotImplementedError, build_container
+from digilicense_ai.container import build_container
 from digilicense_ai.dlp import LocalDlpGateway
 from digilicense_ai.providers import OpenAIProvider
 from digilicense_ai.retrieval import Bm25Retriever
@@ -105,14 +105,21 @@ def test_production_requires_budget_controls_confirmation() -> None:
         )
 
 
-def test_unimplemented_gemini_backend_still_fails_honestly() -> None:
-    settings = Settings(
-        profile=EnvironmentProfile.EVALUATION,
-        provider_backend=ProviderBackend.GEMINI,
-    )
+def test_gemini_is_rejected_outside_development() -> None:
+    with pytest.raises(ValidationError, match="Gemini is allowed only in the development profile"):
+        Settings(
+            profile=EnvironmentProfile.EVALUATION,
+            provider_backend=ProviderBackend.GEMINI,
+            gemini_api_key="gemini-synthetic-test-only",
+        )
 
-    with pytest.raises(BackendNotImplementedError, match="reserved for later phases"):
-        build_container(settings)
+
+def test_gemini_development_selection_requires_separate_credentials() -> None:
+    with pytest.raises(ValidationError, match="requires gemini_api_key"):
+        Settings(
+            profile=EnvironmentProfile.DEVELOPMENT,
+            provider_backend=ProviderBackend.GEMINI,
+        )
 
 
 def test_file_search_requires_explicit_evaluation_configuration() -> None:
