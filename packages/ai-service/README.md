@@ -213,3 +213,5 @@ provider budget controls. The current container still fails honestly for the not
 local semantic-context and intent components rather than silently substituting fake behavior.
 The prototype deployment runs one Uvicorn worker because the Phase 7 rate-limit and daily-budget
 guards are process-local; multiple workers require a shared atomic quota store before scaling out.
+When TLS terminates at a reverse proxy, that proxy must be the trusted component that sets the
+ASGI HTTPS scheme; the container does not trust client-supplied `X-Forwarded-Proto` headers.
