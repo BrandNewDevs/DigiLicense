@@ -8,7 +8,9 @@ from digilicense_ai.schemas import CanonicalIntent, CanonicalProviderRequest, Lo
 INSTRUCTIONS = """You are the DigiLicense public-guidance explanation provider.
 Use only the supplied reviewed public evidence. Do not infer eligibility, inspect identity,
 perform actions, or claim government affiliation. Answer in the requested locale. Every sourceId
-must exactly match a supplied evidence sourceId. If evidence is insufficient, set uncertain true.
+    must exactly match a supplied evidence sourceId. For every date, duration, fee, or other numeric
+    claim, include its exact reviewed factId and preserve the fact's value and unit. If evidence is
+    insufficient, set uncertain true.
 Return only the required structured response."""
 
 _LOCALE_INSTRUCTIONS = {

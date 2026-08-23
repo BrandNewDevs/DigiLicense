@@ -25,7 +25,7 @@ Trust boundaries:
    are not logged.
 3. AI service to provider: only canonical intent, public enums, reviewed evidence, and prompt/corpus
    versions may leave the service. Provider payloads are scanned again before transmission.
-4. Provider response to caller: schema, citations, numeric facts, locale equivalence, plain text,
+4. Provider response to caller: schema, citations, locale-independent reviewed numeric facts, plain text,
    simulation disclosure, and output DLP are checked before release.
 
 The service is an explanation boundary, not an agent: it cannot decide eligibility, rank applicants,

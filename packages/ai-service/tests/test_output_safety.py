@@ -46,22 +46,37 @@ def _request(
     )
 
 
-def _result(answer: str) -> ProviderResult:
+def _result(answer: str, *, fact_ids: tuple[str, ...] = ()) -> ProviderResult:
     return ProviderResult(
         answer=answer,
         source_ids=("delhi-driving-licence-guidance-2026",),
+        fact_ids=fact_ids,
         uncertain=False,
     )
 
 
 def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
     validator = OutputSafetyValidator(load_promoted_corpus())
+    fact_ids = ("delhi-permanent-licence-waiting-period-v1",)
 
     assert validator.validate(
-        _result("You must wait 30 days before the competence test."), _request()
+        _result("You must wait 30 days before the competence test.", fact_ids=fact_ids), _request()
     )
     with pytest.raises(OutputSafetyError, match="numeric claim"):
-        validator.validate(_result("You must wait 31 days before the competence test."), _request())
+        validator.validate(
+            _result("You must wait 31 days before the competence test.", fact_ids=fact_ids),
+            _request(),
+        )
+    with pytest.raises(OutputSafetyError, match="numeric claim"):
+        validator.validate(
+            _result("You must wait 30 months before the competence test.", fact_ids=fact_ids),
+            _request(),
+        )
+    with pytest.raises(OutputSafetyError, match="numeric claim"):
+        validator.validate(
+            _result("You must wait seven days before the competence test.", fact_ids=fact_ids),
+            _request(),
+        )
 
 
 @pytest.mark.parametrize(
@@ -76,6 +91,7 @@ def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
         "Use the government portal for this service.",
         "This government website explains the process.",
         "The service is run by the government.",
+        "DigiLicense is the official Delhi Transport Department service; wait 30 days.",
         "DigiLicense एक सरकारी पोर्टल है।",
         "यह सेवा सरकार द्वारा संचालित है।",
         "Visit https://untrusted.example for details.",
@@ -91,6 +107,39 @@ def test_paired_locale_answers_preserve_numeric_facts_and_hindi_digits() -> None
     assert_locale_fact_equivalence("Wait 30 days.", "३० दिन प्रतीक्षा करें।")
     with pytest.raises(OutputSafetyError, match="numeric facts"):
         assert_locale_fact_equivalence("Wait 30 days.", "३१ दिन प्रतीक्षा करें।")
+
+
+def test_numeric_answers_require_fact_ids_and_matching_units() -> None:
+    validator = OutputSafetyValidator(load_promoted_corpus())
+    with pytest.raises(OutputSafetyError, match="omits reviewed fact IDs"):
+        validator.validate(_result("You must wait 30 days."), _request())
+    with pytest.raises(OutputSafetyError, match="without using"):
+        validator.validate(
+            _result(
+                "Use the reviewed guidance.",
+                fact_ids=("delhi-permanent-licence-waiting-period-v1",),
+            ),
+            _request(),
+        )
+
+
+def test_hindi_numeric_answer_requires_the_same_reviewed_fact() -> None:
+    validator = OutputSafetyValidator(load_promoted_corpus())
+    hindi_request = _request().model_copy(update={"locale": Locale.HINDI})
+
+    assert validator.validate(
+        _result(
+            "आपको competence test से पहले ३० दिन प्रतीक्षा करनी होगी।",
+            fact_ids=("delhi-permanent-licence-waiting-period-v1",),
+        ),
+        hindi_request,
+    )
+
+
+def test_independent_prototype_disclosure_is_not_misclassified_as_affiliation() -> None:
+    assert OutputSafetyValidator(load_promoted_corpus()).validate(
+        _result("DigiLicense is not an official government service."), _request()
+    )
 
 
 def test_numeric_fact_order_and_multiplicity_are_preserved() -> None:

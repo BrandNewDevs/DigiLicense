@@ -132,8 +132,10 @@ English and Hindi instructions are locale-specific and require preservation of d
 waiting periods, fees, uncertainty, and simulation disclosures. The service validates provider
 answers after schema validation and before outbound DLP: answer length is capped at 1,200
 characters, markup and arbitrary URLs are rejected, government-affiliation language is blocked,
-citations must resolve through local corpus metadata, and known numeric claims must match reviewed
-fact packets. Prototype-behavior evidence must be described as simulated. Unsafe output becomes a
+citations must resolve through local corpus metadata, and every numeric claim must cite a reviewed
+fact ID with its exact value and unit. Hindi and English numeric facts are independently checked
+against that same reviewed fact packet. Prototype-behavior evidence must be described as simulated.
+Unsafe output becomes a
 reviewed bilingual fallback with one of the bounded escalation codes; model-generated URLs are
 never returned to callers.
 
