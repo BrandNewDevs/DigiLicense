@@ -6,6 +6,9 @@ from digilicense_ai.fakes import FakeProvider
 from digilicense_ai.schemas import (
     CanonicalIntent,
     CanonicalProviderRequest,
+    DlpAction,
+    DlpResult,
+    DlpScope,
     EvidenceChunk,
     Locale,
     Page,
@@ -13,6 +16,22 @@ from digilicense_ai.schemas import (
     Service,
     Topic,
 )
+
+
+class OneFalsePositiveGateway:
+    def __init__(self) -> None:
+        self._calls = 0
+
+    async def analyze(self, text: str, *, scope: DlpScope = DlpScope.INBOUND) -> DlpResult:
+        self._calls += 1
+        action = DlpAction.FAIL_CLOSED if self._calls == 1 else DlpAction.ALLOW
+        return DlpResult(
+            action=action,
+            scope=scope,
+            entity_types=("synthetic",) if action is not DlpAction.ALLOW else (),
+            safe_routing_text=text,
+            provider_allowed=action is DlpAction.ALLOW,
+        )
 
 
 def test_dataset_covers_required_red_team_categories() -> None:
@@ -64,6 +83,16 @@ async def test_evaluation_detects_raw_input_in_egress_artifacts(
     )
 
     assert report.raw_input_leakage == 1
+    assert report.passes_security_gates is False
+
+
+async def test_one_false_positive_fails_explicit_allow_threshold() -> None:
+    cases = (EVALUATION_CASES[0], EVALUATION_CASES[1])
+    report = await evaluate_dlp_cases(OneFalsePositiveGateway(), cases=cases)
+
+    assert report.expected_allow_cases == 2
+    assert report.benign_false_positives == 1
+    assert report.false_positive_rate == 0.5
     assert report.passes_security_gates is False
 
 

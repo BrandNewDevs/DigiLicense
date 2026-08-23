@@ -3,7 +3,7 @@ from digilicense_ai.evaluation import AcceptanceSummary, EvaluationReport
 
 def test_acceptance_report_is_aggregate_only() -> None:
     report = AcceptanceSummary(
-        dlp=EvaluationReport(10, 2, 2, 0, 4.2, 0),
+        dlp=EvaluationReport(10, 2, 2, 0, 8, 4.2, 0),
         provider_payload_conformance=True,
         invalid_citation_rejection=True,
         fallback_correctness=True,
