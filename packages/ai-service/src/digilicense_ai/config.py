@@ -78,6 +78,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
+        if (
+            self.context_signing_previous_key is not None
+            and self.context_current_key_id == self.context_previous_key_id
+        ):
+            raise ValueError("context signing key IDs must be distinct")
         if self.profile is EnvironmentProfile.PRODUCTION:
             required = {
                 "provider_backend": (self.provider_backend, ProviderBackend.OPENAI),

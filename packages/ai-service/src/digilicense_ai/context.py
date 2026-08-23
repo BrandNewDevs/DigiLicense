@@ -24,6 +24,8 @@ class SignedSemanticContextManager:
     ) -> None:
         self._keys: dict[str, bytes] = {current_key_id: current_key.encode()}
         if previous_key:
+            if previous_key_id == current_key_id:
+                raise ValueError("context signing key IDs must be distinct")
             self._keys[previous_key_id] = previous_key.encode()
         self._current_key_id = current_key_id
         self._ttl_seconds = ttl_seconds
