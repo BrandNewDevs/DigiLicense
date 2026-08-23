@@ -20,7 +20,7 @@ from digilicense_ai.config import (
     RetrievalBackend,
     Settings,
 )
-from digilicense_ai.corpus import load_promoted_corpus
+from digilicense_ai.corpus import PromotedCorpus, load_promoted_corpus
 from digilicense_ai.dlp import LocalDlpGateway
 from digilicense_ai.fakes import (
     FakeDlpGateway,
@@ -46,6 +46,7 @@ class ServiceContainer:
     intent: IntentRouter
     retriever: Retriever
     provider: AssistantProvider
+    corpus: PromotedCorpus | None = None
 
     @property
     def component_statuses(self) -> dict[str, str]:
@@ -123,4 +124,5 @@ def build_container(settings: Settings) -> ServiceContainer:
         intent=FakeIntentRouter(),
         retriever=retriever,
         provider=provider,
+        corpus=corpus,
     )

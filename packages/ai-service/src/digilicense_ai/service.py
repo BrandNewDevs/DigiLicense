@@ -2,6 +2,15 @@
 
 from digilicense_ai.config import ProviderBackend
 from digilicense_ai.container import ServiceContainer
+from digilicense_ai.fallbacks import (
+    BOUNDARY,
+    NO_EVIDENCE,
+    PII_LOCAL_HELP,
+    PROVIDER,
+    SAFETY,
+    UNSUPPORTED,
+)
+from digilicense_ai.output_safety import OutputSafetyError, OutputSafetyValidator
 from digilicense_ai.providers import ProviderFailure, ProviderFailureReason
 from digilicense_ai.schemas import (
     AssistantMessageRequest,
@@ -13,6 +22,8 @@ from digilicense_ai.schemas import (
     DlpAction,
     DlpResult,
     DlpScope,
+    Escalation,
+    EscalationCode,
     IntentResult,
     Locale,
     RetrievalQuery,
@@ -88,6 +99,12 @@ _EVIDENCE_FALLBACK_RESPONSES = {
 class AssistantService:
     def __init__(self, container: ServiceContainer) -> None:
         self._container = container
+        if container.corpus is None:
+            from digilicense_ai.corpus import load_promoted_corpus
+
+            self._output_validator = OutputSafetyValidator(load_promoted_corpus())
+        else:
+            self._output_validator = OutputSafetyValidator(container.corpus)
 
     async def answer(self, request: AssistantMessageRequest) -> AssistantMessageResponse:
         dlp_result = await self._container.dlp.analyze(
@@ -128,12 +145,16 @@ class AssistantService:
         )
         if not evidence:
             return AssistantMessageResponse(
-                answer=_EVIDENCE_FALLBACK_RESPONSES[request.locale],
+                answer=NO_EVIDENCE[request.locale],
                 intent=intent_result.intent,
                 sources=(),
                 uncertain=True,
                 fallback_used=True,
                 blocked_reason=BlockedReason.NO_EVIDENCE,
+                escalation=Escalation(
+                    code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
+                    message="Review the approved public guidance for the next step.",
+                ),
             )
         provider_request = CanonicalProviderRequest(
             intent=intent_result.intent,
@@ -163,6 +184,21 @@ class AssistantService:
             provider_result = await self._container.provider.generate(provider_request)
         except ProviderFailure as error:
             return self._provider_failure_response(request, intent_result, error.reason)
+        try:
+            provider_result = self._output_validator.validate(provider_result, provider_request)
+        except OutputSafetyError:
+            return AssistantMessageResponse(
+                answer=BOUNDARY[request.locale],
+                intent=intent_result.intent,
+                sources=(),
+                uncertain=True,
+                fallback_used=True,
+                blocked_reason=BlockedReason.INVALID_OUTPUT,
+                escalation=Escalation(
+                    code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
+                    message="Review the approved public guidance for a safe answer.",
+                ),
+            )
         outbound_dlp_result = await self._container.dlp.analyze(
             provider_result.answer,
             scope=DlpScope.OUTBOUND,
@@ -210,7 +246,7 @@ class AssistantService:
                 )
             )
             return AssistantMessageResponse(
-                answer=_PII_LOCAL_HELP[request.locale],
+                answer=PII_LOCAL_HELP[request.locale],
                 intent=intent_result.intent,
                 sources=(),
                 uncertain=False,
@@ -221,7 +257,7 @@ class AssistantService:
 
         if dlp_result.action is DlpAction.UNSUPPORTED:
             return AssistantMessageResponse(
-                answer=_UNSUPPORTED_RESPONSES[request.locale],
+                answer=UNSUPPORTED[request.locale],
                 intent=CanonicalIntent.UNSUPPORTED_QUESTION,
                 sources=(),
                 uncertain=False,
@@ -231,7 +267,7 @@ class AssistantService:
 
         if dlp_result.action is DlpAction.FAIL_CLOSED:
             return AssistantMessageResponse(
-                answer=_SAFETY_RESPONSES[request.locale],
+                answer=SAFETY[request.locale],
                 intent=CanonicalIntent.UNSUPPORTED_QUESTION,
                 sources=(),
                 uncertain=True,
@@ -253,12 +289,16 @@ class AssistantService:
             else BlockedReason.INVALID_OUTPUT
         )
         return AssistantMessageResponse(
-            answer=_BOUNDARY_RESPONSES[request.locale],
+            answer=BOUNDARY[request.locale],
             intent=intent_result.intent,
             sources=(),
             uncertain=True,
             fallback_used=True,
             blocked_reason=blocked_reason,
+            escalation=Escalation(
+                code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
+                message="Review the approved public guidance for the next step.",
+            ),
         )
 
     @staticmethod
@@ -277,10 +317,14 @@ class AssistantService:
             else BlockedReason.PROVIDER_UNAVAILABLE
         )
         return AssistantMessageResponse(
-            answer=_PROVIDER_FALLBACK_RESPONSES[request.locale],
+            answer=PROVIDER[request.locale],
             intent=intent_result.intent,
             sources=(),
             uncertain=True,
             fallback_used=True,
             blocked_reason=blocked_reason,
+            escalation=Escalation(
+                code=EscalationCode.CONTACT_PROTOTYPE_SUPPORT,
+                message="Use the public guidance or prototype support path for help.",
+            ),
         )
