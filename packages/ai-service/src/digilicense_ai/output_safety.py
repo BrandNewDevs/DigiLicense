@@ -40,7 +40,9 @@ _NUMBER_WORDS = {
     "दस": "10",
 }
 _NUMBER_WORD = re.compile(
-    r"\b(?:" + "|".join(re.escape(word) for word in _NUMBER_WORDS if word.isascii()) + r")\b|"
+    r"\b(?:"
+    + "|".join(re.escape(word) for word in _NUMBER_WORDS if word.isascii())
+    + r")\b|"
     + "|".join(re.escape(word) for word in _NUMBER_WORDS if not word.isascii()),
     re.IGNORECASE,
 )

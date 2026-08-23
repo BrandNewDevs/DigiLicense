@@ -110,9 +110,7 @@ class Bm25Retriever:
             for score, section in zip(raw_scores, self._sections, strict=True)
             if section.source_id in allowed and section.section_id in allowed_sections
         ]
-        candidates = [
-            (self._normalise(score), section) for score, section in allowed_scores
-        ]
+        candidates = [(self._normalise(score), section) for score, section in allowed_scores]
         candidates.sort(key=lambda item: (-item[0], item[1].source_id, item[1].section_id))
 
         evidence: list[EvidenceChunk] = []

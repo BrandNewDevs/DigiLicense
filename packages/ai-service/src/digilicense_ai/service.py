@@ -164,7 +164,9 @@ class AssistantService:
                 blocked_reason=BlockedReason.RETRIEVAL_UNAVAILABLE,
                 escalation=Escalation(
                     code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
-                    message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][request.locale],
+                    message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][
+                        request.locale
+                    ],
                 ),
             )
         if not evidence:
