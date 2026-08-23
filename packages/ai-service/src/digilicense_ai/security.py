@@ -78,6 +78,7 @@ class ServiceSecurityMiddleware:
         self.bearer_token = bearer_token
         self.require_tls = require_tls
         self.limiter = FixedWindowLimiter(rate_limit)
+        self.peer_limiter = FixedWindowLimiter(rate_limit)
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         if scope.get("type") != "http":
@@ -97,16 +98,19 @@ class ServiceSecurityMiddleware:
             if content_type != b"application/json":
                 await self._reject(send, 415, "application/json is required")
                 return
+            client = scope.get("client")
+            peer = (
+                str(client[0])[:64] if isinstance(client, (tuple, list)) and client else "unknown"
+            )
+            if not self.peer_limiter.allow(f"peer:{peer}"):
+                await self._reject(send, 429, "service rate limit exceeded")
+                return
+            token = bearer_value(headers)
             if self.bearer_token is not None:
-                token = bearer_value(headers)
-                if (
-                    token is None
-                    or self.bearer_token is None
-                    or not compare_digest(token, self.bearer_token)
-                ):
+                if token is None or not compare_digest(token, self.bearer_token):
                     await self._reject(send, 401, "service authorization required")
                     return
-                if not self.limiter.allow(token):
+                if not self.limiter.allow("credential"):
                     await self._reject(send, 429, "service rate limit exceeded")
                     return
         await self.app(scope, receive, send)
