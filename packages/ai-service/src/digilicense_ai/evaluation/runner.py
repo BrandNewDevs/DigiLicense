@@ -1,5 +1,6 @@
 """Deterministic evaluation runner with sanitized reports."""
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from time import perf_counter
 
@@ -42,9 +43,10 @@ class EvaluationReport:
 async def evaluate_dlp_cases(
     gateway: DlpGateway,
     cases: tuple[EvaluationCase, ...] = EVALUATION_CASES,
+    egress_by_case: Mapping[str, Sequence[str]] | None = None,
 ) -> EvaluationReport:
     durations: list[float] = []
-    expected_pii = sum(not case.expect_provider_allowed for case in cases)
+    expected_pii = sum(case.expect_pii for case in cases)
     actual_pii = 0
     false_positives = 0
     for case in cases:
@@ -52,7 +54,7 @@ async def evaluate_dlp_cases(
         result = await gateway.analyze(case.text)
         durations.append((perf_counter() - started) * 1000)
         blocked = result.action is not DlpAction.ALLOW
-        if not case.expect_provider_allowed and blocked:
+        if case.expect_pii and blocked:
             actual_pii += 1
         if (
             case.expect_provider_allowed
@@ -67,6 +69,10 @@ async def evaluate_dlp_cases(
             }
         ):
             false_positives += 1
+    raw_input_leakage = sum(
+        any(case.text in artifact for artifact in (egress_by_case or {}).get(case.case_id, ()))
+        for case in cases
+    )
     durations.sort()
     p95_index = min(len(durations) - 1, max(0, int(len(durations) * 0.95) - 1))
     return EvaluationReport(
@@ -75,5 +81,5 @@ async def evaluate_dlp_cases(
         blocked_actual_pii=actual_pii,
         benign_false_positives=false_positives,
         dlp_p95_ms=round(durations[p95_index], 3) if durations else 0.0,
-        raw_input_leakage=0,
+        raw_input_leakage=raw_input_leakage,
     )

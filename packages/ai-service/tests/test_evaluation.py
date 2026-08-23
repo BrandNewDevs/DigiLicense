@@ -53,6 +53,20 @@ async def test_synthetic_dlp_evaluation_reports_critical_recall(
     assert report.dlp_p95_ms >= 0
 
 
+async def test_evaluation_detects_raw_input_in_egress_artifacts(
+    local_dlp_gateway: LocalDlpGateway,
+) -> None:
+    case = EVALUATION_CASES[0]
+    report = await evaluate_dlp_cases(
+        local_dlp_gateway,
+        cases=(case,),
+        egress_by_case={case.case_id: (f"provider payload: {case.text}",)},
+    )
+
+    assert report.raw_input_leakage == 1
+    assert report.passes_security_gates is False
+
+
 def _provider_request() -> CanonicalProviderRequest:
     return CanonicalProviderRequest(
         intent=CanonicalIntent.CURRENT_STEP_EXPLANATION,
