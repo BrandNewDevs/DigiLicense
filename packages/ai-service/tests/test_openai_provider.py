@@ -8,9 +8,12 @@ import httpx
 import pytest
 from openai import APIConnectionError, AsyncOpenAI, RateLimitError
 
+from digilicense_ai.components import DlpGateway
 from digilicense_ai.config import EnvironmentProfile, ProviderBackend, Settings
+from digilicense_ai.fakes import FakeDlpGateway
 from digilicense_ai.providers import OpenAIProvider, ProviderFailure, ProviderFailureReason
 from digilicense_ai.providers import openai as openai_module
+from digilicense_ai.providers.circuit import ProviderCircuitBreaker
 from digilicense_ai.providers.openai import OpenAIClient
 from digilicense_ai.schemas import (
     AssistantMessageRequest,
@@ -23,6 +26,7 @@ from digilicense_ai.schemas import (
     Service,
     Topic,
 )
+from digilicense_ai.schemas.dlp import DlpAction, DlpResult, DlpScope
 
 _MODEL = "gpt-5.4-mini-2026-03-17"
 _SOURCE_ID = "reviewed-public-source"
@@ -56,9 +60,11 @@ class RecordingResponses:
         self.calls: list[dict[str, Any]] = []
         self.active = 0
         self.max_active = 0
+        self.call_started = asyncio.Event()
 
     async def create(self, **kwargs: Any) -> FakeResponse:
         self.calls.append(kwargs)
+        self.call_started.set()
         self.active += 1
         self.max_active = max(self.max_active, self.active)
         try:
@@ -78,6 +84,21 @@ class RecordingClient:
 
     async def close(self) -> None:
         self.closed = True
+
+
+class BlockingDlpGateway:
+    def __init__(self) -> None:
+        self.scanned: list[tuple[str, DlpScope]] = []
+
+    async def analyze(self, text: str, *, scope: DlpScope = DlpScope.INBOUND) -> DlpResult:
+        self.scanned.append((text, scope))
+        return DlpResult(
+            action=DlpAction.FAIL_CLOSED,
+            scope=scope,
+            entity_types=(),
+            safe_routing_text="",
+            provider_allowed=False,
+        )
 
 
 def _valid_response(
@@ -125,13 +146,18 @@ def _provider(
     *,
     timeout: float = 1,
     concurrency: int = 2,
+    dlp: DlpGateway | None = None,
+    circuit_breaker: ProviderCircuitBreaker | None = None,
 ) -> OpenAIProvider:
     return OpenAIProvider(
         client=cast(OpenAIClient, RecordingClient(responses)),
         model_id=_MODEL,
-        max_output_tokens=800,
+        max_output_tokens=500,
         request_timeout_seconds=timeout,
         max_concurrency=concurrency,
+        payload_dlp=dlp or FakeDlpGateway(),
+        circuit_breaker=circuit_breaker
+        or ProviderCircuitBreaker(failure_threshold=3, reset_seconds=30),
     )
 
 
@@ -144,12 +170,16 @@ async def test_responses_request_is_strict_bounded_and_non_stored() -> None:
     call = responses.calls[0]
     assert call["model"] == _MODEL
     assert call["store"] is False
-    assert call["max_output_tokens"] == 800
+    assert call["max_output_tokens"] == 500
+    assert call["background"] is False
+    assert call["reasoning"] == {"effort": "none"}
     assert call["tools"] == []
     assert call["parallel_tool_calls"] is False
     assert call["text"]["format"]["type"] == "json_schema"
     assert call["text"]["format"]["strict"] is True
     assert call["text"]["format"]["schema"]["additionalProperties"] is False
+    for prohibited in ("conversation", "previous_response_id", "user", "safety_identifier"):
+        assert prohibited not in call
 
 
 async def test_provider_payload_contains_only_canonical_public_content() -> None:
@@ -181,6 +211,19 @@ async def test_provider_rejects_raw_request_runtime_type() -> None:
         await _provider(responses).generate(cast(Any, raw_request))
 
     assert responses.calls == []
+
+
+async def test_adapter_scans_payload_and_never_transmits_when_dlp_blocks() -> None:
+    responses = RecordingResponses()
+    dlp = BlockingDlpGateway()
+
+    with pytest.raises(ProviderFailure) as captured:
+        await _provider(responses, dlp=dlp).generate(_request())
+
+    assert captured.value.reason is ProviderFailureReason.UNSAFE_PAYLOAD
+    assert responses.calls == []
+    assert dlp.scanned[0][1] is DlpScope.PROVIDER_PAYLOAD
+    assert "question" not in dlp.scanned[0][0]
 
 
 @pytest.mark.parametrize(
@@ -283,14 +326,86 @@ async def test_concurrency_limit_bounds_chargeable_calls() -> None:
     assert responses.max_active == 2
 
 
+async def test_circuit_opens_without_an_additional_provider_call() -> None:
+    now = 0.0
+
+    def clock() -> float:
+        return now
+
+    responses = RecordingResponses(error=RuntimeError("synthetic failure"))
+    provider = _provider(
+        responses,
+        circuit_breaker=ProviderCircuitBreaker(
+            failure_threshold=2,
+            reset_seconds=10,
+            clock=clock,
+        ),
+    )
+
+    for _ in range(2):
+        with pytest.raises(ProviderFailure, match="unavailable"):
+            await provider.generate(_request())
+    with pytest.raises(ProviderFailure) as captured:
+        await provider.generate(_request())
+
+    assert captured.value.reason is ProviderFailureReason.CIRCUIT_OPEN
+    assert len(responses.calls) == 2
+
+    now = 11.0
+    responses.error = None
+
+    result = await provider.generate(_request())
+
+    assert result.source_ids == (_SOURCE_ID,)
+    assert len(responses.calls) == 3
+
+
+async def test_cancelled_half_open_probe_is_released_for_the_next_request() -> None:
+    now = 0.0
+
+    def clock() -> float:
+        return now
+
+    responses = RecordingResponses(error=RuntimeError("synthetic failure"))
+    provider = _provider(
+        responses,
+        circuit_breaker=ProviderCircuitBreaker(
+            failure_threshold=2,
+            reset_seconds=10,
+            clock=clock,
+        ),
+    )
+    for _ in range(2):
+        with pytest.raises(ProviderFailure, match="unavailable"):
+            await provider.generate(_request())
+
+    now = 11.0
+    responses.error = None
+    responses.delay_seconds = 1
+    responses.call_started.clear()
+    probe = asyncio.create_task(provider.generate(_request()))
+    await responses.call_started.wait()
+    probe.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await probe
+
+    responses.delay_seconds = 0
+    result = await provider.generate(_request())
+
+    assert result.source_ids == (_SOURCE_ID,)
+    assert len(responses.calls) == 4
+
+
 async def test_provider_closes_owned_client() -> None:
     client = RecordingClient(RecordingResponses())
     provider = OpenAIProvider(
         client=cast(OpenAIClient, client),
         model_id=_MODEL,
-        max_output_tokens=800,
+        max_output_tokens=500,
         request_timeout_seconds=1,
         max_concurrency=1,
+        payload_dlp=FakeDlpGateway(),
+        circuit_breaker=ProviderCircuitBreaker(failure_threshold=3, reset_seconds=30),
     )
 
     await provider.close()
@@ -316,13 +431,15 @@ def test_settings_build_dedicated_project_client_without_retries(
         openai_project_id="proj_synthetic_test",
     )
 
-    provider = OpenAIProvider.from_settings(settings)
+    provider = OpenAIProvider.from_settings(settings, payload_dlp=FakeDlpGateway())
 
     assert isinstance(provider, OpenAIProvider)
     assert captured["api_key"] == "sk-synthetic-test-only"
     assert captured["project"] == "proj_synthetic_test"
     assert captured["max_retries"] == 0
     assert isinstance(captured["timeout"], httpx.Timeout)
+    assert captured["timeout"].connect == 2
+    assert captured["timeout"].read == 8
     assert "sk-synthetic-test-only" not in repr(settings)
 
 
@@ -377,9 +494,11 @@ async def test_official_sdk_serializes_the_phase3_request_contract() -> None:
     provider = OpenAIProvider(
         client=cast(OpenAIClient, sdk),
         model_id=_MODEL,
-        max_output_tokens=800,
+        max_output_tokens=500,
         request_timeout_seconds=5,
         max_concurrency=1,
+        payload_dlp=FakeDlpGateway(),
+        circuit_breaker=ProviderCircuitBreaker(failure_threshold=3, reset_seconds=30),
     )
 
     result = await provider.generate(_request())
@@ -389,5 +508,9 @@ async def test_official_sdk_serializes_the_phase3_request_contract() -> None:
     assert captured["headers"]["openai-project"] == "proj_synthetic_test"
     assert captured["body"]["model"] == _MODEL
     assert captured["body"]["store"] is False
+    assert captured["body"]["background"] is False
+    assert captured["body"]["reasoning"] == {"effort": "none"}
+    for prohibited in ("conversation", "previous_response_id", "user", "safety_identifier"):
+        assert prohibited not in captured["body"]
     assert captured["body"]["text"]["format"]["type"] == "json_schema"
     assert captured["body"]["text"]["format"]["strict"] is True

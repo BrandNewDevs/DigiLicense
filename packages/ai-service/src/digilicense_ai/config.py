@@ -53,10 +53,14 @@ class Settings(BaseSettings):
     model_id: Literal["gpt-5.4-mini-2026-03-17"] = "gpt-5.4-mini-2026-03-17"
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     openai_project_id: str | None = Field(default=None, min_length=1, max_length=128)
-    openai_max_output_tokens: int = Field(default=800, ge=128, le=1200)
-    openai_request_timeout_seconds: float = Field(default=12.0, ge=1.0, le=30.0)
-    openai_connect_timeout_seconds: float = Field(default=3.0, ge=0.5, le=10.0)
-    openai_max_concurrency: int = Field(default=4, ge=1, le=32)
+    openai_max_output_tokens: int = Field(default=500, ge=128, le=500)
+    openai_request_timeout_seconds: float = Field(default=8.0, ge=1.0, le=8.0)
+    openai_connect_timeout_seconds: float = Field(default=2.0, ge=0.5, le=2.0)
+    openai_max_concurrency: int = Field(default=10, ge=1, le=10)
+    provider_circuit_failure_threshold: int = Field(default=3, ge=1, le=10)
+    provider_circuit_reset_seconds: float = Field(default=30.0, ge=1.0, le=300.0)
+    gemini_api_key: SecretStr | None = Field(default=None, repr=False)
+    gemini_model_id: Literal["gemini-2.5-flash-lite"] = "gemini-2.5-flash-lite"
     openai_budget_controls_confirmed: bool = False
     file_search_enabled: bool = False
     file_search_vector_store_id: str | None = Field(default=None, min_length=4, max_length=128)
@@ -95,6 +99,12 @@ class Settings(BaseSettings):
             if missing:
                 fields = ", ".join(missing)
                 raise ValueError(f"OpenAI provider configuration is incomplete: {fields}")
+
+        if self.provider_backend is ProviderBackend.GEMINI:
+            if self.profile is not EnvironmentProfile.DEVELOPMENT:
+                raise ValueError("Gemini is allowed only in the development profile")
+            if self.gemini_api_key is None or not self.gemini_api_key.get_secret_value().strip():
+                raise ValueError("Gemini development configuration requires gemini_api_key")
 
         if self.retrieval_backend is RetrievalBackend.FILE_SEARCH:
             if self.profile is not EnvironmentProfile.EVALUATION:

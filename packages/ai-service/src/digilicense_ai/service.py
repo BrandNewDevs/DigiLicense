@@ -272,6 +272,8 @@ class AssistantService:
             if reason is ProviderFailureReason.RATE_LIMITED
             else BlockedReason.INVALID_OUTPUT
             if reason is ProviderFailureReason.INVALID_OUTPUT
+            else BlockedReason.INTERNAL_SAFETY_FAILURE
+            if reason is ProviderFailureReason.UNSAFE_PAYLOAD
             else BlockedReason.PROVIDER_UNAVAILABLE
         )
         return AssistantMessageResponse(

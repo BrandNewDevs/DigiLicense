@@ -79,22 +79,25 @@ India-specific structured rules and multilingual disclosure rules are registered
 Presidio recognizers. Auditable cue phrases are loaded from the packaged, validated
 `src/digilicense_ai/dlp/policies/v1.json` policy instead of being embedded in orchestration code.
 
-DLP checks inbound questions, canonical provider payloads, and outbound answers. Detected values
+DLP checks inbound questions, canonical provider payloads, and outbound answers. Both external
+provider adapters repeat the canonical-payload scan immediately before transmission. Detected values
 are replaced only in transient memory. They are never persisted, logged, or placed in exception
 responses, and no anonymization/deanonymization vault exists. Raw questions remain structurally
 excluded from provider requests even if DLP misses an entity.
 
 ## Provider and retrieval boundaries
 
-Phase 3 adds an adapter for the official OpenAI Python SDK and Responses API. The adapter accepts
+Phase 5 adds production adapters for the official OpenAI Python SDK and Responses API. The adapter accepts
 only `CanonicalProviderRequest`, so raw questions, context tokens, identities, and application
 records cannot be passed to it. Calls use the pinned `gpt-5.4-mini-2026-03-17` snapshot with:
 
 - `store=false`
+- foreground-only calls with no conversation, prior-response, user, or safety-identifier fields
+- `reasoning.effort=none`
 - strict JSON Schema output
-- an 800-token default output limit
-- separate connection and total-request timeouts
-- a four-request default concurrency limit
+- a 500-token maximum output limit
+- a two-second connection timeout and eight-second total deadline
+- a ten-request concurrency limit and process-local circuit breaker
 - zero automatic SDK retries
 - no tools or runtime web/File Search access
 - citation IDs validated against the evidence supplied in that request
@@ -117,6 +120,11 @@ Do not put these values in frontend configuration or commit them. Before product
 an operator must configure spending alerts and a hard operational budget in the dedicated OpenAI
 project, then set `DIGILICENSE_AI_OPENAI_BUDGET_CONTROLS_CONFIRMED=true`. This flag is an explicit
 deployment gate, not a substitute for configuring the controls in the provider dashboard.
+
+Gemini is an optional, development-only smoke-test adapter. It uses separate development
+credentials, receives the same canonical public payload and reviewed evidence as OpenAI, and is
+not a fallback. It cannot be selected in evaluation or production, and the deployed prototype
+requires no Gemini credential.
 
 ### Reviewed corpus and production BM25
 
