@@ -1,5 +1,6 @@
 """Deterministic Phase 0 components; none makes an external call."""
 
+import re
 from typing import Any
 
 from digilicense_ai.schemas import (
@@ -83,10 +84,20 @@ class FakeIntentRouter:
     ) -> IntentResult:
         del context
         lowered = safe_routing_text.casefold()
+
+        def contains(term: str) -> bool:
+            if term.isascii() and term.replace(" ", "").isalpha():
+                return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", lowered) is not None
+            return term in lowered
+
         text_intent = next(
             (
                 intent
                 for terms, intent in (
+                    (
+                        ("waitlist", "wait list", "प्रतीक्षा सूची"),
+                        CanonicalIntent.WAITLIST_EXPLANATION,
+                    ),
                     (
                         ("kitna time", "कितना समय", "waiting", "wait"),
                         CanonicalIntent.WAITING_PERIOD_EXPLANATION,
@@ -96,15 +107,11 @@ class FakeIntentRouter:
                         CanonicalIntent.LEARNER_LICENCE_EXPIRY_EXPLANATION,
                     ),
                     (
-                        ("waitlist", "wait list", "प्रतीक्षा सूची"),
-                        CanonicalIntent.WAITLIST_EXPLANATION,
-                    ),
-                    (
                         ("slot", "appointment", "अपॉइंटमेंट"),
                         CanonicalIntent.NO_APPOINTMENT_EXPLANATION,
                     ),
                 )
-                if any(term in lowered for term in terms)
+                if any(contains(term) for term in terms)
             ),
             None,
         )
@@ -120,13 +127,31 @@ class FakeRetriever:
     async def retrieve(self, query: RetrievalQuery) -> tuple[EvidenceChunk, ...]:
         if not isinstance(query, RetrievalQuery):
             raise TypeError("FakeRetriever accepts only RetrievalQuery")
+        prototype_intents = {
+            CanonicalIntent.NO_APPOINTMENT_EXPLANATION,
+            CanonicalIntent.WAITLIST_EXPLANATION,
+            CanonicalIntent.OFFER_EXPIRY_EXPLANATION,
+            CanonicalIntent.MOCK_VS_REAL_EXPLANATION,
+        }
+        if query.intent in prototype_intents:
+            source_id = "digilicense-prototype-behavior-v1"
+            section_id = "prototype-guided-actions-v1"
+            title = "DigiLicense prototype behavior"
+            url = "https://digilicense.invalid/prototype/assistant-behavior"
+            text = "This is simulated prototype behavior for the Phase 0 contract."
+        else:
+            source_id = "delhi-driving-licence-guidance-2026"
+            section_id = "delhi-ll-validity-preparation-v1"
+            title = "Delhi driving-licence public guidance"
+            url = "https://transport.delhi.gov.in/transport/driving-license"
+            text = "This reviewed fixture proves the Phase 0 contract without a live provider."
         return (
             EvidenceChunk(
-                source_id="phase0-public-guidance",
-                section_id="fake-vertical-slice",
-                title="Phase 0 public guidance fixture",
-                url="https://example.invalid/digilicense/phase-0-guidance",
-                text="This reviewed fixture proves the Phase 0 contract without a live provider.",
+                source_id=source_id,
+                section_id=section_id,
+                title=title,
+                url=url,
+                text=text,
                 score=1.0,
             ),
         )
@@ -139,10 +164,12 @@ class FakeProvider:
 
         answers = {
             Locale.ENGLISH: (
-                "This is deterministic Phase 0 guidance. No external AI service was called."
+                "This is deterministic guidance. No external AI service was called. "
+                "This is simulated prototype behavior."
             ),
             Locale.HINDI: (
-                "यह चरण 0 का निर्धारित मार्गदर्शन है। किसी बाहरी AI सेवा को कॉल नहीं किया गया।"
+                "यह निर्धारित मार्गदर्शन है। किसी बाहरी AI सेवा को कॉल नहीं किया गया। "
+                "यह सिमुलेटेड प्रोटोटाइप व्यवहार है।"
             ),
         }
         return ProviderResult(

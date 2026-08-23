@@ -14,13 +14,16 @@ async def test_fake_end_to_end_path(
     assert response.status_code == 200
     assert response.headers["x-request-id"]
     assert response.json() == {
-        "answer": "This is deterministic Phase 0 guidance. No external AI service was called.",
+        "answer": (
+            "This is deterministic guidance. No external AI service was called. "
+            "This is simulated prototype behavior."
+        ),
         "intent": "NO_APPOINTMENT_EXPLANATION",
         "sources": [
             {
-                "id": "phase0-public-guidance",
-                "title": "Phase 0 public guidance fixture",
-                "url": "https://example.invalid/digilicense/phase-0-guidance",
+                "id": "digilicense-prototype-behavior-v1",
+                "title": "DigiLicense prototype behavior",
+                "url": "https://digilicense.invalid/prototype/assistant-behavior",
             }
         ],
         "uncertain": False,
