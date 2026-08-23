@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass
 
-from digilicense_ai.corpus import PromotedCorpus
+from digilicense_ai.corpus import CorpusError, PromotedCorpus
 from digilicense_ai.schemas import CanonicalProviderRequest, ProviderResult
 
 _HTML_OR_MARKDOWN = re.compile(r"<[^>]+>|```|!\[[^]]*\]\([^)]*\)|\[[^]]+\]\([^)]*\)")
@@ -64,7 +64,7 @@ class OutputSafetyValidator:
         for source_id in result.source_ids:
             try:
                 source = self.corpus.source(source_id)
-            except Exception:
+            except CorpusError:
                 continue
             known_sources.add(source_id)
             if request.intent not in source.allowed_intents:
