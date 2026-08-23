@@ -39,5 +39,5 @@ networks:
   # Provision this network outside Compose with an egress firewall policy that
   # permits TLS only to api.openai.com:443. Do not attach unrelated services.
   ai-egress:
-    name: ${DIGILICENSE_AI_EGRESS_NETWORK:-digilicense-ai-egress}
+    name: "${DIGILICENSE_AI_EGRESS_NETWORK:?Set via shell or docker compose --env-file .env.ai}"
     external: true

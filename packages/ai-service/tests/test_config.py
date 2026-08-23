@@ -67,6 +67,39 @@ def test_production_requires_service_perimeter_configuration() -> None:
 
 
 @pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("service_bearer_token", "short"),
+        ("context_signing_current_key", "short"),
+    ],
+)
+def test_production_rejects_short_perimeter_secrets(field: str, value: str) -> None:
+    settings: dict[str, object] = {
+        "profile": EnvironmentProfile.PRODUCTION,
+        "provider_backend": ProviderBackend.OPENAI,
+        "retrieval_backend": RetrievalBackend.BM25,
+        "dlp_backend": LocalBackend.LOCAL,
+        "context_backend": LocalBackend.LOCAL,
+        "intent_backend": LocalBackend.LOCAL,
+        "openai_api_key": "sk-synthetic-test-only",
+        "openai_project_id": "proj_synthetic_test",
+        "openai_budget_controls_confirmed": True,
+        "require_tls": True,
+        "service_bearer_token": "a" * 32,
+        "context_signing_current_key": "b" * 32,
+    }
+    settings[field] = value
+
+    with pytest.raises(ValidationError, match="32-character"):
+        Settings.model_validate(settings)
+
+
+def test_trusted_proxy_ips_must_be_literal_ip_addresses() -> None:
+    with pytest.raises(ValidationError, match="trusted_proxy_ips"):
+        Settings(trusted_proxy_ips=("proxy.internal",))
+
+
+@pytest.mark.parametrize(
     ("field", "invalid_value"),
     [
         ("openai_api_key", None),

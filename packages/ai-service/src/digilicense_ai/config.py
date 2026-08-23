@@ -1,9 +1,10 @@
 """Validated configuration profiles for the AI service."""
 
 from enum import StrEnum
+from ipaddress import ip_address
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -68,6 +69,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     service_bearer_token: SecretStr | None = Field(default=None, repr=False)
     require_tls: bool = False
+    trusted_proxy_ips: tuple[str, ...] = Field(default=(), max_length=32)
     gateway_rate_limit_per_minute: int = Field(default=60, ge=1, le=60)
     provider_daily_call_limit: int = Field(default=1500, ge=1, le=1500)
     context_signing_current_key: SecretStr | None = Field(default=None, repr=False)
@@ -75,6 +77,16 @@ class Settings(BaseSettings):
     context_current_key_id: str = Field(default="current", min_length=1, max_length=64)
     context_previous_key_id: str = Field(default="previous", min_length=1, max_length=64)
     context_token_ttl_seconds: int = Field(default=900, ge=60, le=86400)
+
+    @field_validator("trusted_proxy_ips")
+    @classmethod
+    def trusted_proxy_ips_must_be_ips(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        for value in values:
+            try:
+                ip_address(value)
+            except ValueError as error:
+                raise ValueError("trusted_proxy_ips must contain IP addresses") from error
+        return values
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
@@ -99,16 +111,16 @@ class Settings(BaseSettings):
                 raise ValueError("production profile requires confirmed OpenAI budget controls")
             if (
                 self.service_bearer_token is None
-                or not self.service_bearer_token.get_secret_value().strip()
+                or len(self.service_bearer_token.get_secret_value().strip()) < 32
             ):
-                raise ValueError("production profile requires a service bearer credential")
+                raise ValueError("production profile requires a 32-character service bearer credential")
             if not self.require_tls:
                 raise ValueError("production profile requires TLS")
             if (
                 self.context_signing_current_key is None
-                or not self.context_signing_current_key.get_secret_value().strip()
+                or len(self.context_signing_current_key.get_secret_value().strip()) < 32
             ):
-                raise ValueError("production profile requires a context signing key")
+                raise ValueError("production profile requires a 32-character context signing key")
 
         if (
             self.provider_backend is ProviderBackend.OPENAI

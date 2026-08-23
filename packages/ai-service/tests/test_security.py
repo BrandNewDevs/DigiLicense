@@ -170,3 +170,59 @@ async def test_service_perimeter_accepts_authenticated_json() -> None:
             },
         )
     assert response.status_code == 200
+
+
+async def test_tls_requirement_allows_only_loopback_health_probes() -> None:
+    app = create_app(settings=Settings(profile=EnvironmentProfile.TEST, require_tls=True))
+    async with AsyncClient(
+        transport=ASGITransport(app=app, client=("127.0.0.1", 8000)),
+        base_url="http://test",
+    ) as client:
+        local = await client.get("/health/live")
+    async with AsyncClient(
+        transport=ASGITransport(app=app, client=("198.51.100.10", 8000)),
+        base_url="http://test",
+    ) as client:
+        remote = await client.get("/health/live")
+
+    assert local.status_code == 200
+    assert remote.status_code == 426
+
+
+async def test_tls_requirement_accepts_forwarded_scheme_from_trusted_proxy() -> None:
+    app = create_app(
+        settings=Settings(
+            profile=EnvironmentProfile.TEST,
+            require_tls=True,
+            service_bearer_token="secret",
+            trusted_proxy_ips=("10.0.0.9",),
+        )
+    )
+    payload = {
+        "question": "How long will it take?",
+        "locale": "en",
+        "service": "permanent-driving-licence",
+        "page": "appointment-waitlist",
+        "reasonCode": "NO_MATCHING_SLOT",
+    }
+    async with AsyncClient(
+        transport=ASGITransport(app=app, client=("10.0.0.9", 8000)),
+        base_url="http://test",
+    ) as client:
+        trusted = await client.post(
+            "/v1/assistant/messages",
+            headers={"authorization": "Bearer secret", "x-forwarded-proto": "https"},
+            json=payload,
+        )
+    async with AsyncClient(
+        transport=ASGITransport(app=app, client=("198.51.100.10", 8000)),
+        base_url="http://test",
+    ) as client:
+        untrusted = await client.post(
+            "/v1/assistant/messages",
+            headers={"authorization": "Bearer secret", "x-forwarded-proto": "https"},
+            json=payload,
+        )
+
+    assert trusted.status_code == 200
+    assert untrusted.status_code == 426

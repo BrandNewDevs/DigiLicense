@@ -230,7 +230,9 @@ local semantic-context and intent components rather than silently substituting f
 The prototype deployment runs one Uvicorn worker because the Phase 7 rate-limit and daily-budget
 guards are process-local; multiple workers require a shared atomic quota store before scaling out.
 When TLS terminates at a reverse proxy, that proxy must be the trusted component that sets the
-ASGI HTTPS scheme; the container does not trust client-supplied `X-Forwarded-Proto` headers.
+ASGI HTTPS scheme. Configure its IP through `DIGILICENSE_AI_TRUSTED_PROXY_IPS`; only a listed proxy
+may supply `X-Forwarded-Proto: https`. Loopback liveness/readiness probes remain intentionally
+available to the container over HTTP and cannot be reached from a remote peer without TLS.
 
 An AI-only hardened Compose example is in `deploy/compose.ai.yaml`. It exposes no host port, keeps
 internal traffic on an isolated `ai-private` network, and attaches the service to a separately
@@ -239,5 +241,7 @@ to TLS traffic for `api.openai.com:443` only; it must not be a general-purpose a
 This preserves a working OpenAI path without allowing arbitrary outbound destinations. Drops Linux
 capabilities, enables `no-new-privileges`, uses a read-only root with a bounded `/tmp`, applies one
 CPU/1 GiB memory limits, and reads secrets from an untracked `.env.ai`. Provision the external
-network before starting Compose, set `DIGILICENSE_AI_EGRESS_NETWORK` if its name differs, and start
-from `deploy/.env.ai.example`; never commit the populated secret file.
+network before starting Compose, then pass the non-secret network name to Compose interpolation,
+for example `docker compose --env-file .env.ai -f deploy/compose.ai.yaml up -d`. The egress network
+must be restricted by host/cloud firewall policy to `api.openai.com:443`; it is never a general
+application network. Start from `deploy/.env.ai.example`; never commit the populated secret file.
