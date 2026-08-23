@@ -146,14 +146,14 @@ def _build_router(settings: Settings) -> APIRouter:
     @router.get("/health/ready", response_model=HealthResponse, response_model_by_alias=True)
     async def ready(request: Request) -> HealthResponse | JSONResponse:
         container: ServiceContainer = request.app.state.container
-        request.app.state.ready = all(container.readiness_checks().values())
+        is_ready = request.app.state.ready and all(container.readiness_checks().values())
         body = HealthResponse(
-            status="ready" if request.app.state.ready else "not_ready",
+            status="ready" if is_ready else "not_ready",
             service=settings.service_name,
             profile=settings.profile.value,
             components=container.component_statuses,
         )
-        if not request.app.state.ready:
+        if not is_ready:
             return JSONResponse(status_code=503, content=body.public_dump())
         return body
 
