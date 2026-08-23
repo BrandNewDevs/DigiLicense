@@ -18,11 +18,16 @@ from pydantic import ValidationError
 from digilicense_ai.components import DlpGateway
 from digilicense_ai.config import Settings
 from digilicense_ai.providers.circuit import ProviderCircuitBreaker
-from digilicense_ai.providers.contracts import INSTRUCTIONS, canonical_input, validated_result
+from digilicense_ai.providers.contracts import (
+    canonical_input,
+    localized_instructions,
+    validated_result,
+)
 from digilicense_ai.providers.errors import ProviderFailure, ProviderFailureReason
 from digilicense_ai.schemas import CanonicalProviderRequest, DlpScope, ProviderResult
 
 logger = structlog.get_logger(__name__)
+
 
 class _ResponsesResource(Protocol):
     async def create(self, **kwargs: Any) -> Any: ...
@@ -128,7 +133,7 @@ class OpenAIProvider:
                 async with self._semaphore:
                     raw_response = await self._client.responses.create(
                         model=self._model_id,
-                        instructions=INSTRUCTIONS,
+                        instructions=localized_instructions(request.locale),
                         input=payload,
                         max_output_tokens=self._max_output_tokens,
                         store=False,
