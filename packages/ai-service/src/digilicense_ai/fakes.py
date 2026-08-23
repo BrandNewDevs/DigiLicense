@@ -130,10 +130,21 @@ class FakeIntentRouter:
                 confidence=1.0,
             )
 
+        if context is not None and any(contains(term) for term in _REFERENTIAL_FOLLOW_UP):
+            return IntentResult(
+                intent=context.last_intent,
+                topic=context.topic,
+                confidence=0.9,
+            )
+
         text_intent = next(
             (
                 intent
                 for terms, intent in (
+                    (
+                        ("offer", "ऑफर"),
+                        CanonicalIntent.OFFER_EXPIRY_EXPLANATION,
+                    ),
                     (
                         ("waitlist", "wait list", "प्रतीक्षा सूची"),
                         CanonicalIntent.WAITLIST_EXPLANATION,
@@ -155,14 +166,6 @@ class FakeIntentRouter:
             ),
             None,
         )
-        if text_intent is None and context is not None and any(
-            contains(term) for term in _REFERENTIAL_FOLLOW_UP
-        ):
-            return IntentResult(
-                intent=context.last_intent,
-                topic=context.topic,
-                confidence=0.9,
-            )
         return IntentResult(
             intent=text_intent
             or _REASON_INTENTS.get(request.reason_code, CanonicalIntent.CURRENT_STEP_EXPLANATION),
