@@ -64,6 +64,8 @@ class SignedSemanticContextManager:
         try:
             raw = _decode_json(payload)
             key_id = str(raw["keyId"])
+            if key_id not in self._keys:
+                return None
             expected = self._sign(key_id, payload)
             if expected is None or not hmac.compare_digest(expected, signature):
                 return None
@@ -84,9 +86,13 @@ class SignedSemanticContextManager:
 
 
 def _encode_json(value: Mapping[str, object]) -> str:
-    return base64.urlsafe_b64encode(
-        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode()
-    ).decode("ascii").rstrip("=")
+    return (
+        base64.urlsafe_b64encode(
+            json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode()
+        )
+        .decode("ascii")
+        .rstrip("=")
+    )
 
 
 def _decode_json(value: str) -> dict[str, object]:

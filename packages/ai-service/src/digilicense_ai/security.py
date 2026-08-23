@@ -89,8 +89,7 @@ class ServiceSecurityMiddleware:
             await self._reject(send, 403, "browser access is not permitted")
             return
         if self.require_tls:
-            forwarded = headers.get(b"x-forwarded-proto", b"").decode("ascii", "ignore")
-            if forwarded != "https" and scope.get("scheme") != "https":
+            if scope.get("scheme") != "https":
                 await self._reject(send, 426, "TLS is required")
                 return
         if path == "/v1/assistant/messages":
