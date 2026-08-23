@@ -137,6 +137,15 @@ class AssistantService:
         request: AssistantMessageRequest,
         intent_result: IntentResult,
     ) -> AssistantMessageResponse:
+        if intent_result.intent is CanonicalIntent.UNSUPPORTED_QUESTION:
+            return AssistantMessageResponse(
+                answer=UNSUPPORTED[request.locale],
+                intent=CanonicalIntent.UNSUPPORTED_QUESTION,
+                sources=(),
+                uncertain=False,
+                fallback_used=True,
+                blocked_reason=BlockedReason.UNSUPPORTED,
+            )
         evidence = await self._container.retriever.retrieve(
             RetrievalQuery(
                 intent=intent_result.intent,

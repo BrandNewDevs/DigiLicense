@@ -50,6 +50,12 @@ class ProviderSpy:
         raise AssertionError("provider must not run without reviewed evidence")
 
 
+class NeverRetriever:
+    async def retrieve(self, query: RetrievalQuery) -> tuple[()]:
+        del query
+        raise AssertionError("retrieval must not run for unsupported questions")
+
+
 def _service(provider: FailingProvider) -> AssistantService:
     return AssistantService(
         ServiceContainer(
@@ -127,3 +133,23 @@ async def test_missing_evidence_returns_local_fallback_without_provider_call() -
     assert response.blocked_reason is BlockedReason.NO_EVIDENCE
     assert response.fallback_used is True
     assert response.uncertain is True
+
+
+async def test_unsupported_question_stops_before_retrieval_and_provider() -> None:
+    provider = ProviderSpy()
+    service = AssistantService(
+        ServiceContainer(
+            settings=Settings(profile=EnvironmentProfile.TEST),
+            dlp=FakeDlpGateway(),
+            context=FakeSemanticContextManager(),
+            intent=FakeIntentRouter(),
+            retriever=NeverRetriever(),
+            provider=provider,
+        )
+    )
+    request = _request().model_copy(update={"question": "Tell me my medical diagnosis."})
+
+    response = await service.answer(request)
+
+    assert provider.calls == 0
+    assert response.blocked_reason is BlockedReason.UNSUPPORTED

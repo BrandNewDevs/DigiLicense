@@ -15,6 +15,7 @@ from digilicense_ai.schemas import (
     Page,
     ProviderResult,
     ReasonCode,
+    SemanticContext,
     Service,
     Topic,
 )
@@ -195,3 +196,43 @@ async def test_hinglish_routing_uses_safe_text() -> None:
     routed = await router.route(request, request.question, None)
 
     assert routed.intent is CanonicalIntent.WAITING_PERIOD_EXPLANATION
+
+
+async def test_referential_follow_up_uses_signed_semantic_context() -> None:
+    router = FakeIntentRouter()
+    request = AssistantMessageRequest(
+        question="How long will it take after that?",
+        locale=Locale.ENGLISH,
+        service=Service.PERMANENT_DRIVING_LICENCE,
+        page=Page.ASSISTANT,
+        reason_code=ReasonCode.NONE,
+    )
+    context = SemanticContext(
+        last_intent=CanonicalIntent.WAITLIST_EXPLANATION,
+        topic=Topic.WAITLIST,
+        locale=Locale.ENGLISH,
+        iat=1,
+        exp=2,
+        keyId="test",
+    )
+
+    routed = await router.route(request, request.question, context)
+
+    assert routed.intent is CanonicalIntent.WAITLIST_EXPLANATION
+    assert routed.topic is Topic.WAITLIST
+
+
+@pytest.mark.parametrize("question", ["Tell me my medical diagnosis.", "How do I apply in Mumbai?"])
+async def test_out_of_scope_and_wrong_jurisdiction_questions_are_rejected(question: str) -> None:
+    router = FakeIntentRouter()
+    request = AssistantMessageRequest(
+        question=question,
+        locale=Locale.ENGLISH,
+        service=Service.PERMANENT_DRIVING_LICENCE,
+        page=Page.ASSISTANT,
+        reason_code=ReasonCode.NONE,
+    )
+
+    routed = await router.route(request, request.question, None)
+
+    assert routed.intent is CanonicalIntent.UNSUPPORTED_QUESTION

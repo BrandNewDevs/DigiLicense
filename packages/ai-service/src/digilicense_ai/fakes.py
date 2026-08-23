@@ -74,6 +74,40 @@ _SERVICE_TOPICS: dict[Service, Topic] = {
     Service.APPOINTMENT_WAITLIST: Topic.WAITLIST,
 }
 
+_REFERENTIAL_FOLLOW_UP = (
+    "it",
+    "that",
+    "this",
+    "after that",
+    "iske",
+    "iske liye",
+    "is ke liye",
+    "उसके",
+    "उसके लिए",
+    "इसके",
+    "इसके लिए",
+    "यह",
+    "वह",
+)
+_OUT_OF_SCOPE_TERMS = (
+    "medical",
+    "diagnosis",
+    "medicine",
+    "weather",
+    "politics",
+    "election",
+    "investment",
+    "crypto",
+    "password",
+    "hack",
+    "mumbai",
+    "maharashtra",
+    "bengaluru",
+    "bangalore",
+    "chennai",
+    "kolkata",
+)
+
 
 class FakeIntentRouter:
     async def route(
@@ -82,13 +116,19 @@ class FakeIntentRouter:
         safe_routing_text: str,
         context: SemanticContext | None,
     ) -> IntentResult:
-        del context
         lowered = safe_routing_text.casefold()
 
         def contains(term: str) -> bool:
             if term.isascii() and term.replace(" ", "").isalpha():
                 return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", lowered) is not None
             return term in lowered
+
+        if any(contains(term) for term in _OUT_OF_SCOPE_TERMS):
+            return IntentResult(
+                intent=CanonicalIntent.UNSUPPORTED_QUESTION,
+                topic=Topic.SIMULATION,
+                confidence=1.0,
+            )
 
         text_intent = next(
             (
@@ -115,6 +155,14 @@ class FakeIntentRouter:
             ),
             None,
         )
+        if text_intent is None and context is not None and any(
+            contains(term) for term in _REFERENTIAL_FOLLOW_UP
+        ):
+            return IntentResult(
+                intent=context.last_intent,
+                topic=context.topic,
+                confidence=0.9,
+            )
         return IntentResult(
             intent=text_intent
             or _REASON_INTENTS.get(request.reason_code, CanonicalIntent.CURRENT_STEP_EXPLANATION),
