@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from hmac import compare_digest
 from time import monotonic, time
 from typing import Any
 
@@ -99,7 +100,11 @@ class ServiceSecurityMiddleware:
                 return
             if self.bearer_token is not None:
                 token = bearer_value(headers)
-                if token != self.bearer_token:
+                if (
+                    token is None
+                    or self.bearer_token is None
+                    or not compare_digest(token, self.bearer_token)
+                ):
                     await self._reject(send, 401, "service authorization required")
                     return
                 if not self.limiter.allow(token):

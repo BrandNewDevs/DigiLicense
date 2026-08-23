@@ -46,6 +46,8 @@ def test_signed_context_accepts_current_and_previous_key_during_rotation() -> No
 
     assert rotated.resolve(token) == old.resolve(token)
     assert rotated.resolve(token + "tampered") is None
+    unknown_key_token = token.rsplit(".", 1)[0] + "."
+    assert rotated.resolve(unknown_key_token) is None
 
 
 def test_signed_context_expires() -> None:

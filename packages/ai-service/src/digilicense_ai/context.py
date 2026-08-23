@@ -65,7 +65,7 @@ class SignedSemanticContextManager:
             raw = _decode_json(payload)
             key_id = str(raw["keyId"])
             expected = self._sign(key_id, payload)
-            if not hmac.compare_digest(expected, signature):
+            if expected is None or not hmac.compare_digest(expected, signature):
                 return None
             context = SemanticContext.model_validate(raw)
             now = int(self._clock())
@@ -75,10 +75,10 @@ class SignedSemanticContextManager:
         except (KeyError, ValueError, TypeError, json.JSONDecodeError):
             return None
 
-    def _sign(self, key_id: str, payload: str) -> str:
+    def _sign(self, key_id: str, payload: str) -> str | None:
         key = self._keys.get(key_id)
         if key is None:
-            return ""
+            return None
         signature = hmac.new(key, payload.encode(), hashlib.sha256).digest()
         return base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
 
