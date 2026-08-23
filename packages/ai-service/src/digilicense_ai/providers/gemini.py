@@ -10,7 +10,11 @@ from pydantic import ValidationError
 
 from digilicense_ai.components import DlpGateway
 from digilicense_ai.config import EnvironmentProfile, Settings
-from digilicense_ai.providers.contracts import INSTRUCTIONS, canonical_input, validated_result
+from digilicense_ai.providers.contracts import (
+    canonical_input,
+    localized_instructions,
+    validated_result,
+)
 from digilicense_ai.providers.errors import ProviderFailure, ProviderFailureReason
 from digilicense_ai.schemas import CanonicalProviderRequest, DlpScope, ProviderResult
 
@@ -103,7 +107,7 @@ class GeminiProvider:
                     model=self._model_id,
                     contents=payload,
                     config={
-                        "system_instruction": INSTRUCTIONS,
+                        "system_instruction": localized_instructions(request.locale),
                         "response_mime_type": "application/json",
                         "response_schema": ProviderResult,
                         "max_output_tokens": self._max_output_tokens,

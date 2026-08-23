@@ -81,12 +81,36 @@ class FakeIntentRouter:
         safe_routing_text: str,
         context: SemanticContext | None,
     ) -> IntentResult:
-        del safe_routing_text, context
-        return IntentResult(
-            intent=_REASON_INTENTS.get(
-                request.reason_code,
-                CanonicalIntent.CURRENT_STEP_EXPLANATION,
+        del context
+        lowered = safe_routing_text.casefold()
+        text_intent = next(
+            (
+                intent
+                for terms, intent in (
+                    (
+                        ("kitna time", "कितना समय", "waiting", "wait"),
+                        CanonicalIntent.WAITING_PERIOD_EXPLANATION,
+                    ),
+                    (
+                        ("expire", "expiry", "समाप्त", "validity"),
+                        CanonicalIntent.LEARNER_LICENCE_EXPIRY_EXPLANATION,
+                    ),
+                    (
+                        ("waitlist", "wait list", "प्रतीक्षा सूची"),
+                        CanonicalIntent.WAITLIST_EXPLANATION,
+                    ),
+                    (
+                        ("slot", "appointment", "अपॉइंटमेंट"),
+                        CanonicalIntent.NO_APPOINTMENT_EXPLANATION,
+                    ),
+                )
+                if any(term in lowered for term in terms)
             ),
+            None,
+        )
+        return IntentResult(
+            intent=text_intent
+            or _REASON_INTENTS.get(request.reason_code, CanonicalIntent.CURRENT_STEP_EXPLANATION),
             topic=_SERVICE_TOPICS[request.service],
             confidence=1.0,
         )
