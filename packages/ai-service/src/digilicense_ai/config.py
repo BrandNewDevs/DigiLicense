@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     file_search_vector_store_id: str | None = Field(default=None, min_length=4, max_length=128)
     file_search_expiry_days: int = Field(default=7, ge=1, le=30)
     log_level: str = "INFO"
+    service_bearer_token: SecretStr | None = Field(default=None, repr=False)
+    require_tls: bool = False
+    gateway_rate_limit_per_minute: int = Field(default=60, ge=1, le=60)
+    provider_daily_call_limit: int = Field(default=1500, ge=1, le=1500)
+    context_signing_current_key: SecretStr | None = Field(default=None, repr=False)
+    context_signing_previous_key: SecretStr | None = Field(default=None, repr=False)
+    context_current_key_id: str = Field(default="current", min_length=1, max_length=64)
+    context_previous_key_id: str = Field(default="previous", min_length=1, max_length=64)
+    context_token_ttl_seconds: int = Field(default=900, ge=60, le=86400)
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
@@ -83,9 +92,18 @@ class Settings(BaseSettings):
                 raise ValueError(f"production profile has unsafe backend selection: {fields}")
             if not self.openai_budget_controls_confirmed:
                 raise ValueError("production profile requires confirmed OpenAI budget controls")
-            raise ValueError(
-                "production profile is unavailable until local context and intent backends exist"
-            )
+            if (
+                self.service_bearer_token is None
+                or not self.service_bearer_token.get_secret_value().strip()
+            ):
+                raise ValueError("production profile requires a service bearer credential")
+            if not self.require_tls:
+                raise ValueError("production profile requires TLS")
+            if (
+                self.context_signing_current_key is None
+                or not self.context_signing_current_key.get_secret_value().strip()
+            ):
+                raise ValueError("production profile requires a context signing key")
 
         if (
             self.provider_backend is ProviderBackend.OPENAI

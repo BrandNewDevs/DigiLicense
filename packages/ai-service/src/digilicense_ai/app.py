@@ -16,6 +16,7 @@ from digilicense_ai.container import ServiceContainer, build_container
 from digilicense_ai.logging import configure_logging, safe_request_id, safe_request_path
 from digilicense_ai.middleware import BodySizeLimitMiddleware
 from digilicense_ai.schemas import AssistantMessageRequest, AssistantMessageResponse, HealthResponse
+from digilicense_ai.security import ServiceSecurityMiddleware
 from digilicense_ai.service import AssistantService
 
 logger = structlog.get_logger(__name__)
@@ -42,15 +43,27 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.container = resolved_container
-    app.state.ready = True
+    app.state.ready = all(resolved_container.readiness_checks().values())
+    app.state.metrics = resolved_container.metrics
     app.add_middleware(
         BodySizeLimitMiddleware,
         max_bytes=resolved_settings.max_request_body_bytes,
+    )
+    app.add_middleware(
+        ServiceSecurityMiddleware,
+        bearer_token=(
+            resolved_settings.service_bearer_token.get_secret_value()
+            if resolved_settings.service_bearer_token is not None
+            else None
+        ),
+        require_tls=resolved_settings.require_tls,
+        rate_limit=resolved_settings.gateway_rate_limit_per_minute,
     )
 
     @app.middleware("http")
     async def sanitized_request_logging(request: Request, call_next: Any) -> Any:
         request_id = safe_request_id(request.headers.get("x-request-id")) or str(uuid4())
+        request.state.request_id = request_id
         started = perf_counter()
         response = await call_next(request)
         duration_ms = round((perf_counter() - started) * 1000, 2)
@@ -109,7 +122,17 @@ def _build_router(settings: Settings) -> APIRouter:
         request: Request,
     ) -> AssistantMessageResponse:
         service = AssistantService(request.app.state.container)
-        return await service.answer(payload)
+        response = await service.answer(payload)
+        metrics = request.app.state.metrics
+        if metrics is not None:
+            metrics.record_answer(
+                request_id=request.state.request_id,
+                intent=response.intent.value,
+                source_ids=tuple(source.id for source in response.sources),
+                model=settings.model_id,
+                fallback_code=response.blocked_reason.value if response.blocked_reason else "none",
+            )
+        return response
 
     @router.get("/health/live", response_model=HealthResponse, response_model_by_alias=True)
     async def live() -> HealthResponse:
