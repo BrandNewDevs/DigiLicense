@@ -123,6 +123,10 @@ class FakeIntentRouter:
         )
 
 
+class LocalIntentRouter(FakeIntentRouter):
+    """Deterministic local router used by the production profile."""
+
+
 class FakeRetriever:
     async def retrieve(self, query: RetrievalQuery) -> tuple[EvidenceChunk, ...]:
         if not isinstance(query, RetrievalQuery):
