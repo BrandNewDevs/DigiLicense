@@ -17,8 +17,14 @@ _AFFILIATION = (
     "official government",
     "government approved",
     "official government portal",
+    "government-run",
+    "government portal",
+    "government website",
+    "run by the government",
     "सरकारी आधिकारिक",
     "सरकार द्वारा अनुमोदित",
+    "सरकारी पोर्टल",
+    "सरकार द्वारा संचालित",
 )
 _SIMULATION_MARKERS = (
     "simulat",
