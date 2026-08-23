@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "prisma.config.ts", "prisma/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "prisma.config.ts", "prisma/**/*.ts"],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "noEmit": true,

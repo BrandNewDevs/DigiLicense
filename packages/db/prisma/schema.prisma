@@ -68,7 +68,7 @@ model Application {
   updatedAt         DateTime             @updatedAt
   workflowEvents    WorkflowEvent[]
   auditEvents       AuditEvent[]
-  drafts            ApplicationDraft[]
+  draft             ApplicationDraft?
   documents         DocumentRecord[]
   payments          PaymentRecord[]
   notifications     NotificationRecord[]
@@ -117,9 +117,14 @@ model ApplicationDraft {
   applicationId String?      @unique
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  // Draft form data is temporary. The database default and update trigger in
+  // the retention migration set this to seven days after the latest payload
+  // save. The scheduled purge removes records once this deadline passes.
+  expiresAt     DateTime     @default(dbgenerated("(CURRENT_TIMESTAMP + '7 days'::interval)"))
   application   Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
 
   @@index([applicantId, service, updatedAt])
+  @@index([expiresAt])
 }
 
 model DocumentRecord {

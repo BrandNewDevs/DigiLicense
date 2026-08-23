@@ -230,6 +230,25 @@ resetting it:
 
 In production, apply committed migrations only with `prisma migrate deploy`.
 
+### Application-draft retention
+
+`ApplicationDraft.formPayload` is temporary. PostgreSQL sets `expiresAt` to
+seven days after creation and resets it only when form data is saved. The
+retention migration indexes that deadline and the purge command deletes expired
+drafts in locked batches, so concurrent scheduler runs cannot process the same
+records twice.
+
+Install [`deploy/cron/digilicense-draft-retention.cron`](deploy/cron/digilicense-draft-retention.cron)
+in the production scheduler before release. It runs the following command
+hourly with the same `DATABASE_URL` environment as the web service:
+
+```bash
+pnpm --filter @digilicense/db db:purge-expired-drafts
+```
+
+The task is safe to retry. It reports only its operation name, batch count, and
+deleted count. It never logs form payloads or applicant identifiers.
+
 ### Destructive-command safety
 
 `prisma migrate reset` and other destructive commands are restricted to

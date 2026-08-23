@@ -8,6 +8,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:purge-expired-drafts": "tsx scripts/purge-expired-application-drafts.ts",
     "db:seed": "prisma db seed",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
@@ -18,7 +19,8 @@
     "@prisma/client": "^7.9.1",
     "@tanstack/react-start": "latest",
     "dotenv": "^17.4.2",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/node": "^22",
