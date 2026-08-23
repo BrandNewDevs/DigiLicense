@@ -126,6 +126,21 @@ credentials, receives the same canonical public payload and reviewed evidence as
 not a fallback. It cannot be selected in evaluation or production, and the deployed prototype
 requires no Gemini credential.
 
+### Answer release safety
+
+English and Hindi instructions are locale-specific and require preservation of dates, numbers,
+waiting periods, fees, uncertainty, and simulation disclosures. The service validates provider
+answers after schema validation and before outbound DLP: answer length is capped at 1,200
+characters, markup and arbitrary URLs are rejected, government-affiliation language is blocked,
+citations must resolve through local corpus metadata, and known numeric claims must match reviewed
+fact packets. Prototype-behavior evidence must be described as simulated. Unsafe output becomes a
+reviewed bilingual fallback with one of the bounded escalation codes; model-generated URLs are
+never returned to callers.
+
+The deterministic local router recognizes English, Hindi, and common Hinglish follow-up terms
+without forwarding raw text to a provider. The public response includes only source metadata
+resolved from the promoted corpus.
+
 ### Reviewed corpus and production BM25
 
 Reviewed sources are packaged under `src/digilicense_ai/corpus/data/v1/`. Each release has stable
