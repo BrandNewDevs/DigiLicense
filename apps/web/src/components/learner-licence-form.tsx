@@ -109,6 +109,10 @@ function LearnerLicenceForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [draftSavedAt, setDraftSavedAt] = useState<string>()
+  const [submitError, setSubmitError] = useState<{
+    kind: string
+    message: string
+  }>()
   const [announcement, setAnnouncement] = useState("")
 
   const activeApplicationRef = useRef<{
@@ -232,6 +236,7 @@ function LearnerLicenceForm() {
   function goToStep(nextStepIndex: number) {
     setStepIndex(nextStepIndex)
     setErrors({})
+    setSubmitError(undefined)
     announce(
       nextStepIndex < reviewStepIndex
         ? `Step ${nextStepIndex + 1} of ${totalStepCount}: ${steps[nextStepIndex].title}`
@@ -289,6 +294,7 @@ function LearnerLicenceForm() {
     }
 
     setIsSubmitting(true)
+    setSubmitError(undefined)
 
     try {
       const result = await submitApplication({
@@ -318,11 +324,24 @@ function LearnerLicenceForm() {
         return
       }
 
-      announce(result.message)
+      // A ended mock session is terminal: the workflow cannot continue on
+      // this page, so switch to the sign-in panel.
+      if (result.kind === "authentication-required") {
+        announce(result.message)
+        setPhase("authentication-required")
+        return
+      }
+
+      // Everything else (rate-limited, unavailable, eligibility-not-met,
+      // invalid-submission) is recoverable. The form state is preserved and
+      // the reason is shown where a sighted applicant can act on it.
+      setSubmitError({ kind: result.kind, message: result.message })
     } catch {
-      announce(
-        "The submission could not be completed. Check your answers and try again."
-      )
+      setSubmitError({
+        kind: "network-error",
+        message:
+          "The submission could not be completed. Check your answers and try again.",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -810,6 +829,29 @@ function LearnerLicenceForm() {
           Draft saved at {draftSavedAt.slice(11, 16)}. It stays available for
           seven days after each save.
         </p>
+      ) : null}
+
+      {submitError ? (
+        <div
+          className="mt-5 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm leading-6 text-destructive"
+          role="alert"
+        >
+          <p className="font-medium">{submitError.message}</p>
+          {submitError.kind === "eligibility-not-met" ? (
+            <button
+              className="mt-1 underline hover:no-underline"
+              onClick={() => goToStep(0)}
+              type="button"
+            >
+              Correct your date of birth
+            </button>
+          ) : null}
+          {submitError.kind === "rate-limited" ? (
+            <p className="mt-1 text-destructive/80">
+              Your answers are still here. Try again once the wait passes.
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="mt-7 flex flex-col gap-3 sm:flex-row-reverse">
