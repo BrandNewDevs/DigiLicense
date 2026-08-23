@@ -31,12 +31,13 @@ python -m pip install --no-deps -e .
 uvicorn digilicense_ai.main:app --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
-`requirements.txt` is a fully hashed export of every dependency in `uv.lock`. The local package
-is installed separately because editable installs cannot participate in pip's hash-checking mode.
-After changing dependencies, regenerate the export from this directory:
+`requirements.txt` is a fully hashed export of the default, development, and security dependency
+groups in `uv.lock`. The local package is installed separately because editable installs cannot
+participate in pip's hash-checking mode. It deliberately excludes the optional Gemini smoke-test
+adapter. After changing default dependencies, regenerate the export from this directory:
 
 ```bash
-uv export --frozen --all-groups --no-emit-project --no-header --format requirements.txt --output-file requirements.txt
+uv export --frozen --group dev --group security --no-emit-project --no-header --format requirements.txt --output-file requirements.txt
 ```
 
 ### Conda
@@ -123,8 +124,9 @@ deployment gate, not a substitute for configuring the controls in the provider d
 
 Gemini is an optional, development-only smoke-test adapter. It uses separate development
 credentials, receives the same canonical public payload and reviewed evidence as OpenAI, and is
-not a fallback. It cannot be selected in evaluation or production, and the deployed prototype
-requires no Gemini credential.
+not a fallback. Install it only with `uv sync --group gemini`; it is not part of the default pip
+or Conda installation. It cannot be selected in evaluation or production, and the deployed
+prototype requires no Gemini credential.
 
 ### Answer release safety
 
