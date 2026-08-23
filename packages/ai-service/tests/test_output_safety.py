@@ -68,9 +68,12 @@ def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
     "answer",
     [
         "Read [this](https://untrusted.example) guidance.",
+        "**Wait 30 days** before applying.",
+        "`Wait 30 days` before applying.",
         "<script>alert(1)</script>",
         "This is official government guidance.",
         "Visit https://untrusted.example for details.",
+        "Use ftp://untrusted.example instead.",
     ],
 )
 def test_markup_urls_and_affiliation_are_rejected(answer: str) -> None:
@@ -82,6 +85,46 @@ def test_paired_locale_answers_preserve_numeric_facts_and_hindi_digits() -> None
     assert_locale_fact_equivalence("Wait 30 days.", "३० दिन प्रतीक्षा करें।")
     with pytest.raises(OutputSafetyError, match="numeric facts"):
         assert_locale_fact_equivalence("Wait 30 days.", "३१ दिन प्रतीक्षा करें।")
+
+
+def test_numeric_fact_order_and_multiplicity_are_preserved() -> None:
+    with pytest.raises(OutputSafetyError, match="numeric facts"):
+        assert_locale_fact_equivalence(
+            "Dates: 01/02/2026 and 01/02/2026.", "तिथियां: 02/01/2026 और 01/02/2026।"
+        )
+
+
+def test_citations_must_be_retrieved_and_known() -> None:
+    validator = OutputSafetyValidator(load_promoted_corpus())
+    missing_from_evidence = _result("Use the reviewed guidance.").model_copy(
+        update={"source_ids": ("another-reviewed-source",)}
+    )
+    with pytest.raises(OutputSafetyError, match="outside retrieved evidence"):
+        validator.validate(missing_from_evidence, _request())
+
+    unknown = _result("Use the reviewed guidance.").model_copy(
+        update={"source_ids": ("unknown-reviewed-source",)}
+    )
+    unknown_evidence = (
+        _request().evidence[0].model_copy(update={"source_id": "unknown-reviewed-source"})
+    )
+    with pytest.raises(OutputSafetyError, match="unknown source"):
+        validator.validate(unknown, _request().model_copy(update={"evidence": (unknown_evidence,)}))
+
+
+async def test_waitlist_routing_precedes_generic_waiting_term() -> None:
+    router = FakeIntentRouter()
+    request = AssistantMessageRequest(
+        question="How do I join the waitlist?",
+        locale=Locale.ENGLISH,
+        service=Service.APPOINTMENT_WAITLIST,
+        page=Page.APPOINTMENT_WAITLIST,
+        reason_code=ReasonCode.NONE,
+    )
+
+    routed = await router.route(request, request.question, None)
+
+    assert routed.intent is CanonicalIntent.WAITLIST_EXPLANATION
 
 
 async def test_hinglish_routing_uses_safe_text() -> None:

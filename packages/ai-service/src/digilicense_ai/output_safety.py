@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from digilicense_ai.corpus import CorpusError, PromotedCorpus
 from digilicense_ai.schemas import CanonicalProviderRequest, ProviderResult
 
-_HTML_OR_MARKDOWN = re.compile(r"<[^>]+>|```|!\[[^]]*\]\([^)]*\)|\[[^]]+\]\([^)]*\)")
-_URL = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
+_HTML_OR_MARKDOWN = re.compile(
+    r"<[^>]+>|[`*_~]|!\[[^]]*\]|\[[^]]+\]\([^)]*\)|^\s{0,3}#{1,6}\s|^\s*>\s",
+    re.MULTILINE,
+)
+_URL = re.compile(r"(?:\b[a-z][a-z0-9+.-]{1,31}:(?://|[^\s])|www\.)\S*", re.IGNORECASE)
 _NUMBER = re.compile(r"\d+")
 _DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
 _AFFILIATION = (
@@ -30,8 +33,8 @@ class OutputSafetyError(ValueError):
     """The provider result cannot be released to the caller."""
 
 
-def _numbers(value: str) -> frozenset[str]:
-    return frozenset(_NUMBER.findall(value.translate(_DEVANAGARI_DIGITS)))
+def _numbers(value: str) -> tuple[str, ...]:
+    return tuple(_NUMBER.findall(value.translate(_DEVANAGARI_DIGITS)))
 
 
 def assert_locale_fact_equivalence(english: str, hindi: str) -> None:
@@ -59,13 +62,17 @@ class OutputSafetyValidator:
         if any(phrase in lowered for phrase in _AFFILIATION):
             raise OutputSafetyError("answer implies government affiliation")
 
+        permitted_source_ids = {item.source_id for item in request.evidence}
+        if not result.source_ids or not set(result.source_ids).issubset(permitted_source_ids):
+            raise OutputSafetyError("answer cites a source outside retrieved evidence")
+
         known_fact_values: set[str] = set()
         known_sources = set()
         for source_id in result.source_ids:
             try:
                 source = self.corpus.source(source_id)
-            except CorpusError:
-                continue
+            except CorpusError as error:
+                raise OutputSafetyError("answer cites an unknown source") from error
             known_sources.add(source_id)
             if request.intent not in source.allowed_intents:
                 raise OutputSafetyError("source is not allowed for this intent")
@@ -79,8 +86,8 @@ class OutputSafetyValidator:
                 if fact.source_id == source_id and request.intent in fact.intents
             )
 
-        if known_sources and known_fact_values:
+        if known_sources:
             answer_numbers = _numbers(answer)
-            if not answer_numbers.issubset(known_fact_values):
+            if any(number not in known_fact_values for number in answer_numbers):
                 raise OutputSafetyError("answer contains a numeric claim outside fact packets")
         return result.model_copy(update={"answer": answer})
