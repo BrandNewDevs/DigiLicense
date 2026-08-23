@@ -231,3 +231,8 @@ The prototype deployment runs one Uvicorn worker because the Phase 7 rate-limit 
 guards are process-local; multiple workers require a shared atomic quota store before scaling out.
 When TLS terminates at a reverse proxy, that proxy must be the trusted component that sets the
 ASGI HTTPS scheme; the container does not trust client-supplied `X-Forwarded-Proto` headers.
+
+An AI-only hardened Compose example is in `deploy/compose.ai.yaml`. It exposes no host port, uses an
+internal network, drops Linux capabilities, enables `no-new-privileges`, uses a read-only root with a
+bounded `/tmp`, applies one CPU/1 GiB memory limits, and reads secrets from an untracked `.env.ai`.
+Start from `deploy/.env.ai.example`; never commit the populated secret file.
