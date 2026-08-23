@@ -236,7 +236,9 @@ In production, apply committed migrations only with `prisma migrate deploy`.
 seven days after creation and resets it only when form data is saved. The
 retention migration indexes that deadline and the purge command deletes expired
 drafts in locked batches, so concurrent scheduler runs cannot process the same
-records twice.
+records twice. Each run continues until it finds no unlocked expired records.
+There is no global batch cap, so a backlog of more than 10,000 drafts does not
+wait for a later scheduled run.
 
 Install [`deploy/cron/digilicense-draft-retention.cron`](deploy/cron/digilicense-draft-retention.cron)
 in the production scheduler before release. It runs the following command
@@ -247,7 +249,11 @@ pnpm --filter @digilicense/db db:purge-expired-drafts
 ```
 
 The task is safe to retry. It reports only its operation name, batch count, and
-deleted count. It never logs form payloads or applicant identifiers.
+deleted count. It never logs form payloads or applicant identifiers. Treat a
+failed run or a missing successful run as a retention incident: the deployment
+must alert the on-call owner and retry the task until it succeeds. This scheduler
+health alert, together with the uncapped purge, is the operational control for
+the expiration target.
 
 ### Destructive-command safety
 

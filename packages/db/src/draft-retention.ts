@@ -1,7 +1,6 @@
 import { prisma } from "./db"
 
 const draftRetentionBatchSize = 500
-const draftRetentionMaximumBatches = 20
 
 type PurgeExpiredDraftsResult = {
   deleted: number
@@ -29,7 +28,10 @@ async function purgeExpiredApplicationDrafts(): Promise<PurgeExpiredDraftsResult
   let deleted = 0
   let batches = 0
 
-  while (batches < draftRetentionMaximumBatches) {
+  // Do not cap batches. A capped run can leave expired form data behind during
+  // a backlog, which would defeat the retention policy. This job drains until
+  // no unlocked expired drafts remain.
+  while (true) {
     const deletedInBatch = await deleteExpiredDraftBatch()
 
     batches += 1
@@ -43,9 +45,5 @@ async function purgeExpiredApplicationDrafts(): Promise<PurgeExpiredDraftsResult
   return { deleted, batches }
 }
 
-export {
-  draftRetentionBatchSize,
-  draftRetentionMaximumBatches,
-  purgeExpiredApplicationDrafts,
-}
+export { draftRetentionBatchSize, purgeExpiredApplicationDrafts }
 export type { PurgeExpiredDraftsResult }

@@ -1,4 +1,4 @@
 # Install this entry in the production scheduler with the same DATABASE_URL
-# environment as the web service. It runs hourly, so expired form payloads are
-# removed no later than one hour after their seven-day retention period ends.
+# environment as the web service. Configure an alert for a failed run or for
+# a missing successful run. The command drains the entire expired backlog.
 0 * * * * cd /workspace && /usr/local/bin/pnpm --filter @digilicense/db db:purge-expired-drafts
