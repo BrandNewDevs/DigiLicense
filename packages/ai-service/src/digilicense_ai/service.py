@@ -183,6 +183,17 @@ class AssistantService:
         if not payload_dlp_result.provider_allowed:
             return self._boundary_failure_response(request, intent_result, payload_dlp_result)
 
+        if (
+            self._container.provider_budget is not None
+            and self._container.settings.provider_backend is not ProviderBackend.FAKE
+            and not self._container.provider_budget.consume()
+        ):
+            return self._provider_failure_response(
+                request,
+                intent_result,
+                ProviderFailureReason.RATE_LIMITED,
+            )
+
         try:
             provider_result = await self._container.provider.generate(provider_request)
         except ProviderFailure as error:

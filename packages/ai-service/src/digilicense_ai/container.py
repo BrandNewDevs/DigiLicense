@@ -20,6 +20,7 @@ from digilicense_ai.config import (
     RetrievalBackend,
     Settings,
 )
+from digilicense_ai.context import SignedSemanticContextManager
 from digilicense_ai.corpus import PromotedCorpus, load_promoted_corpus
 from digilicense_ai.dlp import LocalDlpGateway
 from digilicense_ai.fakes import (
@@ -28,10 +29,13 @@ from digilicense_ai.fakes import (
     FakeProvider,
     FakeRetriever,
     FakeSemanticContextManager,
+    LocalIntentRouter,
 )
+from digilicense_ai.metrics import SanitizedMetrics
 from digilicense_ai.providers import GeminiProvider, OpenAIProvider
 from digilicense_ai.retrieval import Bm25Retriever, FileSearchRetriever
 from digilicense_ai.retrieval.file_search import FileSearchClient
+from digilicense_ai.security import DailyProviderBudget
 
 
 class BackendNotImplementedError(RuntimeError):
@@ -47,6 +51,16 @@ class ServiceContainer:
     retriever: Retriever
     provider: AssistantProvider
     corpus: PromotedCorpus | None = None
+    provider_budget: DailyProviderBudget | None = None
+    metrics: SanitizedMetrics | None = None
+
+    def readiness_checks(self) -> dict[str, bool]:
+        return {
+            "dlp": self.dlp is not None,
+            "fallbacks": True,
+            "intent": self.intent is not None,
+            "retrieval": self.retriever is not None,
+        }
 
     @property
     def component_statuses(self) -> dict[str, str]:
@@ -67,15 +81,6 @@ class ServiceContainer:
 
 def build_container(settings: Settings) -> ServiceContainer:
     """Build available components and reject later-phase backends honestly."""
-
-    unsupported = []
-    if settings.context_backend is not LocalBackend.FAKE:
-        unsupported.append("context")
-    if settings.intent_backend is not LocalBackend.FAKE:
-        unsupported.append("intent")
-    if unsupported:
-        names = ", ".join(unsupported)
-        raise BackendNotImplementedError(f"backends are reserved for later phases: {names}")
 
     dlp = (
         LocalDlpGateway.create(timeout_ms=settings.dlp_timeout_ms)
@@ -120,9 +125,19 @@ def build_container(settings: Settings) -> ServiceContainer:
     return ServiceContainer(
         settings=settings,
         dlp=dlp,
-        context=FakeSemanticContextManager(),
-        intent=FakeIntentRouter(),
+        context=(
+            SignedSemanticContextManager.from_settings(settings)
+            if settings.context_backend is LocalBackend.LOCAL
+            else FakeSemanticContextManager()
+        ),
+        intent=(
+            LocalIntentRouter()
+            if settings.intent_backend is LocalBackend.LOCAL
+            else FakeIntentRouter()
+        ),
         retriever=retriever,
         provider=provider,
         corpus=corpus,
+        provider_budget=DailyProviderBudget(settings.provider_daily_call_limit),
+        metrics=SanitizedMetrics(),
     )

@@ -51,8 +51,8 @@ def test_production_rejects_unsafe_backend_combinations(
         )
 
 
-def test_production_is_rejected_until_required_local_backends_exist() -> None:
-    with pytest.raises(ValidationError, match="production profile is unavailable"):
+def test_production_requires_service_perimeter_configuration() -> None:
+    with pytest.raises(ValidationError, match="service bearer credential"):
         Settings(
             profile=EnvironmentProfile.PRODUCTION,
             provider_backend=ProviderBackend.OPENAI,
