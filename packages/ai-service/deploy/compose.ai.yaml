@@ -1,0 +1,43 @@
+services:
+  ai-service:
+    build:
+      context: ..
+    expose:
+      - "8000"
+    env_file:
+      - .env.ai
+    networks:
+      - ai-private
+      - ai-egress
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    cpus: "1.0"
+    mem_limit: 1g
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    healthcheck:
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=2)
+    restart: unless-stopped
+
+networks:
+  ai-private:
+    internal: true
+  # Provision this network outside Compose with an egress firewall policy that
+  # permits TLS only to api.openai.com:443. Do not attach unrelated services.
+  ai-egress:
+    name: ${DIGILICENSE_AI_EGRESS_NETWORK:-digilicense-ai-egress}
+    external: true
