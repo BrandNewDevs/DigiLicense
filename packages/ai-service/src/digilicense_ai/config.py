@@ -113,7 +113,9 @@ class Settings(BaseSettings):
                 self.service_bearer_token is None
                 or len(self.service_bearer_token.get_secret_value().strip()) < 32
             ):
-                raise ValueError("production profile requires a 32-character service bearer credential")
+                raise ValueError(
+                    "production profile requires a 32-character service bearer credential"
+                )
             if not self.require_tls:
                 raise ValueError("production profile requires TLS")
             if (

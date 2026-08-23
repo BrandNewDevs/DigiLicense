@@ -111,6 +111,18 @@ def test_fixed_window_and_daily_provider_limits() -> None:
     assert budget.consume() is True
 
 
+def test_peer_limiter_bounds_tracked_keys_without_eviction_of_current_key() -> None:
+    limiter = FixedWindowLimiter(limit=2, max_keys=2)
+
+    assert limiter.allow("first") is True
+    assert limiter.allow("second") is True
+    assert limiter.allow("third") is True
+
+    assert len(limiter._windows) == 2
+    assert "first" not in limiter._windows
+    assert set(limiter._windows) == {"second", "third"}
+
+
 @pytest.mark.parametrize(
     ("headers", "content", "expected"),
     [

@@ -1,5 +1,6 @@
 """Service-perimeter authentication, browser rejection, and bounded quotas."""
 
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from hmac import compare_digest
@@ -19,12 +20,16 @@ class SecurityRejection(Exception):
 class FixedWindowLimiter:
     limit: int
     window_seconds: int = 60
+    max_keys: int = 2048
     clock: Callable[[], float] = monotonic
-    _windows: dict[str, tuple[int, int]] = field(default_factory=dict)
+    _windows: OrderedDict[str, tuple[int, int]] = field(default_factory=OrderedDict)
 
     def allow(self, key: str) -> bool:
         window = int(self.clock() // self.window_seconds)
-        previous_window, count = self._windows.get(key, (window, 0))
+        existing = self._windows.pop(key, None)
+        if existing is None and len(self._windows) >= self.max_keys:
+            self._windows.popitem(last=False)
+        previous_window, count = existing or (window, 0)
         if previous_window != window:
             count = 0
         if count >= self.limit:
