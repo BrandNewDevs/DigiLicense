@@ -6,11 +6,45 @@ services:
       - "127.0.0.1:3000:3000"
     env_file:
       - apps/web/.env
+    environment:
+      # The host name is resolved on the Compose network. Keep the local
+      # host URL in apps/web/.env for Prisma commands run outside Docker.
+      DATABASE_URL: "postgresql://digilicense:12345678@db:5432/digilicense?sslmode=require&uselibpqcompat=true"
     volumes:
       - .:/workspace
       - node_modules:/workspace/node_modules
     command: pnpm --filter web exec vite dev --host 0.0.0.0 --port 3000
+    depends_on:
+      db:
+        condition: service_healthy
 
+  db:
+    build:
+      context: ./docker/postgres
+    environment:
+      POSTGRES_DB: digilicense
+      POSTGRES_USER: digilicense
+      POSTGRES_PASSWORD: "12345678"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U digilicense -d digilicense"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  adminer:
+    image: adminer:4.8.1-standalone
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   node_modules:
+  postgres_data:
