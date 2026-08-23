@@ -159,6 +159,22 @@ is marked ready. Operational metrics retain only request IDs, canonical intents,
 model version, prompt version, and fallback codes; questions, answers, evidence text, credentials,
 and context tokens are excluded.
 
+### Evaluation and red-team fixtures
+
+The packaged evaluation dataset contains synthetic English, Hindi, and Hinglish cases for all ten
+supported intents, referential follow-ups, wrong jurisdiction, missing evidence, structured PII,
+prompt injection, encoded and invisible Unicode attacks, bidi manipulation, citation manipulation,
+hallucinated dates/fees, provider failures, context-token tampering, retrieval failure, and DLP
+failure. The runner reports only aggregate PII recall, false-positive rate, latency, and leakage
+counts. It never writes case text, answers, or identifiers to reports.
+
+Existing deterministic tests provide the remaining acceptance evidence: canonical provider payload
+conformance, citation and numeric-claim rejection, bilingual fact preservation, fallback behavior,
+context-token rotation, and a twenty-request provider-disabled load. BM25 remains the production
+retrieval path; File Search is evaluated only through its existing controlled adapter and shared
+EvidenceChunk contract, so comparisons can measure relevance, citation validity, latency, cost,
+and lifecycle complexity without changing production retrieval.
+
 ### Reviewed corpus and production BM25
 
 Reviewed sources are packaged under `src/digilicense_ai/corpus/data/v1/`. Each release has stable
