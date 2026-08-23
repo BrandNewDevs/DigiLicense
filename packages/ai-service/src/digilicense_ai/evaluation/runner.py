@@ -4,9 +4,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from time import perf_counter
 
-from digilicense_ai.components import DlpGateway
-from digilicense_ai.evaluation.dataset import EVALUATION_CASES, EvaluationCase
-from digilicense_ai.schemas import DlpAction
+from digilicense_ai.components import DlpGateway, IntentRouter
+from digilicense_ai.evaluation.dataset import (
+    EVALUATION_CASES,
+    INTENT_EVALUATION_CASES,
+    EvaluationCase,
+    IntentEvaluationCase,
+)
+from digilicense_ai.schemas import AssistantMessageRequest, CanonicalIntent, DlpAction
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,11 +41,32 @@ class EvaluationReport:
         )
 
     @property
-    def passes_security_gates(self) -> bool:
+    def passes_dlp_gates(self) -> bool:
         return (
             self.pii_recall == 1.0
             and self.false_positive_rate < 0.05
             and self.raw_input_leakage == 0
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class IntentEvaluationReport:
+    total_cases: int
+    correct_cases: int
+    recall_by_intent: dict[CanonicalIntent, float]
+
+    @property
+    def macro_recall(self) -> float:
+        return (
+            sum(self.recall_by_intent.values()) / len(self.recall_by_intent)
+            if self.recall_by_intent
+            else 0.0
+        )
+
+    @property
+    def passes_intent_gates(self) -> bool:
+        return self.macro_recall >= 0.90 and all(
+            recall >= 0.85 for recall in self.recall_by_intent.values()
         )
 
 
@@ -90,4 +116,41 @@ async def evaluate_dlp_cases(
         expected_allow_cases=expected_allow_cases,
         dlp_p95_ms=round(durations[p95_index], 3) if durations else 0.0,
         raw_input_leakage=raw_input_leakage,
+    )
+
+
+async def evaluate_intent_cases(
+    router: IntentRouter,
+    cases: tuple[IntentEvaluationCase, ...] = INTENT_EVALUATION_CASES,
+) -> IntentEvaluationReport:
+    """Measure the deterministic router against synthetic supported and rejected requests."""
+
+    expected_by_intent: dict[CanonicalIntent, int] = {}
+    correct_by_intent: dict[CanonicalIntent, int] = {}
+    correct_cases = 0
+    for case in cases:
+        request = AssistantMessageRequest(
+            question=case.text,
+            locale=case.locale,
+            service=case.service,
+            page=case.page,
+            reason_code=case.reason_code,
+        )
+        result = await router.route(request, case.text, case.context)
+        expected_by_intent[case.expected_intent] = (
+            expected_by_intent.get(case.expected_intent, 0) + 1
+        )
+        if result.intent is case.expected_intent:
+            correct_cases += 1
+            correct_by_intent[case.expected_intent] = (
+                correct_by_intent.get(case.expected_intent, 0) + 1
+            )
+    recall_by_intent = {
+        intent: correct_by_intent.get(intent, 0) / expected_count
+        for intent, expected_count in expected_by_intent.items()
+    }
+    return IntentEvaluationReport(
+        total_cases=len(cases),
+        correct_cases=correct_cases,
+        recall_by_intent=recall_by_intent,
     )

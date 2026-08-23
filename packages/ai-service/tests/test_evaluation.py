@@ -1,8 +1,13 @@
 import asyncio
 
 from digilicense_ai.dlp import LocalDlpGateway
-from digilicense_ai.evaluation import EVALUATION_CASES, evaluate_dlp_cases
-from digilicense_ai.fakes import FakeProvider
+from digilicense_ai.evaluation import (
+    EVALUATION_CASES,
+    INTENT_EVALUATION_CASES,
+    evaluate_dlp_cases,
+    evaluate_intent_cases,
+)
+from digilicense_ai.fakes import FakeIntentRouter, FakeProvider
 from digilicense_ai.schemas import (
     CanonicalIntent,
     CanonicalProviderRequest,
@@ -83,7 +88,7 @@ async def test_evaluation_detects_raw_input_in_egress_artifacts(
     )
 
     assert report.raw_input_leakage == 1
-    assert report.passes_security_gates is False
+    assert report.passes_dlp_gates is False
 
 
 async def test_one_false_positive_fails_explicit_allow_threshold() -> None:
@@ -93,7 +98,16 @@ async def test_one_false_positive_fails_explicit_allow_threshold() -> None:
     assert report.expected_allow_cases == 2
     assert report.benign_false_positives == 1
     assert report.false_positive_rate == 0.5
-    assert report.passes_security_gates is False
+    assert report.passes_dlp_gates is False
+
+
+async def test_intent_evaluation_measures_all_canonical_routes() -> None:
+    report = await evaluate_intent_cases(FakeIntentRouter())
+
+    assert report.total_cases == len(INTENT_EVALUATION_CASES)
+    assert report.correct_cases == len(INTENT_EVALUATION_CASES)
+    assert report.macro_recall == 1.0
+    assert report.passes_intent_gates is True
 
 
 def _provider_request() -> CanonicalProviderRequest:
