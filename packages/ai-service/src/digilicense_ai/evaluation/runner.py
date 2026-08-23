@@ -15,6 +15,7 @@ class EvaluationReport:
     blocked_expected_pii: int
     blocked_actual_pii: int
     benign_false_positives: int
+    expected_allow_cases: int
     dlp_p95_ms: float
     raw_input_leakage: int
 
@@ -28,8 +29,11 @@ class EvaluationReport:
 
     @property
     def false_positive_rate(self) -> float:
-        benign = self.total_cases - self.blocked_expected_pii
-        return self.benign_false_positives / benign if benign else 0.0
+        return (
+            self.benign_false_positives / self.expected_allow_cases
+            if self.expected_allow_cases
+            else 0.0
+        )
 
     @property
     def passes_security_gates(self) -> bool:
@@ -46,7 +50,10 @@ async def evaluate_dlp_cases(
     egress_by_case: Mapping[str, Sequence[str]] | None = None,
 ) -> EvaluationReport:
     durations: list[float] = []
-    expected_pii = sum(case.expect_pii for case in cases)
+    expected_pii = sum(
+        case.expected_dlp_action is DlpAction.BLOCK_PROVIDER_WITH_LOCAL_HELP for case in cases
+    )
+    expected_allow_cases = sum(case.expected_dlp_action is DlpAction.ALLOW for case in cases)
     actual_pii = 0
     false_positives = 0
     for case in cases:
@@ -54,10 +61,10 @@ async def evaluate_dlp_cases(
         result = await gateway.analyze(case.text)
         durations.append((perf_counter() - started) * 1000)
         blocked = result.action is not DlpAction.ALLOW
-        if case.expect_pii and blocked:
+        if case.expected_dlp_action is DlpAction.BLOCK_PROVIDER_WITH_LOCAL_HELP and blocked:
             actual_pii += 1
         if (
-            case.expect_provider_allowed
+            case.expected_dlp_action is DlpAction.ALLOW
             and blocked
             and case.category
             not in {
@@ -80,6 +87,7 @@ async def evaluate_dlp_cases(
         blocked_expected_pii=expected_pii,
         blocked_actual_pii=actual_pii,
         benign_false_positives=false_positives,
+        expected_allow_cases=expected_allow_cases,
         dlp_p95_ms=round(durations[p95_index], 3) if durations else 0.0,
         raw_input_leakage=raw_input_leakage,
     )
