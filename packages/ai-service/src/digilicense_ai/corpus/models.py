@@ -25,6 +25,7 @@ class CorpusSection(ContractModel):
     heading: str = Field(min_length=1, max_length=160)
     claim_kind: SourceKind
     text: str = Field(min_length=1, max_length=2500)
+    allowed_intents: tuple[CanonicalIntent, ...] = Field(min_length=1, max_length=10)
 
 
 class FactPacket(ContractModel):

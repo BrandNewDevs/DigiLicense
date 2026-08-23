@@ -132,7 +132,10 @@ def test_policy_evidence_and_runtime_ingestion_are_both_gated() -> None:
         for fact in missing_policy["factPackets"]
         if fact["sourceId"] != "delhi-driving-licence-guidance-2026"
     ]
-    with pytest.raises(CorpusError, match="policy-bearing intent"):
+    with pytest.raises(
+        CorpusError,
+        match=r"section intent bypasses source allowlist|policy-bearing intent",
+    ):
         _validated(missing_policy)
 
     with pytest.raises(CorpusError, match="not bundled"):

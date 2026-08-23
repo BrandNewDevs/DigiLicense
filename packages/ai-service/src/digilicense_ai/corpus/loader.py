@@ -21,6 +21,7 @@ class PromotedCorpus:
     manifest: CorpusManifest
     source_by_id: Mapping[str, CorpusSource]
     section_by_id: Mapping[str, tuple[CorpusSource, str]]
+    section_intents: Mapping[str, frozenset[CanonicalIntent]]
 
     @property
     def version(self) -> str:
@@ -36,6 +37,13 @@ class PromotedCorpus:
             return self.source_by_id[source_id]
         except KeyError as error:
             raise CorpusError("source is not in the promoted corpus") from error
+
+    def allowed_section_ids(self, intent: CanonicalIntent) -> frozenset[str]:
+        return frozenset(
+            section_id
+            for section_id, allowed_intents in self.section_intents.items()
+            if intent in allowed_intents
+        )
 
 
 def load_promoted_corpus(version: str = "v1") -> PromotedCorpus:
@@ -75,6 +83,7 @@ def validate_corpus(
 
     source_by_id = {source.source_id: source for source in manifest.sources}
     section_by_id: dict[str, tuple[CorpusSource, str]] = {}
+    section_intents: dict[str, frozenset[CanonicalIntent]] = {}
     allowlisted_urls = {str(url) for url in manifest.citation_url_allowlist}
     for source in manifest.sources:
         if str(source.public_url) not in allowlisted_urls:
@@ -95,7 +104,10 @@ def validate_corpus(
                 raise CorpusError("reviewed Markdown does not contain its declared section")
             if section.section_id in section_by_id:
                 raise CorpusError("duplicate section ID")
+            if not set(section.allowed_intents).issubset(set(source.allowed_intents)):
+                raise CorpusError("section intent bypasses source allowlist")
             section_by_id[section.section_id] = (source, section.text)
+            section_intents[section.section_id] = frozenset(section.allowed_intents)
 
     fact_ids: set[str] = set()
     for fact in manifest.fact_packets:
@@ -126,4 +138,4 @@ def validate_corpus(
             for source in manifest.sources
         ):
             raise CorpusError("policy-bearing intent lacks reviewed public evidence")
-    return PromotedCorpus(manifest, source_by_id, section_by_id)
+    return PromotedCorpus(manifest, source_by_id, section_by_id, section_intents)

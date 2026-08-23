@@ -27,25 +27,29 @@
           "sectionId": "delhi-ll-validity-preparation-v1",
           "heading": "Learner licence and preparation",
           "claimKind": "public_policy",
-          "text": "Delhi public guidance describes a learner licence as temporary and valid for up to six months. It also directs learners to prepare on vehicle controls, road signs, and traffic rules."
+          "text": "Delhi public guidance describes a learner licence as temporary and valid for up to six months. It also directs learners to prepare on vehicle controls, road signs, and traffic rules.",
+          "allowedIntents": ["LEARNER_LICENCE_EXPIRY_EXPLANATION", "PREPARATION_CHECKLIST_EXPLANATION", "CURRENT_STEP_EXPLANATION"]
         },
         {
           "sectionId": "delhi-permanent-licence-timing-v1",
           "heading": "Permanent licence timing",
           "claimKind": "public_policy",
-          "text": "Delhi public guidance says a valid learner licence must be held for at least 30 days before the competence test, and the permanent licence application should be made within six months of learner-licence issue."
+          "text": "Delhi public guidance says a valid learner licence must be held for at least 30 days before the competence test, and the permanent licence application should be made within six months of learner-licence issue.",
+          "allowedIntents": ["WAITING_PERIOD_EXPLANATION", "CURRENT_STEP_EXPLANATION"]
         },
         {
           "sectionId": "delhi-appointments-fees-v1",
           "heading": "Appointments and fees",
           "claimKind": "public_policy",
-          "text": "Delhi public guidance identifies appointment and fee payment as driving-licence service topics. Current availability, fee amounts, and any transaction must be checked in the approved public source; DigiLicense does not carry out that transaction."
+          "text": "Delhi public guidance identifies appointment and fee payment as driving-licence service topics. Current availability, fee amounts, and any transaction must be checked in the approved public source; DigiLicense does not carry out that transaction.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION"]
         },
         {
           "sectionId": "delhi-renewal-replacement-v1",
           "heading": "Renewal and replacement",
           "claimKind": "public_policy",
-          "text": "Delhi public guidance lists renewal and duplicate-licence requirements separately. This corpus is reference material only and does not determine an applicant's eligibility or submit a request."
+          "text": "Delhi public guidance lists renewal and duplicate-licence requirements separately. This corpus is reference material only and does not determine an applicant's eligibility or submit a request.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION"]
         }
       ],
       "allowedIntents": [
@@ -74,7 +78,8 @@
           "sectionId": "delhi-permanent-licence-fee-v1",
           "heading": "Permanent driving-licence fee",
           "claimKind": "public_policy",
-          "text": "The reviewed Delhi public permanent driving-licence page lists a revised fee of 400 Indian rupees, including the smart-card amount shown there. Fees can change, and DigiLicense does not accept payment."
+          "text": "The reviewed Delhi public permanent driving-licence page lists a revised fee of 400 Indian rupees, including the smart-card amount shown there. Fees can change, and DigiLicense does not accept payment.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
         }
       ],
       "allowedIntents": [
@@ -101,25 +106,29 @@
           "sectionId": "prototype-guided-actions-v1",
           "heading": "Guided steps and locked actions",
           "claimKind": "prototype_behavior",
-          "text": "DigiLicense explains the current prototype step and why a displayed action is locked. It does not decide legal eligibility, verify records, or change an application."
+          "text": "DigiLicense explains the current prototype step and why a displayed action is locked. It does not decide legal eligibility, verify records, or change an application.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION"]
         },
         {
           "sectionId": "prototype-waitlist-offers-v1",
           "heading": "Waitlist and offers",
           "claimKind": "prototype_behavior",
-          "text": "The DigiLicense appointment waitlist and any offer timer are simulated prototype behavior. They demonstrate a transparent workflow and do not reserve a real appointment."
+          "text": "The DigiLicense appointment waitlist and any offer timer are simulated prototype behavior. They demonstrate a transparent workflow and do not reserve a real appointment.",
+          "allowedIntents": ["NO_APPOINTMENT_EXPLANATION", "WAITLIST_EXPLANATION", "OFFER_EXPIRY_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
         },
         {
           "sectionId": "prototype-synthetic-service-flows-v1",
           "heading": "Status, payment, address, and mobile updates",
           "claimKind": "prototype_behavior",
-          "text": "DigiLicense status, payment, address-change, and mobile-update flows are synthetic. The assistant can explain a displayed reason code but cannot inspect or alter personal records."
+          "text": "DigiLicense status, payment, address-change, and mobile-update flows are synthetic. The assistant can explain a displayed reason code but cannot inspect or alter personal records.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
         },
         {
           "sectionId": "prototype-assistant-scope-v1",
           "heading": "Scope and fallback",
           "claimKind": "prototype_behavior",
-          "text": "The assistant provides evidence-grounded explanations only. If reviewed evidence is insufficient, it returns deterministic guidance instead of guessing."
+          "text": "The assistant provides evidence-grounded explanations only. If reviewed evidence is insufficient, it returns deterministic guidance instead of guessing.",
+          "allowedIntents": ["UNSUPPORTED_QUESTION"]
         }
       ],
       "allowedIntents": [

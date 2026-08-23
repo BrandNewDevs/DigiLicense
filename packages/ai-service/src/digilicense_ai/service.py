@@ -146,13 +146,27 @@ class AssistantService:
                 fallback_used=True,
                 blocked_reason=BlockedReason.UNSUPPORTED,
             )
-        evidence = await self._container.retriever.retrieve(
-            RetrievalQuery(
-                intent=intent_result.intent,
-                topic=intent_result.topic,
-                locale=request.locale,
+        try:
+            evidence = await self._container.retriever.retrieve(
+                RetrievalQuery(
+                    intent=intent_result.intent,
+                    topic=intent_result.topic,
+                    locale=request.locale,
+                )
             )
-        )
+        except Exception:
+            return AssistantMessageResponse(
+                answer=NO_EVIDENCE[request.locale],
+                intent=intent_result.intent,
+                sources=(),
+                uncertain=True,
+                fallback_used=True,
+                blocked_reason=BlockedReason.RETRIEVAL_UNAVAILABLE,
+                escalation=Escalation(
+                    code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
+                    message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][request.locale],
+                ),
+            )
         if not evidence:
             return AssistantMessageResponse(
                 answer=NO_EVIDENCE[request.locale],

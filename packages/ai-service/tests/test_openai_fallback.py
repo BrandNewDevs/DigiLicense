@@ -56,6 +56,12 @@ class NeverRetriever:
         raise AssertionError("retrieval must not run for unsupported questions")
 
 
+class FailingRetriever:
+    async def retrieve(self, query: RetrievalQuery) -> tuple[()]:
+        del query
+        raise RuntimeError("synthetic retrieval outage")
+
+
 def _service(provider: FailingProvider) -> AssistantService:
     return AssistantService(
         ServiceContainer(
@@ -153,3 +159,23 @@ async def test_unsupported_question_stops_before_retrieval_and_provider() -> Non
 
     assert provider.calls == 0
     assert response.blocked_reason is BlockedReason.UNSUPPORTED
+
+
+async def test_retrieval_failure_returns_deterministic_fallback_without_provider_call() -> None:
+    provider = ProviderSpy()
+    service = AssistantService(
+        ServiceContainer(
+            settings=Settings(profile=EnvironmentProfile.TEST),
+            dlp=FakeDlpGateway(),
+            context=FakeSemanticContextManager(),
+            intent=FakeIntentRouter(),
+            retriever=FailingRetriever(),
+            provider=provider,
+        )
+    )
+
+    response = await service.answer(_request())
+
+    assert provider.calls == 0
+    assert response.fallback_used is True
+    assert response.blocked_reason is BlockedReason.RETRIEVAL_UNAVAILABLE
