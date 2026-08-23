@@ -211,3 +211,5 @@ Production configuration is accepted only when it selects local DLP, local seman
 local intent routing, local BM25 retrieval, OpenAI, dedicated project credentials, and confirmed
 provider budget controls. The current container still fails honestly for the not-yet-implemented
 local semantic-context and intent components rather than silently substituting fake behavior.
+The prototype deployment runs one Uvicorn worker because the Phase 7 rate-limit and daily-budget
+guards are process-local; multiple workers require a shared atomic quota store before scaling out.
