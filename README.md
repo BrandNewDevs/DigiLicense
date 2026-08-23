@@ -147,11 +147,19 @@ Run the complete local stack, including PostgreSQL and Adminer, from the
 repository root:
 
 ```bash
+cp .env.example .env
 cp apps/web/.env.example apps/web/.env
+openssl rand -hex 24
+openssl rand -base64 48
 docker compose up -d --build
 docker compose exec web pnpm --filter @digilicense/db db:migrate:deploy
 docker compose exec web pnpm --filter @digilicense/db db:seed
 ```
+
+Before `docker compose up`, paste the first generated value into
+`DIGILICENSE_LOCAL_DB_PASSWORD` in `.env`, and the second into
+`DIGILICENSE_SESSION_SECRET`. `.env` is ignored by Git. Do not use either
+local value in a deployed environment.
 
 Open these local addresses:
 
@@ -170,7 +178,7 @@ Use these credentials only with the local synthetic environment:
 | --- | --- |
 | Applicant app | Mobile `9000000001`, OTP `123456` |
 | Operator app | Username `operator.demo`, password `demo-only` |
-| Adminer | Server `db`, username `digilicense`, password `12345678`, database `digilicense` |
+| Adminer | Server `db`, username `digilicense`, password from `DIGILICENSE_LOCAL_DB_PASSWORD`, database `digilicense` |
 
 To run the workspace outside Docker, install dependencies with `pnpm install`.
 Start the database first with `docker compose up -d db`, apply migrations and
@@ -220,7 +228,8 @@ docker compose exec web pnpm --filter @digilicense/db db:seed
 ```
 
 The database listens only on `127.0.0.1:5432`. Its local-only credentials are
-in `apps/web/.env.example`. Docker uses a self-signed TLS certificate, so the
+in the ignored root `.env` file. Docker uses a self-signed TLS certificate and
+rejects non-TLS TCP connections at the PostgreSQL access-control layer. The
 development URL deliberately uses `sslmode=require&uselibpqcompat=true`: the
 connection is encrypted but the local certificate is not trusted. Production
 must use `verify-ca` or `verify-full` with a provider-issued CA certificate.
@@ -229,8 +238,23 @@ Do not reuse these credentials or certificate settings outside local development
 To inspect local synthetic records in a browser, start Adminer with the Compose
 stack and open [http://127.0.0.1:8080](http://127.0.0.1:8080). Choose
 PostgreSQL, then sign in with server `db`, username `digilicense`, password
-`12345678`, and database `digilicense`. Adminer listens only
+from `DIGILICENSE_LOCAL_DB_PASSWORD` in `.env`, and database `digilicense`.
+Adminer listens only
 on your local machine and is for development data only.
+
+To rotate the local database password, update
+`DIGILICENSE_LOCAL_DB_PASSWORD` in `.env`, then run this command and enter the
+same password when prompted:
+
+```bash
+docker compose exec db psql -U digilicense -d digilicense -c '\\password digilicense'
+```
+
+Restart the web container after rotating the password:
+
+```bash
+docker compose up -d --force-recreate web
+```
 
 For an **empty development database**, create the schema with:
 
