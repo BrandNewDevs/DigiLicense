@@ -7,6 +7,10 @@ type ServiceField = {
   type: "date" | "select" | "text"
 }
 
+// A service can declare a persisted workflow. Workflow-backed services render
+// a guided, server-validated flow instead of the static prototype form.
+type ServiceWorkflow = "learner-licence"
+
 type ServiceDefinition = {
   action: string
   description: string
@@ -16,6 +20,7 @@ type ServiceDefinition = {
   summary: string
   title: string
   whatYouNeed: readonly string[]
+  workflow?: ServiceWorkflow
 }
 
 const services = [
@@ -32,6 +37,7 @@ const services = [
       "A vehicle class",
       "A Delhi test zone",
     ],
+    workflow: "learner-licence",
     fields: [
       {
         label: "Vehicle class",

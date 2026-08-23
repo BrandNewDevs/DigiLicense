@@ -23,8 +23,14 @@ const prisma = new PrismaClient({
   adapter: createDatabaseAdapter(databaseUrl),
 })
 
+// Scenarios are spread across synthetic applicants because the database
+// allows only one active application per (applicant, service) pair. The
+// primary demo applicant (001) keeps a clean learner's-licence slate so the
+// guided submission flow can be demonstrated live; 002 and 003 hold the
+// remaining in-flight cases so the operator dashboard stays varied.
 const scenarios = [
   {
+    applicantId: "demo-applicant-002",
     applicationNumber: "DLDEMO20260001",
     service: "Learner's licence",
     status: ApplicationStatus.DOCUMENT_REVIEW,
@@ -32,6 +38,7 @@ const scenarios = [
     title: "Synthetic application submitted",
   },
   {
+    applicantId: "demo-applicant-003",
     applicationNumber: "DLDEMO20260002",
     service: "Learner's licence",
     status: ApplicationStatus.TEST_PENDING,
@@ -39,6 +46,7 @@ const scenarios = [
     title: "Simulated test completed",
   },
   {
+    applicantId: "demo-applicant-002",
     applicationNumber: "DLDEMO20260003",
     service: "Permanent driving licence",
     status: ApplicationStatus.PAYMENT_REVIEW,
@@ -46,6 +54,7 @@ const scenarios = [
     title: "Mock payment needs review",
   },
   {
+    applicantId: "demo-applicant-001",
     applicationNumber: "DLDEMO20260004",
     service: "Driving-licence renewal",
     status: ApplicationStatus.APPROVAL_PENDING,
@@ -53,6 +62,7 @@ const scenarios = [
     title: "Synthetic checks completed",
   },
   {
+    applicantId: "demo-applicant-001",
     applicationNumber: "DLDEMO20260005",
     service: "Permanent driving licence",
     status: ApplicationStatus.WAITLISTED,
@@ -66,7 +76,7 @@ for (const scenario of scenarios) {
     where: { applicationNumber: scenario.applicationNumber },
     update: {},
     create: {
-      applicantId: "demo-applicant-001",
+      applicantId: scenario.applicantId,
       applicationNumber: scenario.applicationNumber,
       service: scenario.service,
       status: scenario.status,
