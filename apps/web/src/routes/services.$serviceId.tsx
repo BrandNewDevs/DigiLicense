@@ -5,6 +5,7 @@ import { SiteFooter } from "@workspace/ui/components/site-footer"
 import { SiteHeader } from "@workspace/ui/components/site-header"
 
 import { MockApplicantGate } from "../components/mock-applicant-gate"
+import { LearnerLicenceForm } from "../components/learner-licence-form"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
 import { getService } from "../lib/services"
 
@@ -20,7 +21,13 @@ function ServicePage() {
     return <UnknownService />
   }
 
-  const form = <ServicePrototypeForm service={service} />
+  const isLearnerLicenceWorkflow = "workflow" in service
+
+  const form = isLearnerLicenceWorkflow ? (
+    <LearnerLicenceForm />
+  ) : (
+    <ServicePrototypeForm service={service} />
+  )
 
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -72,8 +79,9 @@ function ServicePage() {
                   aria-hidden="true"
                 />
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Use only the synthetic values shown on this page. No data is
-                  saved or sent to an external service.
+                  {isLearnerLicenceWorkflow
+                    ? "Use only synthetic values. Answers are stored in the prototype database so status and history work end to end, and nothing is sent to a government service."
+                    : "Use only the synthetic values shown on this page. No data is saved or sent to an external service."}
                 </p>
               </div>
             </div>

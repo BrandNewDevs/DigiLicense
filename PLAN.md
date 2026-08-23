@@ -11,11 +11,11 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [x] Implement a separate operator login using synthetic username/password credentials
 - [ ] Add server-side sessions, role authorization, rate limits, and security headers through TanStack Start server code (sessions, role checks, and Postgres-backed login/operator rate limits done; security headers outstanding)
 - [x] Configure PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data. Provide a reproducible local Docker PostgreSQL setup with a browser-based Adminer viewer.
-- [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models (application, workflow-event, and audit-event models exist; document, payment, appointment, and notification models remain)
+- [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models (application, workflow-event, audit-event, draft, document, payment, and notification models exist; the appointment inventory model remains)
 
 ## Ten core capabilities
 
-- [ ] 1. New learner's-licence application
+- [x] 1. New learner's-licence application (guided multi-step form, server-validated eligibility, persisted drafts with seven-day retention, transactional submission with duplicate-application guard)
 - [ ] 2. Simulated learner's test, result, and retest flow
 - [ ] 3. New permanent driving-licence application with waiting-period eligibility
 - [ ] 4. Driving-licence renewal application
@@ -56,8 +56,8 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 
 - [x] Add TanStack Start server functions or server routes for all privileged reads and mutations
 - [x] Keep Prisma, session secrets, and external-service credentials in server-only modules
-- [ ] Implement reusable server-validated workflow definitions for all ten capabilities (workflow definitions currently cover the operator verification-to-approval transitions only)
-- [ ] Persist drafts, validation results, submissions, status changes, and immutable workflow events (submissions, status changes, and workflow events persist; drafts and validation results do not yet)
+- [ ] Implement reusable server-validated workflow definitions for all ten capabilities (workflow definitions currently cover the operator verification-to-approval transitions and the learner's-licence submission flow)
+- [ ] Persist drafts, validation results, submissions, status changes, and immutable workflow events (submissions, status changes, learner's-licence drafts, and workflow events persist; validation results do not yet)
 - [ ] Add mock document checks, payments, notifications, and government-action markers
 - [ ] Implement transactional appointment allocation, offer expiry, and confirmation
 - [x] Add append-only workflow and operator-action audit events
@@ -77,7 +77,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 
 ## Testing and quality
 
-- [ ] Test valid, invalid, and unauthorized workflow transitions (workflow state rules and validation schemas have unit tests; unauthorized-transition and server-boundary tests remain)
+- [ ] Test valid, invalid, and unauthorized workflow transitions (workflow state rules, validation schemas, learner's-licence schemas, and age-eligibility boundaries have unit tests; unauthorized-transition and server-boundary tests remain)
 - [ ] Test learner-licence waiting-period and expiry boundaries
 - [ ] Test drafts, validation, payments, notifications, and audit-event creation
 - [ ] Test waitlist matching, priority ordering, offer lifecycle, and concurrent booking attempts
