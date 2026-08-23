@@ -105,8 +105,8 @@ class GeminiProvider:
             raise ProviderFailure(ProviderFailureReason.UNSAFE_PAYLOAD) from None
 
         try:
-            async with self._semaphore:
-                async with asyncio.timeout(self._request_timeout_seconds):
+            async with asyncio.timeout(self._request_timeout_seconds):
+                async with self._semaphore:
                     raw_response = await self._client.aio.models.generate_content(
                         model=self._model_id,
                         contents=payload,
