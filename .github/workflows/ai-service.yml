@@ -1,0 +1,40 @@
+name: AI service checks
+
+on:
+  pull_request:
+    paths:
+      - "packages/ai-service/**"
+      - ".github/workflows/ai-service.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/ai-service/**"
+      - ".github/workflows/ai-service.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Test, type-check, and scan AI service
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: packages/ai-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.12"
+      - run: uv sync --frozen --group dev --group security
+      - run: uv run pytest
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy src
+      - run: uv run bandit -q -c pyproject.toml -r src
+      - run: uv run pip-audit --format cyclonedx-json --output ai-service-sbom.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-service-sbom
+          path: packages/ai-service/ai-service-sbom.json
+          if-no-files-found: error
