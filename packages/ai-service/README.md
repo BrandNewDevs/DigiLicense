@@ -232,7 +232,12 @@ guards are process-local; multiple workers require a shared atomic quota store b
 When TLS terminates at a reverse proxy, that proxy must be the trusted component that sets the
 ASGI HTTPS scheme; the container does not trust client-supplied `X-Forwarded-Proto` headers.
 
-An AI-only hardened Compose example is in `deploy/compose.ai.yaml`. It exposes no host port, uses an
-internal network, drops Linux capabilities, enables `no-new-privileges`, uses a read-only root with a
-bounded `/tmp`, applies one CPU/1 GiB memory limits, and reads secrets from an untracked `.env.ai`.
-Start from `deploy/.env.ai.example`; never commit the populated secret file.
+An AI-only hardened Compose example is in `deploy/compose.ai.yaml`. It exposes no host port, keeps
+internal traffic on an isolated `ai-private` network, and attaches the service to a separately
+provisioned `ai-egress` network. The egress network must be restricted by the host or cloud firewall
+to TLS traffic for `api.openai.com:443` only; it must not be a general-purpose application network.
+This preserves a working OpenAI path without allowing arbitrary outbound destinations. Drops Linux
+capabilities, enables `no-new-privileges`, uses a read-only root with a bounded `/tmp`, applies one
+CPU/1 GiB memory limits, and reads secrets from an untracked `.env.ai`. Provision the external
+network before starting Compose, set `DIGILICENSE_AI_EGRESS_NETWORK` if its name differs, and start
+from `deploy/.env.ai.example`; never commit the populated secret file.

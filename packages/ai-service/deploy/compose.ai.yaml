@@ -8,6 +8,7 @@ services:
       - .env.ai
     networks:
       - ai-private
+      - ai-egress
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
@@ -35,3 +36,8 @@ services:
 networks:
   ai-private:
     internal: true
+  # Provision this network outside Compose with an egress firewall policy that
+  # permits TLS only to api.openai.com:443. Do not attach unrelated services.
+  ai-egress:
+    name: ${DIGILICENSE_AI_EGRESS_NETWORK:-digilicense-ai-egress}
+    external: true
