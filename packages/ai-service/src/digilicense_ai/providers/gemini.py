@@ -54,12 +54,14 @@ class GeminiProvider:
         max_output_tokens: int,
         request_timeout_seconds: float,
         payload_dlp: DlpGateway,
+        max_concurrency: int = 10,
     ) -> None:
         self._client = client
         self._model_id = model_id
         self._max_output_tokens = max_output_tokens
         self._request_timeout_seconds = request_timeout_seconds
         self._payload_dlp = payload_dlp
+        self._semaphore = asyncio.Semaphore(max_concurrency)
 
     @classmethod
     def from_settings(cls, settings: Settings, *, payload_dlp: DlpGateway) -> "GeminiProvider":
@@ -82,6 +84,7 @@ class GeminiProvider:
             max_output_tokens=settings.openai_max_output_tokens,
             request_timeout_seconds=settings.openai_request_timeout_seconds,
             payload_dlp=payload_dlp,
+            max_concurrency=settings.openai_max_concurrency,
         )
 
     async def generate(self, request: CanonicalProviderRequest) -> ProviderResult:
@@ -102,19 +105,20 @@ class GeminiProvider:
             raise ProviderFailure(ProviderFailureReason.UNSAFE_PAYLOAD) from None
 
         try:
-            async with asyncio.timeout(self._request_timeout_seconds):
-                raw_response = await self._client.aio.models.generate_content(
-                    model=self._model_id,
-                    contents=payload,
-                    config={
-                        "system_instruction": localized_instructions(request.locale),
-                        "response_mime_type": "application/json",
-                        "response_schema": ProviderResult,
-                        "max_output_tokens": self._max_output_tokens,
-                        "temperature": 0,
-                        "tools": [],
-                    },
-                )
+            async with self._semaphore:
+                async with asyncio.timeout(self._request_timeout_seconds):
+                    raw_response = await self._client.aio.models.generate_content(
+                        model=self._model_id,
+                        contents=payload,
+                        config={
+                            "system_instruction": localized_instructions(request.locale),
+                            "response_mime_type": "application/json",
+                            "response_schema": ProviderResult,
+                            "max_output_tokens": self._max_output_tokens,
+                            "temperature": 0,
+                            "tools": [],
+                        },
+                    )
             output_text = getattr(raw_response, "text", None)
             if not isinstance(output_text, str):
                 raise ValueError("Gemini response did not contain text")
