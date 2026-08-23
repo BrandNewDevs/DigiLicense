@@ -51,7 +51,7 @@ class RecordingAio:
         self.models = models
         self.closed = False
 
-    def close(self) -> None:
+    def aclose(self) -> None:
         self.closed = True
 
 

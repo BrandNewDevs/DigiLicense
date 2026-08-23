@@ -4,6 +4,7 @@ from digilicense_ai.config import ProviderBackend
 from digilicense_ai.container import ServiceContainer
 from digilicense_ai.fallbacks import (
     BOUNDARY,
+    ESCALATIONS,
     NO_EVIDENCE,
     PII_LOCAL_HELP,
     PROVIDER,
@@ -153,7 +154,9 @@ class AssistantService:
                 blocked_reason=BlockedReason.NO_EVIDENCE,
                 escalation=Escalation(
                     code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
-                    message="Review the approved public guidance for the next step.",
+                    message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][
+                        request.locale
+                    ],
                 ),
             )
         provider_request = CanonicalProviderRequest(
@@ -196,7 +199,9 @@ class AssistantService:
                 blocked_reason=BlockedReason.INVALID_OUTPUT,
                 escalation=Escalation(
                     code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
-                    message="Review the approved public guidance for a safe answer.",
+                    message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][
+                        request.locale
+                    ],
                 ),
             )
         outbound_dlp_result = await self._container.dlp.analyze(
@@ -297,7 +302,7 @@ class AssistantService:
             blocked_reason=blocked_reason,
             escalation=Escalation(
                 code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
-                message="Review the approved public guidance for the next step.",
+                message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][request.locale],
             ),
         )
 
@@ -325,6 +330,6 @@ class AssistantService:
             blocked_reason=blocked_reason,
             escalation=Escalation(
                 code=EscalationCode.CONTACT_PROTOTYPE_SUPPORT,
-                message="Use the public guidance or prototype support path for help.",
+                message=ESCALATIONS[EscalationCode.CONTACT_PROTOTYPE_SUPPORT.value][request.locale],
             ),
         )

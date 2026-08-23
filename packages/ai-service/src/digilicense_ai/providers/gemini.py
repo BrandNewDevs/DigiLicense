@@ -29,7 +29,7 @@ class _GeminiAsyncClient(Protocol):
     @property
     def models(self) -> _GeminiModels: ...
 
-    def close(self) -> Any: ...
+    def aclose(self) -> Any: ...
 
 
 class GeminiClient(Protocol):
@@ -137,7 +137,7 @@ class GeminiProvider:
         return result
 
     async def close(self) -> None:
-        close_result = self._client.aio.close()
+        close_result = self._client.aio.aclose()
         if isawaitable(close_result):
             await close_result
 

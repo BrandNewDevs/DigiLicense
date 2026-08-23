@@ -47,13 +47,24 @@ BOUNDARY = {
 
 PROVIDER = {
     Locale.ENGLISH: (
-        "AI guidance is temporarily unavailable. Please use the cited public guidance on this "
+        "AI guidance is temporarily unavailable. Please use the public guidance on this "
         "page and try again later."
     ),
     Locale.HINDI: (
         "AI मार्गदर्शन अभी उपलब्ध नहीं है। कृपया इस पेज पर दिए सार्वजनिक मार्गदर्शन का उपयोग "
         "करें और बाद में फिर प्रयास करें।"
     ),
+}
+
+ESCALATIONS = {
+    "REVIEW_PUBLIC_GUIDANCE": {
+        Locale.ENGLISH: "Review the approved public guidance for the next step.",
+        Locale.HINDI: "अगले चरण के लिए अनुमोदित सार्वजनिक मार्गदर्शन देखें।",
+    },
+    "CONTACT_PROTOTYPE_SUPPORT": {
+        Locale.ENGLISH: "Use the public guidance or prototype support path for help.",
+        Locale.HINDI: "सहायता के लिए सार्वजनिक मार्गदर्शन या प्रोटोटाइप सहायता मार्ग का उपयोग करें।",
+    },
 }
 
 NO_EVIDENCE = {
