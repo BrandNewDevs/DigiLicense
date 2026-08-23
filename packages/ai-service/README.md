@@ -141,6 +141,24 @@ The deterministic local router recognizes English, Hindi, and common Hinglish fo
 without forwarding raw text to a provider. The public response includes only source metadata
 resolved from the promoted corpus.
 
+### Service perimeter and operations
+
+Production configuration requires a server-to-server bearer credential, TLS, dedicated OpenAI
+project credentials, local DLP, local signed context, local intent routing, and BM25. Requests
+with browser Origin headers, preflight methods, invalid content types, missing credentials, or
+non-TLS production transport are rejected before FastAPI parsing. The gateway applies a maximum
+of 60 requests per minute per service credential, while a daily provider budget caps the prototype
+at 1,500 external calls. Provider concurrency remains capped at ten.
+
+Semantic context tokens contain only the last canonical intent, topic, locale, issue/expiry times,
+and a key ID. They are HMAC-signed, expire, and accept both current and previous signing keys
+during rotation. They never contain raw questions, identities, or conversation history.
+
+Readiness checks cover DLP, deterministic fallbacks, intent routing, and retrieval before traffic
+is marked ready. Operational metrics retain only request IDs, canonical intents, bounded source IDs,
+model version, prompt version, and fallback codes; questions, answers, evidence text, credentials,
+and context tokens are excluded.
+
 ### Reviewed corpus and production BM25
 
 Reviewed sources are packaged under `src/digilicense_ai/corpus/data/v1/`. Each release has stable
