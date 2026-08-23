@@ -1,7 +1,7 @@
 import { PrismaClient } from "./generated/prisma/client"
 
-import { createDatabaseAdapter } from "./database-adapter"
-import { validateDatabaseUrl } from "./database-url"
+import { createDatabaseAdapter } from "./database-adapter.ts"
+import { validateDatabaseUrl } from "./database-url.ts"
 
 function getDatabaseUrl() {
   const databaseUrl = process.env.DATABASE_URL?.trim()

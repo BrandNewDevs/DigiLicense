@@ -131,32 +131,58 @@ by hand.
 
 ## Requirements
 
-- Node.js 20 or newer
-- pnpm 10.33.4, or a compatible pnpm 10 release
+- Docker Desktop with Docker Compose v2
+- Node.js 20 or newer and pnpm 10.33.4 only if you want to run workspace
+  commands outside Docker
 
-Check the installed versions before starting:
+Check Docker before starting:
 
 ```bash
-node --version
-pnpm --version
+docker compose version
 ```
 
 ## Getting started
 
-Install dependencies from the repository root:
+Run the complete local stack, including PostgreSQL and Adminer, from the
+repository root:
 
 ```bash
-pnpm install
+cp .env.example .env
+cp apps/web/.env.example apps/web/.env
+openssl rand -hex 24
+openssl rand -base64 48
+docker compose up -d --build
+docker compose exec web pnpm --filter @digilicense/db db:migrate:deploy
+docker compose exec web pnpm --filter @digilicense/db db:seed
 ```
 
-Start the web app in development mode:
+Before `docker compose up`, paste the first generated value into
+`DIGILICENSE_LOCAL_DB_PASSWORD` in `.env`, and the second into
+`DIGILICENSE_SESSION_SECRET`. `.env` is ignored by Git. Do not use either
+local value in a deployed environment.
 
-```bash
-pnpm dev
-```
+Open these local addresses:
 
-Open [http://localhost:3000](http://localhost:3000). Vite and TanStack Start
-will rebuild the app as source files change.
+- App: [http://localhost:3000](http://localhost:3000)
+- Database viewer: [http://127.0.0.1:8080](http://127.0.0.1:8080)
+
+The app runs with Vite inside Docker and reloads after source changes. Check
+the running services with `docker compose ps`. Stop the stack with
+`docker compose down`. This preserves the local database volume. Use
+`docker compose down -v` only when you deliberately want to delete all local
+synthetic database data.
+
+Use these credentials only with the local synthetic environment:
+
+| Where | Sign in details |
+| --- | --- |
+| Applicant app | Mobile `9000000001`, OTP `123456` |
+| Operator app | Username `operator.demo`, password `demo-only` |
+| Adminer | Server `db`, username `digilicense`, password from `DIGILICENSE_LOCAL_DB_PASSWORD`, database `digilicense` |
+
+To run the workspace outside Docker, install dependencies with `pnpm install`.
+Start the database first with `docker compose up -d db`, apply migrations and
+seed data with the database commands below, then run `pnpm dev`.
 
 ## Available commands
 
@@ -192,6 +218,43 @@ synthetic development database, and set a session secret. The database package
 uses that same uncommitted file for Prisma commands. All database hosts,
 including loopback development hosts, must require TLS (`sslmode=require`,
 `verify-ca`, or `verify-full`).
+
+For the local Docker database, apply new checked-in migrations and ensure the
+synthetic seed records exist with:
+
+```bash
+docker compose exec web pnpm --filter @digilicense/db db:migrate:deploy
+docker compose exec web pnpm --filter @digilicense/db db:seed
+```
+
+The database listens only on `127.0.0.1:5432`. Its local-only credentials are
+in the ignored root `.env` file. Docker uses a self-signed TLS certificate and
+rejects non-TLS TCP connections at the PostgreSQL access-control layer. The
+development URL deliberately uses `sslmode=require&uselibpqcompat=true`: the
+connection is encrypted but the local certificate is not trusted. Production
+must use `verify-ca` or `verify-full` with a provider-issued CA certificate.
+Do not reuse these credentials or certificate settings outside local development.
+
+To inspect local synthetic records in a browser, start Adminer with the Compose
+stack and open [http://127.0.0.1:8080](http://127.0.0.1:8080). Choose
+PostgreSQL, then sign in with server `db`, username `digilicense`, password
+from `DIGILICENSE_LOCAL_DB_PASSWORD` in `.env`, and database `digilicense`.
+Adminer listens only
+on your local machine and is for development data only.
+
+To rotate the local database password, update
+`DIGILICENSE_LOCAL_DB_PASSWORD` in `.env`, then run this command and enter the
+same password when prompted:
+
+```bash
+docker compose exec db psql -U digilicense -d digilicense -c '\\password digilicense'
+```
+
+Restart the web container after rotating the password:
+
+```bash
+docker compose up -d --force-recreate web
+```
 
 For an **empty development database**, create the schema with:
 

@@ -10,7 +10,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [x] Implement applicant login with a seeded synthetic mobile number and simulated OTP
 - [x] Implement a separate operator login using synthetic username/password credentials
 - [ ] Add server-side sessions, role authorization, rate limits, and security headers through TanStack Start server code (sessions, role checks, and Postgres-backed login/operator rate limits done; security headers outstanding)
-- [x] Configure Neon-hosted PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data
+- [x] Configure PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data. Provide a reproducible local Docker PostgreSQL setup with a browser-based Adminer viewer.
 - [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models (application, workflow-event, and audit-event models exist; document, payment, appointment, and notification models remain)
 
 ## Ten core capabilities
