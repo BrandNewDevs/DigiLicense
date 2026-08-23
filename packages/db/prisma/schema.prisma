@@ -28,18 +28,50 @@ enum WorkflowActor {
   SYSTEM
 }
 
+enum DocumentType {
+  IDENTITY_PROOF
+  ADDRESS_PROOF
+  PHOTO
+  OTHER
+}
+
+enum DocumentStatus {
+  UPLOADED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  DISMISSED
+}
+
 model Application {
-  id                String            @id @default(cuid())
+  id                String               @id @default(cuid())
   applicantId       String
-  applicationNumber String            @unique
+  applicationNumber String               @unique
   service           String
   status            ApplicationStatus
   nextAction        String
-  version           Int               @default(1)
-  submittedAt       DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  version           Int                  @default(1)
+  submittedAt       DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   workflowEvents    WorkflowEvent[]
   auditEvents       AuditEvent[]
+  draft             ApplicationDraft?
+  documents         DocumentRecord[]
+  payments          PaymentRecord[]
+  notifications     NotificationRecord[]
 
   @@index([applicantId, applicationNumber])
   @@index([status, submittedAt])
@@ -75,6 +107,73 @@ model AuditEvent {
 
   @@index([applicationId, createdAt])
   @@index([createdAt])
+}
+
+model ApplicationDraft {
+  id            String       @id @default(cuid())
+  applicantId   String
+  service       String
+  formPayload   String
+  applicationId String?      @unique
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  // Draft form data is temporary. The database default and update trigger in
+  // the retention migration set this to seven days after the latest payload
+  // save. The scheduled purge removes records once this deadline passes.
+  expiresAt     DateTime     @default(dbgenerated("(CURRENT_TIMESTAMP + '7 days'::interval)"))
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicantId, service, updatedAt])
+  @@index([expiresAt])
+}
+
+model DocumentRecord {
+  id            String         @id @default(cuid())
+  applicationId String
+  type          DocumentType
+  status        DocumentStatus @default(UPLOADED)
+  fileName      String
+  reference     String         @unique
+  isSimulated   Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, type])
+  @@index([applicationId, status])
+}
+
+model PaymentRecord {
+  id             String        @id @default(cuid())
+  applicationId  String
+  feeLines       String
+  amountPaise    Int
+  status         PaymentStatus @default(PENDING)
+  idempotencyKey String        @unique
+  reference      String?       @unique
+  isSimulated    Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  application    Application   @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+  @@index([applicationId, status])
+}
+
+model NotificationRecord {
+  id            String             @id @default(cuid())
+  applicantId   String
+  applicationId String?
+  title         String
+  message       String
+  status        NotificationStatus @default(UNREAD)
+  isSimulated   Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  readAt        DateTime?
+  application   Application?       @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicantId, status, createdAt])
+  @@index([applicationId, createdAt])
 }
 
 // Fixed-window rate-limit counters shared across instances. Keys are hashed,
