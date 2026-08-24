@@ -14,6 +14,7 @@ import type { LearnerLicenceSubmission } from "../validation/learner-licence"
 import { requireApplicant } from "./demo-session.server"
 import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
+import { normalizeUniqueConstraintTargets } from "./unique-constraint.shared"
 
 const TERMINAL_APPLICATION_STATUSES: ApplicationStatus[] = [
   "APPROVED",
@@ -125,15 +126,7 @@ function getUniqueConstraintTargets(error: unknown): string[] {
 
   if (!meta || typeof meta !== "object") return []
 
-  const target: unknown = (meta as { target?: unknown }).target
-
-  if (typeof target === "string") return [target]
-
-  if (Array.isArray(target)) {
-    return target.filter((entry): entry is string => typeof entry === "string")
-  }
-
-  return []
+  return normalizeUniqueConstraintTargets((meta as { target?: unknown }).target)
 }
 
 async function readLearnerLicenceState(): Promise<LearnerLicenceReadResult> {
@@ -487,16 +480,20 @@ async function submitLearnerLicenceApplication(
 
       // A generated number collided with an existing row. Nothing was written
       // durably except the advisory-lock session, so a fresh number retries.
-      if (
-        constraintTargets.includes("applicationNumber") &&
-        attempt < SUBMIT_ATTEMPT_LIMIT - 1
-      ) {
+      const applicationNumberConflict =
+        constraintTargets.includes("applicationnumber") ||
+        constraintTargets.includes("application_applicationnumber_key")
+
+      const activeApplicationConflict =
+        constraintTargets.includes("application_active_applicant_service_key") ||
+        (constraintTargets.includes("applicantid") &&
+          constraintTargets.includes("service"))
+
+      if (applicationNumberConflict && attempt < SUBMIT_ATTEMPT_LIMIT - 1) {
         continue
       }
 
-      if (
-        constraintTargets.includes("Application_active_applicant_service_key")
-      ) {
+      if (activeApplicationConflict) {
         return {
           kind: "duplicate-active",
           message:
