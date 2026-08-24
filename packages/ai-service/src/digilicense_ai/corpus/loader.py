@@ -126,6 +126,8 @@ def validate_corpus(
             raise CorpusError("fact packet claim type conflicts with source")
         if not set(fact.intents).issubset(set(referenced_source.allowed_intents)):
             raise CorpusError("fact packet intent bypasses source allowlist")
+        if not set(fact.intents).issubset(section_intents[fact.section_id]):
+            raise CorpusError("fact packet intent bypasses section allowlist")
 
     policy_intents = {
         CanonicalIntent.WAITING_PERIOD_EXPLANATION,
