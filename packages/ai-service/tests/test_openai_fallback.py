@@ -2,13 +2,16 @@ import pytest
 
 from digilicense_ai.config import EnvironmentProfile, Settings
 from digilicense_ai.container import ServiceContainer
+from digilicense_ai.corpus import load_promoted_corpus
 from digilicense_ai.fakes import (
     FakeDlpGateway,
     FakeIntentRouter,
+    FakeProvider,
     FakeRetriever,
     FakeSemanticContextManager,
 )
 from digilicense_ai.providers import ProviderFailure, ProviderFailureReason
+from digilicense_ai.retrieval import Bm25Retriever
 from digilicense_ai.schemas import (
     AssistantMessageRequest,
     BlockedReason,
@@ -60,6 +63,15 @@ class FailingRetriever:
     async def retrieve(self, query: RetrievalQuery) -> tuple[()]:
         del query
         raise RuntimeError("synthetic retrieval outage")
+
+
+class CapturingFakeProvider(FakeProvider):
+    def __init__(self) -> None:
+        self.request: CanonicalProviderRequest | None = None
+
+    async def generate(self, request: CanonicalProviderRequest) -> ProviderResult:
+        self.request = request
+        return await super().generate(request)
 
 
 def _service(provider: FailingProvider) -> AssistantService:
@@ -179,3 +191,29 @@ async def test_retrieval_failure_returns_deterministic_fallback_without_provider
     assert provider.calls == 0
     assert response.fallback_used is True
     assert response.blocked_reason is BlockedReason.RETRIEVAL_UNAVAILABLE
+
+
+async def test_provider_receives_only_facts_bound_to_retrieved_sections() -> None:
+    provider = CapturingFakeProvider()
+    corpus = load_promoted_corpus()
+    service = AssistantService(
+        ServiceContainer(
+            settings=Settings(profile=EnvironmentProfile.TEST),
+            dlp=FakeDlpGateway(),
+            context=FakeSemanticContextManager(),
+            intent=FakeIntentRouter(),
+            retriever=Bm25Retriever(corpus),
+            provider=provider,
+            corpus=corpus,
+        )
+    )
+
+    await service.answer(_request())
+
+    assert provider.request is not None
+    assert provider.request.facts
+    assert all(
+        (fact.source_id, fact.section_id)
+        in {(item.source_id, item.section_id) for item in provider.request.evidence}
+        for fact in provider.request.facts
+    )
