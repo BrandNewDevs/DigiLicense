@@ -100,12 +100,51 @@ _OUT_OF_SCOPE_TERMS = (
     "crypto",
     "password",
     "hack",
+)
+_SUPPORTED_JURISDICTION_TERMS = ("delhi", "दिल्ली")
+_UNSUPPORTED_JURISDICTION_TERMS = (
     "mumbai",
     "maharashtra",
+    "pune",
+    "nagpur",
+    "uttar pradesh",
+    "lucknow",
+    "uttarakhand",
+    "haryana",
+    "punjab",
+    "rajasthan",
+    "gujarat",
+    "madhya pradesh",
+    "bihar",
+    "jharkhand",
+    "west bengal",
+    "odisha",
+    "chhattisgarh",
+    "goa",
+    "karnataka",
     "bengaluru",
     "bangalore",
+    "kerala",
+    "tamil nadu",
     "chennai",
+    "telangana",
+    "andhra pradesh",
+    "hyderabad",
+    "assam",
+    "meghalaya",
+    "manipur",
+    "mizoram",
+    "nagaland",
+    "tripura",
+    "sikkim",
+    "arunachal pradesh",
     "kolkata",
+    "जम्मू",
+    "मुंबई",
+    "पुणे",
+    "बेंगलुरु",
+    "चेन्नई",
+    "कोलकाता",
 )
 
 
@@ -130,11 +169,16 @@ class FakeIntentRouter:
                 confidence=1.0,
             )
 
-        if context is not None and any(contains(term) for term in _REFERENTIAL_FOLLOW_UP):
+        matched_jurisdictions = tuple(
+            term
+            for term in (*_SUPPORTED_JURISDICTION_TERMS, *_UNSUPPORTED_JURISDICTION_TERMS)
+            if contains(term)
+        )
+        if any(term in _UNSUPPORTED_JURISDICTION_TERMS for term in matched_jurisdictions):
             return IntentResult(
-                intent=context.last_intent,
-                topic=context.topic,
-                confidence=0.9,
+                intent=CanonicalIntent.UNSUPPORTED_QUESTION,
+                topic=Topic.SIMULATION,
+                confidence=1.0,
             )
 
         text_intent = next(
@@ -166,9 +210,26 @@ class FakeIntentRouter:
             ),
             None,
         )
+        if text_intent is not None and (
+            context is None
+            or not any(contains(term) for term in _REFERENTIAL_FOLLOW_UP)
+            or text_intent is not CanonicalIntent.WAITING_PERIOD_EXPLANATION
+        ):
+            return IntentResult(
+                intent=text_intent,
+                topic=_SERVICE_TOPICS[request.service],
+                confidence=1.0,
+            )
+        if context is not None and any(contains(term) for term in _REFERENTIAL_FOLLOW_UP):
+            return IntentResult(
+                intent=context.last_intent,
+                topic=context.topic,
+                confidence=0.9,
+            )
         return IntentResult(
-            intent=text_intent
-            or _REASON_INTENTS.get(request.reason_code, CanonicalIntent.CURRENT_STEP_EXPLANATION),
+            intent=_REASON_INTENTS.get(
+                request.reason_code, CanonicalIntent.CURRENT_STEP_EXPLANATION
+            ),
             topic=_SERVICE_TOPICS[request.service],
             confidence=1.0,
         )

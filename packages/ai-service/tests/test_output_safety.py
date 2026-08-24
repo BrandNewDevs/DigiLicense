@@ -222,7 +222,37 @@ async def test_referential_follow_up_uses_signed_semantic_context() -> None:
     assert routed.topic is Topic.WAITLIST
 
 
-@pytest.mark.parametrize("question", ["Tell me my medical diagnosis.", "How do I apply in Mumbai?"])
+async def test_explicit_intent_overrides_referential_context() -> None:
+    router = FakeIntentRouter()
+    request = AssistantMessageRequest(
+        question="Is this offer expired?",
+        locale=Locale.ENGLISH,
+        service=Service.APPOINTMENT_WAITLIST,
+        page=Page.ASSISTANT,
+        reason_code=ReasonCode.NONE,
+    )
+    context = SemanticContext(
+        last_intent=CanonicalIntent.WAITLIST_EXPLANATION,
+        topic=Topic.WAITLIST,
+        locale=Locale.ENGLISH,
+        iat=1,
+        exp=2,
+        keyId="test",
+    )
+
+    routed = await router.route(request, request.question, context)
+
+    assert routed.intent is CanonicalIntent.OFFER_EXPIRY_EXPLANATION
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Tell me my medical diagnosis.",
+        "How do I apply in Mumbai?",
+        "How do I apply in Pune?",
+    ],
+)
 async def test_out_of_scope_and_wrong_jurisdiction_questions_are_rejected(question: str) -> None:
     router = FakeIntentRouter()
     request = AssistantMessageRequest(
