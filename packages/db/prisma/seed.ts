@@ -8,6 +8,7 @@ import {
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
 import { createDatabaseAdapter } from "../src/database-adapter.ts"
+import { hashMobileNumber } from "../src/mobile-identity.ts"
 
 config({
   path: fileURLToPath(new URL("../../../apps/web/.env", import.meta.url)),
@@ -22,6 +23,24 @@ if (!databaseUrl) {
 const prisma = new PrismaClient({
   adapter: createDatabaseAdapter(databaseUrl),
 })
+
+const applicantAccounts = [
+  { id: "demo-applicant-001", mobileNumber: "9000000001" },
+  { id: "demo-applicant-002", mobileNumber: "9000000002" },
+  { id: "demo-applicant-003", mobileNumber: "9000000003" },
+] as const
+
+for (const applicant of applicantAccounts) {
+  await prisma.applicantAccount.upsert({
+    where: { id: applicant.id },
+    update: {},
+    create: {
+      id: applicant.id,
+      mobileHmac: hashMobileNumber(applicant.mobileNumber),
+      mobileLastFour: applicant.mobileNumber.slice(-4),
+    },
+  })
+}
 
 // Scenarios are spread across synthetic applicants because the database
 // allows only one active application per (applicant, service) pair. The

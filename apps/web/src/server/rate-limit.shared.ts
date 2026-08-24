@@ -12,6 +12,9 @@ type RateLimitRule = {
 const rateLimitRules = {
   "application-draft": { limit: 30, windowMs: 15 * 60_000 },
   "application-submit": { limit: 5, windowMs: 15 * 60_000 },
+  "mobile-update-aadhaar-verify": { limit: 3, windowMs: 10 * 60_000 },
+  "mobile-update-otp-verify": { limit: 5, windowMs: 10 * 60_000 },
+  "mobile-update-start": { limit: 3, windowMs: 15 * 60_000 },
   "login-ip": { limit: 30, windowMs: 15 * 60_000 },
   "login-account": { limit: 5, windowMs: 5 * 60_000 },
   "operator-action": { limit: 30, windowMs: 60_000 },
