@@ -7,13 +7,12 @@ import {
 
 const now = Date.UTC(2026, 7, 22, 12)
 
-function createStoredSession(role: "applicant" | "operator") {
+function createStoredSession(role: "applicant") {
   return JSON.stringify({
     expiresAt: now + mockSessionDurationMs,
     issuedAt: now,
     role,
-    subjectId:
-      role === "applicant" ? "demo-applicant-001" : "demo-operator-001",
+    subjectId: "demo-applicant-001",
     version: 1,
   })
 }
@@ -29,10 +28,16 @@ describe("isValidStoredMockSession", () => {
     ).toBe(true)
   })
 
-  it("rejects an operator session for the applicant role", () => {
+  it("rejects a session with the wrong role", () => {
     expect(
       isValidStoredMockSession(
-        createStoredSession("operator"),
+        JSON.stringify({
+          expiresAt: now + mockSessionDurationMs,
+          issuedAt: now,
+          role: "operator",
+          subjectId: "demo-applicant-001",
+          version: 1,
+        }),
         "applicant",
         now
       )

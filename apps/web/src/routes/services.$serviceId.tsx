@@ -1,9 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { ArrowLeft, Check, ShieldAlert } from "lucide-react"
 
-import { SiteFooter } from "@workspace/ui/components/site-footer"
-import { SiteHeader } from "@workspace/ui/components/site-header"
-
+import { ApplicantHeader } from "../components/applicant-header"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
 import { LearnerLicenceForm } from "../components/learner-licence-form"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
@@ -30,13 +28,14 @@ function ServicePage() {
   )
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <SiteHeader
-        brand="DigiLicense"
-        brandHref="/"
-        brandLabel="DigiLicense home"
-        linkComponent={Link}
-        navigation={[{ href: "/services", label: "All services" }]}
+    <div className="min-h-svh text-foreground">
+      <ApplicantHeader
+        navigation={[
+          { href: "/#about", label: "About" },
+          { href: "/services", label: "Services" },
+          { href: "/#how-it-works", label: "How it works" },
+        ]}
+        returnTo={`/services/${service.id}`}
       />
 
       <main id="main-content">
@@ -60,7 +59,7 @@ function ServicePage() {
         </section>
 
         <div className="mx-auto grid max-w-[1100px] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:px-10 lg:py-12">
-          <aside className="h-fit rounded-3xl bg-muted p-6 sm:p-7">
+          <aside className="h-fit rounded-3xl border border-border p-6 sm:p-7">
             <h2 className="font-heading text-xl font-medium tracking-[-0.035em]">
               What you need
             </h2>
@@ -99,12 +98,6 @@ function ServicePage() {
         </div>
       </main>
 
-      <SiteFooter title="DigiLicense">
-        <p>
-          This is a Delhi-only independent prototype. It is not affiliated with
-          or endorsed by a government department, and all actions are simulated.
-        </p>
-      </SiteFooter>
     </div>
   )
 }

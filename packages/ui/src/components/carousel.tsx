@@ -183,7 +183,7 @@ function CarouselPrevious({
       variant={variant}
       size={size}
       className={cn(
-        "absolute size-11 rounded-xl border border-foreground/10 bg-foreground text-background shadow-lg shadow-foreground/10 transition-[color,background-color,border-color,box-shadow,scale] duration-150 hover:bg-foreground/85 hover:text-background hover:shadow-xl active:scale-95 active:bg-foreground/75 active:text-background",
+        "absolute size-11 rounded-xl border border-foreground/10 text-foreground transition-[color,border-color,scale] duration-150 active:scale-95",
         orientation === "horizontal"
           ? "inset-y-0 -left-12 my-auto"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -213,7 +213,7 @@ function CarouselNext({
       variant={variant}
       size={size}
       className={cn(
-        "absolute size-11 rounded-xl border border-foreground/10 bg-foreground text-background shadow-lg shadow-foreground/10 transition-[color,background-color,border-color,box-shadow,scale] duration-150 hover:bg-foreground/85 hover:text-background hover:shadow-xl active:scale-95 active:bg-foreground/75 active:text-background",
+        "absolute size-11 rounded-xl border border-foreground/10 text-foreground transition-[color,border-color,scale] duration-150 active:scale-95",
         orientation === "horizontal"
           ? "inset-y-0 -right-12 my-auto"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",

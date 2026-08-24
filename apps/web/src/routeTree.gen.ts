@@ -12,11 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServicesIndexRouteImport } from './routes/services.index'
-import { Route as OperatorIndexRouteImport } from './routes/operator.index'
 import { Route as ServicesServiceIdRouteImport } from './routes/services.$serviceId'
-import { Route as OperatorLoginRouteImport } from './routes/operator.login'
 import { Route as ApplicantLoginRouteImport } from './routes/applicant.login'
-import { Route as OperatorApplicationsApplicationIdRouteImport } from './routes/operator.applications.$applicationId'
 
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
@@ -33,62 +30,37 @@ const ServicesIndexRoute = ServicesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ServicesRoute,
 } as any)
-const OperatorIndexRoute = OperatorIndexRouteImport.update({
-  id: '/operator/',
-  path: '/operator/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ServicesServiceIdRoute = ServicesServiceIdRouteImport.update({
   id: '/$serviceId',
   path: '/$serviceId',
   getParentRoute: () => ServicesRoute,
-} as any)
-const OperatorLoginRoute = OperatorLoginRouteImport.update({
-  id: '/operator/login',
-  path: '/operator/login',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const ApplicantLoginRoute = ApplicantLoginRouteImport.update({
   id: '/applicant/login',
   path: '/applicant/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OperatorApplicationsApplicationIdRoute =
-  OperatorApplicationsApplicationIdRouteImport.update({
-    id: '/operator/applications/$applicationId',
-    path: '/operator/applications/$applicationId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/services': typeof ServicesRouteWithChildren
   '/applicant/login': typeof ApplicantLoginRoute
-  '/operator/login': typeof OperatorLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
-  '/operator/': typeof OperatorIndexRoute
   '/services/': typeof ServicesIndexRoute
-  '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/applicant/login': typeof ApplicantLoginRoute
-  '/operator/login': typeof OperatorLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
-  '/operator': typeof OperatorIndexRoute
   '/services': typeof ServicesIndexRoute
-  '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/services': typeof ServicesRouteWithChildren
   '/applicant/login': typeof ApplicantLoginRoute
-  '/operator/login': typeof OperatorLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
-  '/operator/': typeof OperatorIndexRoute
   '/services/': typeof ServicesIndexRoute
-  '/operator/applications/$applicationId': typeof OperatorApplicationsApplicationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,39 +68,23 @@ export interface FileRouteTypes {
     | '/'
     | '/services'
     | '/applicant/login'
-    | '/operator/login'
     | '/services/$serviceId'
-    | '/operator/'
     | '/services/'
-    | '/operator/applications/$applicationId'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/applicant/login'
-    | '/operator/login'
-    | '/services/$serviceId'
-    | '/operator'
-    | '/services'
-    | '/operator/applications/$applicationId'
+  to: '/' | '/applicant/login' | '/services/$serviceId' | '/services'
   id:
     | '__root__'
     | '/'
     | '/services'
     | '/applicant/login'
-    | '/operator/login'
     | '/services/$serviceId'
-    | '/operator/'
     | '/services/'
-    | '/operator/applications/$applicationId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ServicesRoute: typeof ServicesRouteWithChildren
   ApplicantLoginRoute: typeof ApplicantLoginRoute
-  OperatorLoginRoute: typeof OperatorLoginRoute
-  OperatorIndexRoute: typeof OperatorIndexRoute
-  OperatorApplicationsApplicationIdRoute: typeof OperatorApplicationsApplicationIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -154,13 +110,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesIndexRouteImport
       parentRoute: typeof ServicesRoute
     }
-    '/operator/': {
-      id: '/operator/'
-      path: '/operator'
-      fullPath: '/operator/'
-      preLoaderRoute: typeof OperatorIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/services/$serviceId': {
       id: '/services/$serviceId'
       path: '/$serviceId'
@@ -168,25 +117,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesServiceIdRouteImport
       parentRoute: typeof ServicesRoute
     }
-    '/operator/login': {
-      id: '/operator/login'
-      path: '/operator/login'
-      fullPath: '/operator/login'
-      preLoaderRoute: typeof OperatorLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/applicant/login': {
       id: '/applicant/login'
       path: '/applicant/login'
       fullPath: '/applicant/login'
       preLoaderRoute: typeof ApplicantLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/operator/applications/$applicationId': {
-      id: '/operator/applications/$applicationId'
-      path: '/operator/applications/$applicationId'
-      fullPath: '/operator/applications/$applicationId'
-      preLoaderRoute: typeof OperatorApplicationsApplicationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -210,10 +145,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ServicesRoute: ServicesRouteWithChildren,
   ApplicantLoginRoute: ApplicantLoginRoute,
-  OperatorLoginRoute: OperatorLoginRoute,
-  OperatorIndexRoute: OperatorIndexRoute,
-  OperatorApplicationsApplicationIdRoute:
-    OperatorApplicationsApplicationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

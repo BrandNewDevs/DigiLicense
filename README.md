@@ -39,21 +39,20 @@ payment, identity, and government-action adapters.
 
 ## Current features
 
-- A responsive home page at `/` with the main licence services.
-- A keyboard-accessible service carousel with previous and next controls.
-- A tracking form that posts the application number to a TanStack Start server
-  function for validation and applicant-scoped PostgreSQL lookup. The number is
-  never put in the URL, and the browser receives only safe status fields.
-- Separate synthetic applicant and operator sign-ins backed by short-lived,
-  HTTP-only, role-bound server sessions.
-- An operator work queue at `/operator` with seeded synthetic applications,
-  explicit workflow commands, allowlisted decision reasons, and audit history.
-  Free-text decision notes are not accepted, so contact details or application
-  data cannot enter the append-only records.
-- A case page where simulated document, payment, learner-test, and approval
-  actions update the same record shown by applicant tracking.
-- A shared dynamic service route at `/services/$serviceId` for renewal,
-  learner's licence, application tracking, and detail updates.
+- A responsive applicant-facing landing page at `/`.
+- A synthetic applicant sign-in backed by a short-lived, HTTP-only server
+  session.
+- A guided learner's-licence form with client and server validation, draft
+  recovery, a seven-day draft-retention period, and a database-enforced guard
+  against duplicate active applications.
+- Automatic simulated checks after learner-licence submission. The workflow
+  records both the applicant submission and the system action, without an
+  operator stage or a government-system call.
+- An applicant-scoped application-status server function. Its dedicated
+  applicant interface remains to be built.
+- A shared dynamic service route at `/services/$serviceId`. The learner's
+  licence uses the persisted workflow. The remaining services are clearly
+  labelled forms that save nothing.
 - A skip link, labelled navigation, visible focus styles, form labels, and
   reduced-motion handling for the main interactive elements.
 - A shared `@workspace/ui` package containing the button, carousel, utility,
@@ -178,7 +177,6 @@ Use these credentials only with the local synthetic environment:
 | Where | Sign in details |
 | --- | --- |
 | Applicant app | Mobile `9000000001`, OTP `123456` |
-| Operator app | Username `operator.demo`, password `demo-only` |
 | Adminer | Server `db`, username `digilicense`, password from `DIGILICENSE_LOCAL_DB_PASSWORD`, database `digilicense` |
 
 To run the workspace outside Docker, install dependencies with `pnpm install`.
@@ -340,19 +338,15 @@ PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION="$consent" prisma migrate reset --fo
 
 ## Application routes
 
-| Route                         | Description                                                                              |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| `/`                           | Home page with the available licence services.                                           |
-| `/operator/login`             | Synthetic operator sign-in.                                                              |
-| `/operator`                   | Protected mock operator work queue.                                                       |
-| `/services/renew-licence`     | Placeholder for the renewal service.                                                     |
-| `/services/learner-licence`   | Placeholder for the learner's-licence service.                                           |
-| `/services/track-application` | Placeholder for the future full application-status page.                                |
-| `/services/update-details`    | Placeholder for the details-update service.                                              |
+| Route | Description |
+| --- | --- |
+| `/` | Applicant-facing landing page. |
+| `/applicant/login` | Synthetic applicant sign-in. |
+| `/services/learner-licence` | Persisted guided learner's-licence workflow with automatic simulated checks. |
+| `/services/$serviceId` | Service detail route. All non-learner services are local, no-save simulations. |
 
-The dynamic route in `apps/web/src/routes/services.$serviceId.tsx` currently
-renders the same coming-soon state for every service ID. It does not validate
-known service IDs or load service data yet.
+The `/services` directory page is reserved for the service directory UI, which
+is not built yet. Use a known service URL directly during development.
 
 ## Adding shared UI components
 
@@ -401,8 +395,8 @@ stylesheet rather than hard-coded colors wherever possible.
 
 ## Project status
 
-The current implementation includes server-issued synthetic sessions and a
-persisted operator-to-applicant status workflow. The other service forms remain
-UI simulations. DigiLicense does not connect to government identity, licence,
-payment, test, appointment, or notification systems, and production deployment
-configuration is not complete.
+The current implementation includes server-issued synthetic applicant sessions
+and a persisted learner-licence workflow with automatic simulated checks. The
+other service forms remain UI simulations. DigiLicense does not connect to
+government identity, licence, payment, test, appointment, or notification
+systems, and production deployment configuration is not complete.

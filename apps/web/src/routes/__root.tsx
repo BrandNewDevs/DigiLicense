@@ -38,10 +38,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="sky-glow-background">
         <a
           href="#main-content"
-          className="sr-only fixed top-4 left-4 z-50 rounded-md bg-foreground px-4 py-3 text-sm font-medium text-background focus:not-sr-only focus:outline-2 focus:outline-offset-4 focus:outline-ring"
+          className="sr-only fixed top-4 left-4 z-50 rounded-md border border-foreground px-4 py-3 text-sm font-medium text-foreground focus:not-sr-only focus:outline-2 focus:outline-offset-4 focus:outline-ring"
         >
           Skip to main content
         </a>

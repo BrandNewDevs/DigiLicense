@@ -392,17 +392,29 @@ async function submitLearnerLicenceApplication(
             applicantId: applicant.applicantId,
             applicationNumber,
             service: learnerServiceName,
-            status: "DOCUMENT_REVIEW",
-            nextAction: "Wait for the mock document review.",
+            status: "DOCUMENTS_VERIFIED",
+            nextAction:
+              "Your application is ready for the appointment-waitlist demo.",
             workflowEvents: {
-              create: {
-                actor: WorkflowActor.APPLICANT,
-                actorId: applicant.applicantId,
-                title: "Learner's-licence application submitted",
-                description:
-                  "Submitted through the guided DigiLicense prototype form. This created synthetic data only; no government service was contacted.",
-                toStatus: "DOCUMENT_REVIEW",
-              },
+              create: [
+                {
+                  actor: WorkflowActor.APPLICANT,
+                  actorId: applicant.applicantId,
+                  title: "Learner's-licence application submitted",
+                  description:
+                    "Submitted through the guided DigiLicense prototype form. This created synthetic data only; no government service was contacted.",
+                  toStatus: "DOCUMENT_REVIEW",
+                },
+                {
+                  actor: WorkflowActor.SYSTEM,
+                  actorId: "synthetic-automation",
+                  title: "Automatic simulated checks completed",
+                  description:
+                    "DigiLicense automatically completed the prototype's synthetic document checks. No government service or real document was used.",
+                  fromStatus: "DOCUMENT_REVIEW",
+                  toStatus: "DOCUMENTS_VERIFIED",
+                },
+              ],
             },
           },
           select: { id: true },
@@ -432,7 +444,7 @@ async function submitLearnerLicenceApplication(
             applicationId: application.id,
             title: "Learner's-licence application received",
             message:
-              "Your synthetic application was received and is waiting for the mock document review. No government service was contacted.",
+              "Your synthetic application was received and automatic simulated checks are complete. No government service was contacted.",
           },
         })
 

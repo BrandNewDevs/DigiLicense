@@ -20,10 +20,10 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
   if (!isSignedIn) {
     return (
       <section
-        className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+        className="rounded-3xl border border-border p-6 sm:p-8"
         aria-labelledby="mock-sign-in-title"
       >
-        <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
+        <div className="flex size-12 items-center justify-center rounded-2xl border border-border">
           <LogIn className="size-5" aria-hidden="true" />
         </div>
         <p className="mt-6 text-sm font-medium text-muted-foreground">
@@ -40,7 +40,7 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
           applicant sign-in route and use the displayed synthetic credentials.
         </p>
         <Link
-          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-base font-medium text-primary-foreground hover:bg-primary/80"
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
           search={{ returnTo }}
           to="/applicant/login"
         >
@@ -52,7 +52,7 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
 
   return (
     <div>
-      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <ShieldCheck className="size-5" aria-hidden="true" />
           <div>

@@ -38,8 +38,7 @@ const loginDemoSession = createServerFn({ method: "POST" })
       }
     }
 
-    const accountIdentifier =
-      data.role === "applicant" ? data.mobileNumber : data.username
+    const accountIdentifier = data.mobileNumber
 
     let accountLimit: ConsumeRateLimitResult
 
@@ -68,51 +67,21 @@ const loginDemoSession = createServerFn({ method: "POST" })
       }
     }
 
-    const { getApplicantSession, getOperatorSession } =
-      await import("../server/demo-session.server")
+    const { getApplicantSession } = await import(
+      "../server/demo-session.server"
+    )
 
-    if (data.role === "applicant") {
-      if (data.mobileNumber !== "9000000001" || data.otp !== "123456") {
-        return {
-          ok: false as const,
-          message: "The demo credentials were not accepted.",
-        }
-      }
-
-      const session = await getApplicantSession()
-      await session.update({
-        applicantId: "demo-applicant-001",
-        role: "applicant",
-      })
-      return { ok: true as const }
-    }
-
-    const configuredUsername =
-      process.env.DEMO_OPERATOR_USERNAME?.trim().toLowerCase()
-    const configuredPassword = process.env.DEMO_OPERATOR_PASSWORD
-
-    if (!configuredUsername || !configuredPassword) {
-      return {
-        ok: false as const,
-        message:
-          "Operator sign in is unavailable because synthetic operator credentials are not configured.",
-      }
-    }
-
-    if (
-      data.username !== configuredUsername ||
-      data.password !== configuredPassword
-    ) {
+    if (data.mobileNumber !== "9000000001" || data.otp !== "123456") {
       return {
         ok: false as const,
         message: "The demo credentials were not accepted.",
       }
     }
 
-    const session = await getOperatorSession()
+    const session = await getApplicantSession()
     await session.update({
-      operatorId: "demo-operator-001",
-      role: "operator",
+      applicantId: "demo-applicant-001",
+      role: "applicant",
     })
 
     return { ok: true as const }
@@ -120,13 +89,11 @@ const loginDemoSession = createServerFn({ method: "POST" })
 
 const logoutDemoSession = createServerFn({ method: "POST" })
   .validator((input: unknown) => demoLogoutSchema.parse(input))
-  .handler(async ({ data }) => {
-    const { getApplicantSession, getOperatorSession } =
-      await import("../server/demo-session.server")
-    const session =
-      data.role === "applicant"
-        ? await getApplicantSession()
-        : await getOperatorSession()
+  .handler(async () => {
+    const { getApplicantSession } = await import(
+      "../server/demo-session.server"
+    )
+    const session = await getApplicantSession()
 
     await session.clear()
     return { ok: true as const }

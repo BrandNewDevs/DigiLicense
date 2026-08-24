@@ -6,10 +6,10 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 
 - [x] Add the independent-prototype, Delhi-only, and synthetic-data disclosures
 - [x] Extend the TanStack Start application shell and accessible, mobile-first design system
-- [x] Define TanStack Router route groups for isolated applicant, operator, and public experiences
+- [x] Define TanStack Router route groups for applicant and public experiences
 - [x] Implement applicant login with a seeded synthetic mobile number and simulated OTP
-- [x] Implement a separate operator login using synthetic username/password credentials
-- [ ] Add server-side sessions, role authorization, rate limits, and security headers through TanStack Start server code (sessions, role checks, and Postgres-backed login/operator rate limits done; security headers outstanding)
+- [x] Keep the demo focused on a single synthetic applicant login
+- [ ] Add server-side sessions, rate limits, and security headers through TanStack Start server code (sessions and Postgres-backed login rate limits done; security headers outstanding)
 - [x] Configure PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data. Provide a reproducible local Docker PostgreSQL setup with a browser-based Adminer viewer.
 - [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models (application, workflow-event, audit-event, draft, document, payment, and notification models exist; the appointment inventory model remains)
 
@@ -44,25 +44,22 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Support keyboard navigation, visible focus, screen-reader status announcements, and reduced motion
 - [ ] Add English and Hindi interface content required by the core journey
 
-## Operator frontend
+## Automated demo workflow
 
-- [x] Build an isolated operator dashboard and navigation
-- [x] Add controls for simulated verification, payments, learner-test outcomes, and approvals
-- [ ] Add appointment inventory and cancellation simulation controls
-- [ ] Show allocation reasoning, active offers, queue state, and audit history (queue state and workflow history are shown; allocation reasoning and offers depend on the appointment workflow)
-- [x] Require confirmation and justification for consequential operator actions
+- [x] Remove operator-facing routes and simulated staff actions from the demo
+- [x] Record automatic synthetic checks as system workflow events after learner-licence submission
 
 ## Backend and data
 
 - [x] Add TanStack Start server functions or server routes for all privileged reads and mutations
 - [x] Keep Prisma, session secrets, and external-service credentials in server-only modules
-- [ ] Implement reusable server-validated workflow definitions for all ten capabilities (workflow definitions currently cover the operator verification-to-approval transitions and the learner's-licence submission flow)
+- [ ] Implement reusable server-validated workflow definitions for all ten capabilities (the learner's-licence submission flow currently records automatic simulated checks)
 - [ ] Persist drafts, validation results, submissions, status changes, and immutable workflow events (submissions, status changes, learner's-licence drafts, and workflow events persist; validation results do not yet)
 - [ ] Add mock document checks, payments, notifications, and government-action markers
 - [ ] Implement transactional appointment allocation, offer expiry, and confirmation
-- [x] Add append-only workflow and operator-action audit events
+- [x] Add append-only workflow and application-submission audit events
 - [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (input validation, secure cookies, secret isolation, TLS-required database URLs, and structured dependency-failure logging done; broader log coverage, metrics/alerts, and CSRF outstanding)
-- [x] Keep applicant and operator authorization checks at every server boundary
+- [x] Keep applicant authorization checks at every server boundary
 
 ## AI engineering service
 
@@ -123,7 +120,7 @@ keys, and is not published to browser clients.
 - [x] Test AI citations, Hindi/English responses, privacy filtering, injection attempts, timeouts,
   fallback, retrieval allowlists, context tampering, provider payload safety, output safety, and
   concurrent fake-provider behavior.
-- [ ] Add end-to-end tests for the featured applicant journey and operator allocation journey
+- [ ] Add end-to-end tests for the featured applicant journey
 - [ ] Test the full web-app core journey with AI unavailable (the AI service itself has deterministic
   provider-disabled fallback tests; application integration remains outstanding)
 - [ ] Run accessibility, mobile viewport, slow-connection, and usability checks

@@ -15,7 +15,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
   if (submitted) {
     return (
       <section
-        className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+        className="rounded-3xl border border-border p-6 sm:p-8"
         aria-live="polite"
       >
         <CheckCircle2 className="size-8" aria-hidden="true" />
@@ -43,7 +43,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
 
   return (
     <form
-      className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+      className="rounded-3xl border border-border p-6 sm:p-8"
       onSubmit={(event) => {
         event.preventDefault()
         setSubmitted(true)
@@ -69,7 +69,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
             </label>
             {field.type === "select" ? (
               <select
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+                className="h-11 w-full rounded-lg border border-input px-3 text-base"
                 id={field.name}
                 name={field.name}
                 required
@@ -83,7 +83,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
               </select>
             ) : (
               <input
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+                className="h-11 w-full rounded-lg border border-input px-3 text-base"
                 defaultValue={field.defaultValue}
                 id={field.name}
                 name={field.name}

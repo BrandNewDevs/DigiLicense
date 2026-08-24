@@ -9,11 +9,8 @@ import {
 } from "./rate-limit.shared"
 
 describe("rate limit rules", () => {
-  it("keeps login cooldowns stricter than operator actions", () => {
+  it("keeps login account attempts tightly bounded", () => {
     expect(rateLimitRules["login-account"].limit).toBeLessThanOrEqual(10)
-    expect(rateLimitRules["operator-action"].limit).toBeGreaterThan(
-      rateLimitRules["login-account"].limit
-    )
   })
 })
 

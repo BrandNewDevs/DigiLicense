@@ -14,21 +14,10 @@ const applicantCredentialsSchema = z
   })
   .strict()
 
-const operatorCredentialsSchema = z
-  .object({
-    role: z.literal("operator"),
-    username: z.string().trim().toLowerCase().min(3).max(64),
-    password: z.string().min(1).max(128),
-  })
-  .strict()
-
-const demoCredentialsSchema = z.discriminatedUnion("role", [
-  applicantCredentialsSchema,
-  operatorCredentialsSchema,
-])
+const demoCredentialsSchema = applicantCredentialsSchema
 
 const demoLogoutSchema = z.object({
-  role: z.enum(["applicant", "operator"]),
+  role: z.literal("applicant"),
 })
 
 export { demoCredentialsSchema, demoLogoutSchema }

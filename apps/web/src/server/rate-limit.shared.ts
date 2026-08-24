@@ -6,15 +6,13 @@ type RateLimitRule = {
 }
 
 // Login attempts are counted before credentials are checked so failures act
-// as a cooldown. Operator actions get their own, more generous budget.
-// Application submissions are expensive, state-changing writes, so each
+// as a cooldown. Application submissions are expensive, state-changing writes, so each
 // applicant gets a small hourly-style budget.
 const rateLimitRules = {
   "application-draft": { limit: 30, windowMs: 15 * 60_000 },
   "application-submit": { limit: 5, windowMs: 15 * 60_000 },
   "login-ip": { limit: 30, windowMs: 15 * 60_000 },
   "login-account": { limit: 5, windowMs: 5 * 60_000 },
-  "operator-action": { limit: 30, windowMs: 60_000 },
 } as const
 
 type RateLimitRuleName = keyof typeof rateLimitRules
