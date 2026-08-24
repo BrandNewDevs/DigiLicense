@@ -7,6 +7,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_PUBLIC_TEMPLATE_SECRETS = frozenset(
+    {
+        "replace-with-a-32-character-minimum-rotated-credential",
+        "replace-with-a-32-character-minimum-signing-key",
+    }
+)
+
 
 class EnvironmentProfile(StrEnum):
     DEVELOPMENT = "development"
@@ -116,6 +123,8 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "production profile requires a 32-character service bearer credential"
                 )
+            if self.service_bearer_token.get_secret_value().strip() in _PUBLIC_TEMPLATE_SECRETS:
+                raise ValueError("production profile rejects public template credentials")
             if not self.require_tls:
                 raise ValueError("production profile requires TLS")
             if (
@@ -123,6 +132,11 @@ class Settings(BaseSettings):
                 or len(self.context_signing_current_key.get_secret_value().strip()) < 32
             ):
                 raise ValueError("production profile requires a 32-character context signing key")
+            if (
+                self.context_signing_current_key.get_secret_value().strip()
+                in _PUBLIC_TEMPLATE_SECRETS
+            ):
+                raise ValueError("production profile rejects public template credentials")
 
         if (
             self.provider_backend is ProviderBackend.OPENAI

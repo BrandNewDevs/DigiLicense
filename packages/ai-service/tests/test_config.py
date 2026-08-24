@@ -94,6 +94,34 @@ def test_production_rejects_short_perimeter_secrets(field: str, value: str) -> N
         Settings.model_validate(settings)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("service_bearer_token", "replace-with-a-32-character-minimum-rotated-credential"),
+        ("context_signing_current_key", "replace-with-a-32-character-minimum-signing-key"),
+    ],
+)
+def test_production_rejects_public_template_secrets(field: str, value: str) -> None:
+    settings: dict[str, object] = {
+        "profile": EnvironmentProfile.PRODUCTION,
+        "provider_backend": ProviderBackend.OPENAI,
+        "retrieval_backend": RetrievalBackend.BM25,
+        "dlp_backend": LocalBackend.LOCAL,
+        "context_backend": LocalBackend.LOCAL,
+        "intent_backend": LocalBackend.LOCAL,
+        "openai_api_key": "sk-synthetic-test-only",
+        "openai_project_id": "proj_synthetic_test",
+        "openai_budget_controls_confirmed": True,
+        "require_tls": True,
+        "service_bearer_token": "a" * 32,
+        "context_signing_current_key": "b" * 32,
+    }
+    settings[field] = value
+
+    with pytest.raises(ValidationError, match="rejects public template"):
+        Settings.model_validate(settings)
+
+
 def test_trusted_proxy_ips_must_be_literal_ip_addresses() -> None:
     with pytest.raises(ValidationError, match="trusted_proxy_ips"):
         Settings(trusted_proxy_ips=("proxy.internal",))
