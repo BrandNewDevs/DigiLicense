@@ -140,9 +140,7 @@ def test_policy_evidence_and_runtime_ingestion_are_both_gated() -> None:
 
     no_policy_evidence = _payload()
     no_policy_evidence["sources"] = [
-        source
-        for source in no_policy_evidence["sources"]
-        if source["kind"] != "public_policy"
+        source for source in no_policy_evidence["sources"] if source["kind"] != "public_policy"
     ]
     no_policy_evidence["factPackets"] = []
     with pytest.raises(CorpusError, match="policy-bearing intent"):
