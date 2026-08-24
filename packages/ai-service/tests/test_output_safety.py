@@ -206,6 +206,46 @@ def test_fact_ids_must_be_supplied_for_the_exact_retrieved_section() -> None:
         )
 
 
+def test_fact_citation_must_name_its_source_when_multiple_sections_are_retrieved() -> None:
+    request = _request().model_copy(
+        update={
+            "intent": CanonicalIntent.CURRENT_STEP_EXPLANATION,
+            "evidence": (
+                _request()
+                .evidence[0]
+                .model_copy(update={"section_id": "delhi-ll-validity-preparation-v1"}),
+                _request()
+                .evidence[0]
+                .model_copy(
+                    update={
+                        "source_id": "delhi-permanent-driving-licence-fee-2026",
+                        "section_id": "delhi-permanent-licence-fee-v1",
+                    }
+                ),
+            ),
+            "facts": (
+                ProviderFact(
+                    fact_id="delhi-permanent-licence-fee-400-inr-v1",
+                    source_id="delhi-permanent-driving-licence-fee-2026",
+                    section_id="delhi-permanent-licence-fee-v1",
+                    label="Permanent driving-licence revised fee",
+                    value="400",
+                    unit="INR",
+                ),
+            ),
+        }
+    )
+    result = ProviderResult(
+        answer="The reviewed fee is 400 INR.",
+        source_ids=("delhi-driving-licence-guidance-2026",),
+        fact_ids=("delhi-permanent-licence-fee-400-inr-v1",),
+        uncertain=False,
+    )
+
+    with pytest.raises(OutputSafetyError, match="outside its cited source"):
+        OutputSafetyValidator(load_promoted_corpus()).validate(result, request)
+
+
 async def test_waitlist_routing_precedes_generic_waiting_term() -> None:
     router = FakeIntentRouter()
     request = AssistantMessageRequest(

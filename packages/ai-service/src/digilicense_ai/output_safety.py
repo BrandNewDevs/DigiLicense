@@ -209,29 +209,23 @@ class OutputSafetyValidator:
             raise OutputSafetyError("answer cites a source outside retrieved evidence")
 
         evidence_sections = {(item.source_id, item.section_id) for item in request.evidence}
-        expected_facts = {}
-        known_sources = set()
+        expected_facts = {
+            fact.fact_id: fact
+            for fact in self.corpus.manifest.fact_packets
+            if (fact.source_id, fact.section_id) in evidence_sections
+            and request.intent in fact.intents
+        }
         for source_id in result.source_ids:
             try:
                 source = self.corpus.source(source_id)
             except CorpusError as error:
                 raise OutputSafetyError("answer cites an unknown source") from error
-            known_sources.add(source_id)
             if request.intent not in source.allowed_intents:
                 raise OutputSafetyError("source is not allowed for this intent")
             if source.kind.value == "prototype_behavior" and not any(
                 marker in lowered for marker in _SIMULATION_MARKERS
             ):
                 raise OutputSafetyError("prototype behavior lacks simulation disclosure")
-            expected_facts.update(
-                {
-                    fact.fact_id: fact
-                    for fact in self.corpus.manifest.fact_packets
-                    if (fact.source_id, fact.section_id) in evidence_sections
-                    and fact.source_id == source_id
-                    and request.intent in fact.intents
-                }
-            )
 
         supplied_facts = {fact.fact_id: fact for fact in request.facts}
         if set(supplied_facts) != set(expected_facts):
@@ -251,6 +245,11 @@ class OutputSafetyValidator:
             raise OutputSafetyError("answer returned duplicate fact IDs")
         if not set(result.fact_ids).issubset(supplied_facts):
             raise OutputSafetyError("answer cites a fact outside retrieved evidence")
+        if any(
+            supplied_facts[fact_id].source_id not in result.source_ids
+            for fact_id in result.fact_ids
+        ):
+            raise OutputSafetyError("answer cites a fact outside its cited source")
 
         numeric_claims = _numeric_claims(answer)
         if _UNPARSED_SPELLED_QUANTITY.search(answer):
