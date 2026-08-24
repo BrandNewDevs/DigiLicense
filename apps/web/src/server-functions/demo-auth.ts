@@ -72,7 +72,27 @@ const loginDemoSession = createServerFn({ method: "POST" })
       await import("../server/demo-session.server")
 
     if (data.role === "applicant") {
-      if (data.mobileNumber !== "9000000001" || data.otp !== "123456") {
+      const { hashMobileNumber, normalizeMobileNumber, prisma } = await import(
+        "@digilicense/db/server"
+      )
+      const { getMockMobileUpdateOtp } = await import(
+        "../server/mobile-update.shared"
+      )
+      const mobileNumber = normalizeMobileNumber(data.mobileNumber)
+
+      if (!mobileNumber || data.otp !== getMockMobileUpdateOtp()) {
+        return {
+          ok: false as const,
+          message: "The demo credentials were not accepted.",
+        }
+      }
+
+      const account = await prisma.applicantAccount.findUnique({
+        where: { mobileHmac: hashMobileNumber(mobileNumber) },
+        select: { authVersion: true, id: true },
+      })
+
+      if (!account) {
         return {
           ok: false as const,
           message: "The demo credentials were not accepted.",
@@ -81,7 +101,8 @@ const loginDemoSession = createServerFn({ method: "POST" })
 
       const session = await getApplicantSession()
       await session.update({
-        applicantId: "demo-applicant-001",
+        applicantId: account.id,
+        authVersion: account.authVersion,
         role: "applicant",
       })
       return { ok: true as const }

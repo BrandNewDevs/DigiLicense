@@ -56,6 +56,27 @@ enum NotificationStatus {
   DISMISSED
 }
 
+enum MobileChangeVerificationMethod {
+  OTP
+  MOCK_AADHAAR
+}
+
+enum MobileChangeStatus {
+  OTP_PENDING
+  AADHAAR_PENDING
+  COMPLETED
+  FAILED
+  LOCKED
+  EXPIRED
+  CANCELLED
+}
+
+enum MockAadhaarVerificationStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
 model Application {
   id                String               @id @default(cuid())
   applicantId       String
@@ -174,6 +195,61 @@ model NotificationRecord {
 
   @@index([applicantId, status, createdAt])
   @@index([applicationId, createdAt])
+}
+
+model ApplicantAccount {
+  id             String   @id
+  mobileHmac     String   @unique
+  mobileLastFour String
+  authVersion    Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
+model MobileChangeRequest {
+  id                         String                         @id @default(cuid())
+  applicantId                String
+  targetMobileHmac           String
+  targetMobileLastFour       String
+  method                     MobileChangeVerificationMethod
+  status                     MobileChangeStatus
+  startIdempotencyKey        String                         @unique
+  confirmationIdempotencyKey String?                        @unique
+  expiresAt                  DateTime
+  completedAt                DateTime?
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
+  otpChallenge               MobileChangeOtpChallenge?
+  aadhaarVerification        MockAadhaarVerification?
+
+  @@index([applicantId, updatedAt])
+  @@index([expiresAt])
+}
+
+model MobileChangeOtpChallenge {
+  id          String              @id @default(cuid())
+  requestId   String              @unique
+  codeHash    String
+  attemptCount Int                @default(0)
+  maxAttempts Int                 @default(5)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  request     MobileChangeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model MockAadhaarVerification {
+  id          String                         @id @default(cuid())
+  requestId   String                         @unique
+  status      MockAadhaarVerificationStatus @default(PENDING)
+  reasonCode  String?
+  completedAt DateTime?
+  createdAt   DateTime                       @default(now())
+  request     MobileChangeRequest            @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 // Fixed-window rate-limit counters shared across instances. Keys are hashed,

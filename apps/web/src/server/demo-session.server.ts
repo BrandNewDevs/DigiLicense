@@ -1,9 +1,11 @@
 import "@tanstack/react-start/server-only"
 
+import { prisma } from "@digilicense/db/server"
 import { setResponseHeader, useSession } from "@tanstack/react-start/server"
 
 type ApplicantSessionData = {
   applicantId: string
+  authVersion: number
   role: "applicant"
 }
 
@@ -55,12 +57,35 @@ async function requireApplicant() {
 
   if (
     session.data.role !== "applicant" ||
-    session.data.applicantId !== "demo-applicant-001"
+    typeof session.data.applicantId !== "string" ||
+    typeof session.data.authVersion !== "number"
   ) {
     return null
   }
 
-  return { applicantId: session.data.applicantId }
+  const account = await prisma.applicantAccount.findUnique({
+    where: { id: session.data.applicantId },
+    select: { authVersion: true },
+  })
+
+  if (!account || account.authVersion !== session.data.authVersion) return null
+
+  return {
+    applicantId: session.data.applicantId,
+    authVersion: account.authVersion,
+  }
+}
+
+async function rotateApplicantSession(input: {
+  applicantId: string
+  authVersion: number
+}) {
+  const session = await getApplicantSession()
+  await session.update({
+    applicantId: input.applicantId,
+    authVersion: input.authVersion,
+    role: "applicant",
+  })
 }
 
 async function requireOperator() {
@@ -82,4 +107,5 @@ export {
   getOperatorSession,
   requireApplicant,
   requireOperator,
+  rotateApplicantSession,
 }
