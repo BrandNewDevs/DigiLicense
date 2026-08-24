@@ -398,7 +398,7 @@ function LearnerLicenceForm() {
     )
   }
 
-  if (phase === "active" && activeApplicationRef.current) {
+  if (phase === "active") {
     const activeApplication = activeApplicationRef.current
 
     return (
@@ -416,38 +416,51 @@ function LearnerLicenceForm() {
         >
           You have an open learner's licence application
         </h2>
-        <dl className="mt-6 space-y-4 rounded-2xl bg-muted p-5">
-          <div>
-            <dt className="text-sm font-medium text-muted-foreground">
-              Reference number
-            </dt>
-            <dd className="mt-1 font-mono text-lg font-medium">
-              {activeApplication.applicationNumber}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-muted-foreground">
-              Current status
-            </dt>
-            <dd className="mt-1">{getStatusLabel(activeApplication.status)}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-muted-foreground">
-              Next action for you
-            </dt>
-            <dd className="mt-1">{activeApplication.nextAction}</dd>
-          </div>
-          <div>
-            <dt className="text-sm font-medium text-muted-foreground">
-              Submitted on
-            </dt>
-            <dd className="mt-1">{formatDate(activeApplication.submittedAt)}</dd>
-          </div>
-        </dl>
-        <p className="mt-5 text-sm leading-6 text-muted-foreground">
-          Only one learner's licence application can be open at a time. This
-          rule is enforced by the prototype database, not just this page.
-        </p>
+        {activeApplication ? (
+          <>
+            <dl className="mt-6 space-y-4 rounded-2xl bg-muted p-5">
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">
+                  Reference number
+                </dt>
+                <dd className="mt-1 font-mono text-lg font-medium">
+                  {activeApplication.applicationNumber}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">
+                  Current status
+                </dt>
+                <dd className="mt-1">
+                  {getStatusLabel(activeApplication.status)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">
+                  Next action for you
+                </dt>
+                <dd className="mt-1">{activeApplication.nextAction}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">
+                  Submitted on
+                </dt>
+                <dd className="mt-1">
+                  {formatDate(activeApplication.submittedAt)}
+                </dd>
+              </div>
+            </dl>
+            <p className="mt-5 text-sm leading-6 text-muted-foreground">
+              Only one learner's licence application can be open at a time. This
+              rule is enforced by the prototype database, not just this page.
+            </p>
+          </>
+        ) : (
+          <p className="mt-5 leading-7 text-muted-foreground">
+            We could not reload its details. The form is unavailable to avoid a
+            second submission. Reload the page to view the application.
+          </p>
+        )}
       </section>
     )
   }
