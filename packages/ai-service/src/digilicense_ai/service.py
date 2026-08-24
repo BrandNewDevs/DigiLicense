@@ -159,20 +159,17 @@ class AssistantService:
                         locale=request.locale,
                     )
                 )
+        except TimeoutError:
+            return self._retrieval_failure_response(
+                request,
+                intent_result,
+                BlockedReason.RETRIEVAL_TIMEOUT,
+            )
         except Exception:
-            return AssistantMessageResponse(
-                answer=NO_EVIDENCE[request.locale],
-                intent=intent_result.intent,
-                sources=(),
-                uncertain=True,
-                fallback_used=True,
-                blocked_reason=BlockedReason.RETRIEVAL_UNAVAILABLE,
-                escalation=Escalation(
-                    code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
-                    message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][
-                        request.locale
-                    ],
-                ),
+            return self._retrieval_failure_response(
+                request,
+                intent_result,
+                BlockedReason.RETRIEVAL_UNAVAILABLE,
             )
         if not evidence:
             return AssistantMessageResponse(
@@ -276,6 +273,25 @@ class AssistantService:
             sources=sources,
             uncertain=provider_result.uncertain,
             context_token=context_token,
+        )
+
+    @staticmethod
+    def _retrieval_failure_response(
+        request: AssistantMessageRequest,
+        intent_result: IntentResult,
+        blocked_reason: BlockedReason,
+    ) -> AssistantMessageResponse:
+        return AssistantMessageResponse(
+            answer=NO_EVIDENCE[request.locale],
+            intent=intent_result.intent,
+            sources=(),
+            uncertain=True,
+            fallback_used=True,
+            blocked_reason=blocked_reason,
+            escalation=Escalation(
+                code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
+                message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][request.locale],
+            ),
         )
 
     def _facts_for_evidence(

@@ -33,6 +33,24 @@ class SanitizedMetrics:
             }
         )
 
+    def record_dependency_failure(
+        self,
+        *,
+        request_id: str,
+        dependency: str,
+        category: str,
+    ) -> None:
+        """Record a bounded dependency failure without request or exception content."""
+
+        self._counters[("dependency_failure", dependency, category)] += 1
+        self._events.append(
+            {
+                "request_id": request_id,
+                "dependency": dependency,
+                "category": category,
+            }
+        )
+
     def snapshot(self) -> dict[tuple[str, ...], int]:
         return dict(self._counters)
 

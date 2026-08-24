@@ -219,7 +219,7 @@ async def test_retrieval_timeout_returns_deterministic_fallback_without_provider
 
     assert provider.calls == 0
     assert response.fallback_used is True
-    assert response.blocked_reason is BlockedReason.RETRIEVAL_UNAVAILABLE
+    assert response.blocked_reason is BlockedReason.RETRIEVAL_TIMEOUT
 
 
 async def test_provider_receives_only_facts_bound_to_retrieved_sections() -> None:
