@@ -89,6 +89,22 @@ def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
             _result("You must wait seven days before the competence test.", fact_ids=fact_ids),
             _request(),
         )
+    assert validator.validate(
+        _result("You must wait thirty days before the competence test.", fact_ids=fact_ids),
+        _request(),
+    )
+    with pytest.raises(OutputSafetyError, match="numeric claim"):
+        validator.validate(
+            _result("You must wait twenty-one days before the competence test.", fact_ids=fact_ids),
+            _request(),
+        )
+    with pytest.raises(OutputSafetyError, match="unsupported spelled"):
+        validator.validate(
+            _result(
+                "You must wait one hundred days before the competence test.", fact_ids=fact_ids
+            ),
+            _request(),
+        )
 
 
 @pytest.mark.parametrize(

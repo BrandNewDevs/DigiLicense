@@ -13,37 +13,62 @@ _HTML_OR_MARKDOWN = re.compile(
 _URL = re.compile(r"(?:\b[a-z][a-z0-9+.-]{1,31}:(?://|[^\s])|www\.)\S*", re.IGNORECASE)
 _NUMBER = re.compile(r"\d+")
 _DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
-_NUMBER_WORDS = {
-    "zero": "0",
-    "one": "1",
-    "two": "2",
-    "three": "3",
-    "four": "4",
-    "five": "5",
-    "six": "6",
-    "seven": "7",
-    "eight": "8",
-    "nine": "9",
-    "ten": "10",
-    "eleven": "11",
-    "twelve": "12",
-    "एक": "1",
-    "दो": "2",
-    "तीन": "3",
-    "चार": "4",
-    "पांच": "5",
-    "पाँच": "5",
-    "छह": "6",
-    "सात": "7",
-    "आठ": "8",
-    "नौ": "9",
-    "दस": "10",
+_SIMPLE_ENGLISH_NUMBER_WORDS = {
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
 }
-_NUMBER_WORD = re.compile(
-    r"\b(?:"
-    + "|".join(re.escape(word) for word in _NUMBER_WORDS if word.isascii())
-    + r")\b|"
-    + "|".join(re.escape(word) for word in _NUMBER_WORDS if not word.isascii()),
+_ENGLISH_TENS = {
+    "twenty": 20,
+    "thirty": 30,
+    "forty": 40,
+    "fifty": 50,
+    "sixty": 60,
+    "seventy": 70,
+    "eighty": 80,
+    "ninety": 90,
+}
+_HINDI_NUMBER_WORDS = {
+    "एक": 1,
+    "दो": 2,
+    "तीन": 3,
+    "चार": 4,
+    "पांच": 5,
+    "पाँच": 5,
+    "छह": 6,
+    "सात": 7,
+    "आठ": 8,
+    "नौ": 9,
+    "दस": 10,
+}
+_ENGLISH_SPELLED_NUMBER = re.compile(
+    r"\b(?:(?P<tens>twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)"
+    r"(?:[-\s]+(?P<ones>one|two|three|four|five|six|seven|eight|nine))?"
+    r"|(?P<simple>zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen))\b",
+    re.IGNORECASE,
+)
+_HINDI_SPELLED_NUMBER = re.compile(r"एक|दो|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस")
+_UNPARSED_SPELLED_QUANTITY = re.compile(
+    r"\b(?:hundred|thousand|million|billion|dozen)(?:[-\s]+[a-z]+){0,2}\s+"
+    r"(?:days?|months?|years?|inr|rupees?)\b",
     re.IGNORECASE,
 )
 _UNIT = re.compile(
@@ -104,18 +129,28 @@ class OutputSafetyError(ValueError):
 
 
 def _numbers(value: str) -> tuple[str, ...]:
+    return tuple(_NUMBER.findall(_normalize_spelled_numbers(value)))
+
+
+def _normalize_spelled_numbers(value: str) -> str:
     normalized = value.translate(_DEVANAGARI_DIGITS)
-    normalized = _NUMBER_WORD.sub(lambda match: _number_word_value(match.group()), normalized)
-    return tuple(_NUMBER.findall(normalized))
 
+    def english_value(match: re.Match[str]) -> str:
+        simple = match.group("simple")
+        if simple is not None:
+            return str(_SIMPLE_ENGLISH_NUMBER_WORDS[simple.casefold()])
+        tens = _ENGLISH_TENS[match.group("tens").casefold()]
+        ones = match.group("ones")
+        return str(tens + (_SIMPLE_ENGLISH_NUMBER_WORDS[ones.casefold()] if ones else 0))
 
-def _number_word_value(value: str) -> str:
-    return _NUMBER_WORDS.get(value.casefold(), _NUMBER_WORDS.get(value, value))
+    normalized = _ENGLISH_SPELLED_NUMBER.sub(english_value, normalized)
+    return _HINDI_SPELLED_NUMBER.sub(
+        lambda match: str(_HINDI_NUMBER_WORDS[match.group()]), normalized
+    )
 
 
 def _numeric_claims(value: str) -> tuple[tuple[str, str | None], ...]:
-    normalized = value.translate(_DEVANAGARI_DIGITS)
-    normalized = _NUMBER_WORD.sub(lambda match: _number_word_value(match.group()), normalized)
+    normalized = _normalize_spelled_numbers(value)
     claims: list[tuple[str, str | None]] = []
     for match in _NUMBER.finditer(normalized):
         following = normalized[match.end() : match.end() + 24]
@@ -218,6 +253,8 @@ class OutputSafetyValidator:
             raise OutputSafetyError("answer cites a fact outside retrieved evidence")
 
         numeric_claims = _numeric_claims(answer)
+        if _UNPARSED_SPELLED_QUANTITY.search(answer):
+            raise OutputSafetyError("answer contains an unsupported spelled numeric claim")
         if numeric_claims and not result.fact_ids:
             raise OutputSafetyError("numeric answer omits reviewed fact IDs")
         cited_facts = tuple(expected_facts[fact_id] for fact_id in result.fact_ids)
