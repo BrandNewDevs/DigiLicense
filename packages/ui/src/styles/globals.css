@@ -116,6 +116,21 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --digilicense-home-width: 48rem;
+  --digilicense-page-width: 68.75rem;
+}
+
+html[data-digilicense-text-scale="small"] {
+  font-size: 90%;
+}
+
+html[data-digilicense-text-scale="large"] {
+  font-size: 112.5%;
+}
+
+html[data-digilicense-content-width="wide"] {
+  --digilicense-home-width: 56rem;
+  --digilicense-page-width: 80rem;
 }
 
 .dark {

@@ -27,24 +27,24 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
           <LogIn className="size-5" aria-hidden="true" />
         </div>
         <p className="mt-6 text-sm font-medium text-muted-foreground">
-          Mock authentication required
+          Sign in required
         </p>
         <h2
           className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
           id="mock-sign-in-title"
         >
-          Continue as the demo applicant
+          Continue as the applicant
         </h2>
         <p className="mt-3 max-w-xl leading-7 text-muted-foreground">
-          This prototype does not verify a real identity. Continue to the
-          applicant sign-in route and use the displayed synthetic credentials.
+          This service does not verify a real identity. Continue to the
+          applicant sign-in route and use the displayed credentials.
         </p>
         <Link
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
           search={{ returnTo }}
           to="/applicant/login"
         >
-          Go to mock sign in
+          Go to sign in
         </Link>
       </section>
     )
@@ -56,9 +56,9 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
         <div className="flex items-center gap-3">
           <ShieldCheck className="size-5" aria-hidden="true" />
           <div>
-            <p className="text-sm font-medium">Mock applicant active</p>
+            <p className="text-sm font-medium">Applicant active</p>
             <p className="text-sm text-muted-foreground">
-              Demo Applicant 001, synthetic data only
+              Applicant 001
             </p>
           </div>
         </div>
@@ -71,7 +71,7 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
           }}
           type="button"
         >
-          End mock session
+          End session
         </Button>
       </div>
       {children}

@@ -48,20 +48,20 @@ const steps = [
   {
     checksEligibility: false,
     fields: ["fullName", "dateOfBirth"] as const,
-    hint: "Use any synthetic name and birth date. Real identity details must never be entered.",
+    hint: "Use any name and birth date. Real identity details must never be entered.",
     title: "Personal details",
   },
   {
     checksEligibility: true,
     fields: ["vehicleClass", "zone"] as const,
-    hint: "The class decides the minimum age, and the zone is where a mock test would run.",
+    hint: "The class decides the minimum age, and the zone is where the test would run.",
     title: "Licence request",
   },
   {
     checksEligibility: false,
     fields: ["identityProofType", "addressProofType"] as const,
-    hint: "No file upload exists in this prototype. Choosing an option records a synthetic document entry.",
-    title: "Mock documents",
+    hint: "No file upload exists here. Choosing an option records a document entry.",
+    title: "Documents",
   },
 ]
 
@@ -229,7 +229,7 @@ function LearnerLicenceForm() {
     }
 
     return {
-      dateOfBirth: `This vehicle class needs an age of ${minimumAge} or more when you apply.`,
+      dateOfBirth: `This vehicle class needs a minimum age of ${minimumAge} when you apply.`,
     }
   }
 
@@ -275,7 +275,7 @@ function LearnerLicenceForm() {
       if (result.kind === "saved") {
         setDraftSavedAt(result.savedAt)
         announce(
-          `Draft saved. The prototype keeps drafts for seven days after each save.`
+          `Draft saved. The service keeps drafts for seven days after each save.`
         )
       }
     } catch {
@@ -369,7 +369,7 @@ function LearnerLicenceForm() {
           Sign in required
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          Your mock applicant session ended. Sign in again to continue the
+          Your applicant session ended. Sign in again to continue the
           learner's licence workflow.
         </p>
         <Link
@@ -377,7 +377,7 @@ function LearnerLicenceForm() {
           search={{ returnTo: "/services/learner-licence" }}
           to="/applicant/login"
         >
-          Go to mock sign in
+          Go to sign in
         </Link>
       </section>
     )
@@ -452,7 +452,7 @@ function LearnerLicenceForm() {
             </dl>
             <p className="mt-5 text-sm leading-6 text-muted-foreground">
               Only one learner's licence application can be open at a time. This
-              rule is enforced by the prototype database, not just this page.
+              rule is enforced by the database, not just this page.
             </p>
           </>
         ) : (
@@ -473,7 +473,7 @@ function LearnerLicenceForm() {
       >
         <BadgeCheck className="size-10" aria-hidden="true" />
         <p className="mt-6 text-sm font-medium text-muted-foreground">
-          Simulation complete
+          Submission complete
         </p>
         <h2
           className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
@@ -496,21 +496,21 @@ function LearnerLicenceForm() {
             <dt className="text-sm font-medium text-muted-foreground">
               Current status
             </dt>
-            <dd className="mt-1">Simulated checks complete</dd>
+            <dd className="mt-1">Checks complete</dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-muted-foreground">
               Next action for you
             </dt>
             <dd className="mt-1">
-              Your application is ready for the appointment-waitlist demo.
+              Your application is ready for the appointment waitlist.
             </dd>
           </div>
         </dl>
         <ul className="mt-6 space-y-3">
           {[
-            "Three synthetic document records were created for this application.",
-            "The prototype completed its automatic simulated checks.",
+            "Three document records were created for this application.",
+            "The service completed its automatic checks.",
             "Your saved draft was closed so it cannot create a second application.",
           ].map((item) => (
             <li className="flex gap-3 leading-6" key={item}>
@@ -523,7 +523,7 @@ function LearnerLicenceForm() {
           ))}
         </ul>
         <p className="mt-6 text-sm leading-6 text-muted-foreground">
-          This created synthetic DigiLicense records only. No government
+          This created DigiLicense records only. No government
           service was contacted and no fee was collected.
         </p>
       </section>
@@ -549,7 +549,7 @@ function LearnerLicenceForm() {
       </div>
 
       <p className="text-sm font-medium text-muted-foreground">
-        Guided workflow · synthetic data only
+          Guided workflow
       </p>
       <h2
         className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
@@ -593,7 +593,7 @@ function LearnerLicenceForm() {
           className="mt-5 text-sm leading-6 text-muted-foreground"
           id="learner-form-note"
         >
-          Check every answer. Submitting records synthetic data on the server
+          Check every answer. Submitting saves the application on the server
           and closes any saved draft.
         </p>
       )}
@@ -830,8 +830,8 @@ function LearnerLicenceForm() {
                 type="checkbox"
               />
               <span className="leading-6">
-                I confirm these are synthetic details for a prototype
-                demonstration, and I understand nothing is sent to a government
+                I confirm these are the details for this application, and I
+                understand nothing is sent to a government
                 service.
               </span>
             </label>

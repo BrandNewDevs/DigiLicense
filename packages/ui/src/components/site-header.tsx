@@ -23,6 +23,7 @@ type SiteHeaderProps = {
   brandLabel?: string
   linkComponent?: ElementType
   navigation: readonly NavigationItem[]
+  utility?: ReactNode
 }
 
 type IndicatorPosition = {
@@ -72,6 +73,7 @@ function SiteHeader({
   brandLabel,
   linkComponent,
   navigation,
+  utility,
 }: SiteHeaderProps) {
   const LinkElement = linkComponent ?? "a"
   const linkTarget = (href: string) => (linkComponent ? { to: href } : { href })
@@ -192,6 +194,29 @@ function SiteHeader({
     return () => window.cancelAnimationFrame(animationFrame)
   }, [activeHref])
 
+  useEffect(() => {
+    const navigationElement = navigationRef.current
+
+    if (!navigationElement) return
+
+    const repositionIndicator = () => {
+      const activeLink = getNavigationLink(activeHref)
+
+      if (activeLink) {
+        showIndicator(activeLink, { animate: false })
+      }
+    }
+
+    const resizeObserver = new ResizeObserver(repositionIndicator)
+    resizeObserver.observe(navigationElement)
+    window.addEventListener("resize", repositionIndicator)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener("resize", repositionIndicator)
+    }
+  }, [activeHref])
+
   useEffect(() => () => clearIndicatorTimer(), [])
 
   return (
@@ -252,33 +277,41 @@ function SiteHeader({
           ))}
         </nav>
 
-        {account ? (
-          <div className="ml-auto flex items-center gap-1">{account}</div>
-        ) : actions.length > 0 ? (
-          <nav
-            className="ml-auto flex items-center gap-1 text-sm font-medium"
-            aria-label="Account"
-          >
-            {actions.map((item) => (
-              <LinkElement
-                {...linkTarget(item.href)}
-                className={cn(
-                  buttonVariants({
-                    variant: item.label === "Sign in" ? "solid" : "outline",
-                    size: "sm",
-                  }),
-                  "h-9 rounded-full px-4 text-sm"
-                )}
-                key={item.href}
-              >
-                {item.label}
-              </LinkElement>
-            ))}
-          </nav>
+        {account || actions.length > 0 ? (
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {account ? (
+              account
+            ) : actions.length > 0 ? (
+              <nav className="flex items-center gap-1 text-sm font-medium" aria-label="Account">
+                {actions.map((item) => (
+                  <LinkElement
+                    {...linkTarget(item.href)}
+                    className={cn(
+                      buttonVariants({
+                        variant: item.label === "Sign in" ? "solid" : "outline",
+                        size: "sm",
+                      }),
+                      "h-9 rounded-full px-4 text-sm max-[380px]:px-2",
+                      item.label === "Sign in" &&
+                        "bg-[#d96b16] text-white hover:bg-[#b9550d]"
+                    )}
+                    key={item.href}
+                  >
+                    {item.label}
+                  </LinkElement>
+                ))}
+              </nav>
+            ) : null}
+          </div>
         ) : (
           <div aria-hidden="true" />
         )}
       </div>
+      {utility ? (
+        <div className="absolute top-5 right-5 hidden md:block">
+          {utility}
+        </div>
+      ) : null}
     </header>
   )
 }

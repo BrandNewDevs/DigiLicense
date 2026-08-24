@@ -394,7 +394,7 @@ async function submitLearnerLicenceApplication(
             service: learnerServiceName,
             status: "DOCUMENTS_VERIFIED",
             nextAction:
-              "Your application is ready for the appointment-waitlist demo.",
+              "Your application is ready for the appointment waitlist.",
             workflowEvents: {
               create: [
                 {
@@ -402,15 +402,15 @@ async function submitLearnerLicenceApplication(
                   actorId: applicant.applicantId,
                   title: "Learner's-licence application submitted",
                   description:
-                    "Submitted through the guided DigiLicense prototype form. This created synthetic data only; no government service was contacted.",
+                    "Submitted through the guided DigiLicense form. This created records only; no government service was contacted.",
                   toStatus: "DOCUMENT_REVIEW",
                 },
                 {
                   actor: WorkflowActor.SYSTEM,
                   actorId: "synthetic-automation",
-                  title: "Automatic simulated checks completed",
+                  title: "Automatic checks completed",
                   description:
-                    "DigiLicense automatically completed the prototype's synthetic document checks. No government service or real document was used.",
+                    "DigiLicense automatically completed the document checks. No government service or real document was used.",
                   fromStatus: "DOCUMENT_REVIEW",
                   toStatus: "DOCUMENTS_VERIFIED",
                 },
@@ -444,7 +444,7 @@ async function submitLearnerLicenceApplication(
             applicationId: application.id,
             title: "Learner's-licence application received",
             message:
-              "Your synthetic application was received and automatic simulated checks are complete. No government service was contacted.",
+              "Your application was received and automatic checks are complete. No government service was contacted.",
           },
         })
 

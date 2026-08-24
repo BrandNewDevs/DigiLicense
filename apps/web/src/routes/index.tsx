@@ -17,7 +17,7 @@ function App() {
       />
 
       <main className="flex flex-1 justify-center pt-16" id="main-content">
-        <div className="w-full max-w-3xl px-5 text-center">
+        <div className="w-full max-w-[var(--digilicense-home-width)] px-5 text-center">
           <h1 className="font-satoshi text-2xl font-semibold tracking-tight text-foreground sm:text-5xl">
             <>
               <span className="block text-black">
@@ -32,7 +32,8 @@ function App() {
             </>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-xl">
-            Licence services, without the bureaucratic obstacle course.
+            Licence services, without the
+            <br className="sm:hidden" /> bureaucratic obstacle course.
           </p>
         </div>
       </main>

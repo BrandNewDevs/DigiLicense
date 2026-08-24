@@ -2,6 +2,8 @@ import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
 
 import appCss from "@workspace/ui/globals.css?url"
 
+import { DisplayPreferencesProvider } from "../components/display-preferences"
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -13,7 +15,7 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "DigiLicense | Your licence. Your way.",
+        title: "DigiLicense",
       },
     ],
     links: [
@@ -45,7 +47,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         >
           Skip to main content
         </a>
-        {children}
+        <DisplayPreferencesProvider>{children}</DisplayPreferencesProvider>
         <Scripts />
       </body>
     </html>

@@ -50,6 +50,7 @@ The primary demo journey is learner's licence through permanent driving-test app
 
 ## What not to do
 
+- Do not use "more" or simulation labels in user-facing headings, descriptions, or calls to action. This includes "mock", "synthetic", "demo", "prototype", "simulated", "sample", and "fake", plus close synonyms. Describe the action directly and explain service boundaries without those labels.
 - Do not access, test, automate, submit to, or interfere with a live government system.
 - Do not reverse-engineer private systems or use undocumented/private APIs.
 - Do not scrape personal, sensitive, or restricted information.

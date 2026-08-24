@@ -1,11 +1,15 @@
-import { ArrowLeft, BadgeCheck, ShieldAlert } from "lucide-react"
+import { ArrowLeft, BadgeCheck } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@workspace/ui/components/input-otp"
 
-import { ApplicantHeader } from "./applicant-header"
 import {
   endMockSession,
   mockCredentials,
@@ -21,6 +25,9 @@ type MockLoginPageProps = {
   returnTo?: string
 }
 
+const inputClassName =
+  "h-12 w-full rounded-xl border border-[#d96b16]/30 bg-white px-4 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-[#d96b16] focus:ring-2 focus:ring-[#d96b16]/20"
+
 function MockLoginPage({ returnTo }: MockLoginPageProps) {
   const navigate = useNavigate()
   const isSignedIn = useMockSession("applicant")
@@ -28,74 +35,48 @@ function MockLoginPage({ returnTo }: MockLoginPageProps) {
   const logout = useServerFn(logoutDemoSession)
   const [error, setError] = useState<string>()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [otp, setOtp] = useState<string>(mockCredentials.applicant.otp)
   const destination =
     returnTo === "/" || returnTo?.startsWith("/services")
       ? returnTo
       : "/services"
 
   return (
-    <div className="min-h-svh text-foreground">
-      <ApplicantHeader
-        navigation={[
-          { href: "/#about", label: "About" },
-          { href: "/services", label: "Services" },
-          { href: "/#how-it-works", label: "How it works" },
-        ]}
-        returnTo={destination}
-      />
-
-      <main
-        className="mx-auto grid min-h-[calc(100svh-64px)] max-w-[1100px] gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:px-10 lg:py-12"
-        id="main-content"
+    <main
+      className="flex min-h-svh items-center justify-center px-5 py-10 text-foreground"
+      id="main-content"
+    >
+      <section
+        aria-label="Applicant sign in"
+        className="w-full max-w-md rounded-3xl border border-[#d96b16]/20 bg-card p-6 shadow-xl shadow-[#d96b16]/10 sm:p-9"
       >
-        <div>
-          <Link
-            className="inline-flex min-h-11 items-center gap-2 text-muted-foreground underline"
-            to={destination}
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Back
-          </Link>
-          <p className="mt-8 text-base font-medium text-muted-foreground">
-            Applicant access
-          </p>
-          <h1 className="mt-4 font-heading text-4xl font-medium tracking-[-0.06em] sm:text-6xl">
-            Sign in as the demo applicant
-          </h1>
-          <p className="mt-6 max-w-lg text-lg leading-8 text-muted-foreground">
-            Use the fixed mobile number and OTP below. No message is sent and no
-            identity is checked.
-          </p>
-          <div className="mt-8 flex gap-3 rounded-2xl border border-border p-4">
-            <ShieldAlert className="mt-1 size-5 shrink-0" aria-hidden="true" />
-            <p className="text-sm leading-6 text-muted-foreground">
-              The server creates a short-lived demo session. It protects
-              applicant routes but does not verify a real person.
-            </p>
-          </div>
-        </div>
+        <Link
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          to={destination}
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back
+        </Link>
+        <h1 className="sr-only">Applicant sign in</h1>
 
         {isSignedIn ? (
-          <section className="rounded-3xl border border-border p-6 sm:p-8">
-            <BadgeCheck className="size-10" aria-hidden="true" />
-            <p className="mt-6 text-sm font-medium text-muted-foreground">
-              Mock session active
-            </p>
-            <h2 className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]">
-              Signed in as the demo applicant
+          <section className="mt-6 rounded-2xl border border-[#d96b16]/25 bg-[#fff8f0] p-5">
+            <BadgeCheck className="size-8 text-[#d96b16]" aria-hidden="true" />
+            <h2 className="mt-4 font-heading text-xl font-semibold tracking-[-0.03em]">
+              You are signed in
             </h2>
-            <p className="mt-3 leading-7 text-muted-foreground">
-              Protected service demos are now unlocked in this browser.
+            <p className="mt-2 leading-6 text-muted-foreground">
+              Protected services are unlocked in this browser.
             </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
-                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl bg-[#d96b16] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#b9550d] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d96b16]"
                 to={destination}
               >
-                Continue to services
+                Continue
               </Link>
               <Button
-                className="h-11 px-5 text-base"
+                className="h-11 flex-1 rounded-xl border-[#d96b16]/30 bg-white px-5 text-sm hover:bg-[#fff3e6]"
                 onClick={async () => {
                   await logout({ data: { role: "applicant" } })
                   endMockSession("applicant")
@@ -103,13 +84,13 @@ function MockLoginPage({ returnTo }: MockLoginPageProps) {
                 type="button"
                 variant="outline"
               >
-                End mock session
+                Sign out
               </Button>
             </div>
           </section>
         ) : (
           <form
-            className="rounded-3xl border border-border p-6 sm:p-8"
+            className="mt-6 space-y-6"
             onSubmit={async (event) => {
               event.preventDefault()
               const formData = new FormData(event.currentTarget)
@@ -120,7 +101,7 @@ function MockLoginPage({ returnTo }: MockLoginPageProps) {
                   data: {
                     role: "applicant",
                     mobileNumber: String(formData.get("mobileNumber")),
-                    otp: String(formData.get("otp")),
+                    otp,
                   },
                 })
 
@@ -134,68 +115,102 @@ function MockLoginPage({ returnTo }: MockLoginPageProps) {
                 await navigate({ to: destination })
               } catch {
                 setError(
-                  "Mock sign in is unavailable. Check the server configuration."
+                  "Sign in is unavailable. Check the server configuration."
                 )
               } finally {
                 setIsSubmitting(false)
               }
             }}
           >
-            <p className="text-sm font-medium text-muted-foreground">
-              Synthetic credentials are prefilled
-            </p>
-            <div className="mt-6 space-y-5">
-              <div>
-                <label
-                  className="mb-2 block text-sm font-medium"
-                  htmlFor="applicant-mobileNumber"
-                >
-                  Synthetic mobile number
-                </label>
-                <input
-                  autoComplete="off"
-                  className="h-11 w-full rounded-lg border border-input px-3 text-base"
-                  defaultValue={mockCredentials.applicant.mobileNumber}
-                  id="applicant-mobileNumber"
-                  name="mobileNumber"
-                  required
-                  type="text"
-                />
-              </div>
-              <div>
-                <label
-                  className="mb-2 block text-sm font-medium"
-                  htmlFor="applicant-otp"
-                >
-                  Demo OTP
-                </label>
-                <input
-                  autoComplete="one-time-code"
-                  className="h-11 w-full rounded-lg border border-input px-3 text-base"
-                  defaultValue={mockCredentials.applicant.otp}
-                  id="applicant-otp"
-                  name="otp"
-                  required
-                  type="text"
-                />
-              </div>
+            <div>
+              <label
+                className="mb-2 block text-base font-semibold"
+                htmlFor="applicant-mobileNumber"
+              >
+                Mobile number
+              </label>
+              <input
+                autoComplete="off"
+                className={inputClassName}
+                defaultValue={mockCredentials.applicant.mobileNumber}
+                id="applicant-mobileNumber"
+                name="mobileNumber"
+                required
+                type="text"
+              />
             </div>
+
+            <div>
+              <label
+                className="mb-2 block text-base font-semibold"
+                htmlFor="applicant-otp"
+              >
+                One-time passcode
+              </label>
+              <InputOTP
+                autoComplete="one-time-code"
+                aria-invalid={Boolean(error)}
+                containerClassName="w-full justify-center"
+                id="applicant-otp"
+                inputMode="numeric"
+                maxLength={6}
+                onChange={(value) => {
+                  setOtp(value)
+                  setError(undefined)
+                }}
+                value={otp}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot
+                    className="size-10 text-base font-semibold sm:size-12 sm:text-lg"
+                    index={0}
+                  />
+                  <InputOTPSlot
+                    className="size-10 text-base font-semibold sm:size-12 sm:text-lg"
+                    index={1}
+                  />
+                  <InputOTPSlot
+                    className="size-10 text-base font-semibold sm:size-12 sm:text-lg"
+                    index={2}
+                  />
+                  <InputOTPSlot
+                    className="size-10 text-base font-semibold sm:size-12 sm:text-lg"
+                    index={3}
+                  />
+                  <InputOTPSlot
+                    className="size-10 text-base font-semibold sm:size-12 sm:text-lg"
+                    index={4}
+                  />
+                  <InputOTPSlot
+                    className="size-10 text-base font-semibold sm:size-12 sm:text-lg"
+                    index={5}
+                  />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
             {error ? (
-              <p className="mt-4 text-sm text-destructive" role="alert">
+              <p className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive" role="alert">
                 {error}
               </p>
             ) : null}
+
             <Button
-              className="mt-7 h-11 w-full text-base"
+              className="h-12 w-full rounded-xl bg-[#d96b16] text-base font-semibold text-white hover:bg-[#b9550d]"
               disabled={isSubmitting}
               type="submit"
+              variant="solid"
             >
-              {isSubmitting ? "Signing in..." : "Start mock applicant session"}
+              {isSubmitting ? "Signing in..." : "Sign in"}
             </Button>
           </form>
         )}
-      </main>
-    </div>
+
+        <p className="mt-8 border-t border-[#d96b16]/15 pt-5 text-center text-sm leading-6 text-muted-foreground">
+          This service never contacts government systems. Use the displayed details only.
+        </p>
+      </section>
+    </main>
   )
 }
 

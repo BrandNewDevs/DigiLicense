@@ -74,7 +74,7 @@ const loginDemoSession = createServerFn({ method: "POST" })
     if (data.mobileNumber !== "9000000001" || data.otp !== "123456") {
       return {
         ok: false as const,
-        message: "The demo credentials were not accepted.",
+        message: "The credentials were not accepted.",
       }
     }
 
