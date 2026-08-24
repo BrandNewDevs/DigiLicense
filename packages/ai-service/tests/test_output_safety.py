@@ -105,6 +105,9 @@ def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
             ),
             _request(),
         )
+    for answer in ("You must wait half a year.", "You must wait a year and a half."):
+        with pytest.raises(OutputSafetyError, match="unsupported spelled"):
+            validator.validate(_result(answer, fact_ids=fact_ids), _request())
     with pytest.raises(OutputSafetyError, match="numeric claim"):
         validator.validate(
             _result("आपको बीस दिन प्रतीक्षा करनी होगी।", fact_ids=fact_ids),
@@ -119,6 +122,8 @@ def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
             _result("आपको आधा साल प्रतीक्षा करनी होगी।", fact_ids=fact_ids),
             _request(),
         )
+    assert validator.validate(_result("तीसरा चरण पूरा करें।"), _request())
+    assert validator.validate(_result("इस साल निर्देश बदल सकते हैं।"), _request())
 
 
 @pytest.mark.parametrize(

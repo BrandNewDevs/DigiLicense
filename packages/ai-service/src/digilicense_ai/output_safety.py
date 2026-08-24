@@ -67,13 +67,19 @@ _ENGLISH_SPELLED_NUMBER = re.compile(
     r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen))\b",
     re.IGNORECASE,
 )
-_HINDI_SPELLED_NUMBER = re.compile(r"एक|दो|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस|बीस|तीस")
-_UNPARSED_SPELLED_QUANTITY = re.compile(
+_HINDI_SPELLED_NUMBER = re.compile(
+    r"(?<![\u0900-\u097f])(?:एक|दो|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस|बीस|तीस)(?![\u0900-\u097f])"
+)
+_UNPARSED_ENGLISH_QUANTITY = re.compile(
     r"\b(?:hundred|thousand|million|billion|dozen)(?:[-\s]+[a-z]+){0,2}\s+"
-    r"(?:days?|months?|years?|inr|rupees?)\b",
+    r"(?:days?|months?|years?|inr|rupees?)\b|"
+    r"\bhalf\s+(?:an?\s+)?(?:days?|months?|years?)\b|"
+    r"\b(?:an?\s+)?(?:days?|months?|years?)\s+and\s+(?:an?\s+)?half\b|"
+    r"\b(?:a|an|couple|few|several|many)\s+(?:days?|months?|years?)\b",
     re.IGNORECASE,
 )
-_UNPARSED_HINDI_QUANTITY = re.compile(r"[\u0900-\u097f]+\s*(?:दिन|महीने?|साल|वर्ष|रुपये?)")
+_HINDI_WORD_BEFORE_UNIT = re.compile(r"(?P<word>[\u0900-\u097f]+)\s*(?:दिन|महीने?|साल|वर्ष|रुपये?)")
+_HINDI_NON_QUANTITY_UNIT_MODIFIERS = frozenset({"इस", "पिछले", "अगले", "हर", "प्रत्येक"})
 _UNIT = re.compile(
     r"\b(?P<unit>days?|months?|years?|inr|rupees?)\b|(?P<hindi>दिन|महीने?|साल|वर्ष|रुपये?)",
     re.IGNORECASE,
@@ -166,6 +172,13 @@ def _numeric_claims(value: str) -> tuple[tuple[str, str | None], ...]:
     return tuple(claims)
 
 
+def _has_unparsed_hindi_quantity(value: str) -> bool:
+    return any(
+        match.group("word") not in _HINDI_NON_QUANTITY_UNIT_MODIFIERS
+        for match in _HINDI_WORD_BEFORE_UNIT.finditer(value)
+    )
+
+
 def _fact_unit(unit: str) -> str:
     return _UNIT_ALIASES.get(unit.casefold(), unit.casefold())
 
@@ -256,9 +269,9 @@ class OutputSafetyValidator:
 
         normalized_answer = _normalize_spelled_numbers(answer)
         numeric_claims = _numeric_claims(answer)
-        if _UNPARSED_SPELLED_QUANTITY.search(answer):
+        if _UNPARSED_ENGLISH_QUANTITY.search(answer):
             raise OutputSafetyError("answer contains an unsupported spelled numeric claim")
-        if _UNPARSED_HINDI_QUANTITY.search(normalized_answer):
+        if _has_unparsed_hindi_quantity(normalized_answer):
             raise OutputSafetyError("answer contains an unsupported Hindi numeric claim")
         if numeric_claims and not result.fact_ids:
             raise OutputSafetyError("numeric answer omits reviewed fact IDs")
