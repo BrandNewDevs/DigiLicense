@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     service_name: str = "digilicense-ai"
     max_request_body_bytes: int = Field(default=4096, ge=1024, le=65536)
     dlp_timeout_ms: int = Field(default=250, ge=10, le=2000)
+    retrieval_timeout_seconds: float = Field(default=0.5, ge=0.05, le=2.0)
     model_id: Literal["gpt-5.4-mini-2026-03-17"] = "gpt-5.4-mini-2026-03-17"
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     openai_project_id: str | None = Field(default=None, min_length=1, max_length=128)

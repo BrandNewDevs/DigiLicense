@@ -1,5 +1,7 @@
 """Application orchestration across the AI service trust boundaries."""
 
+import asyncio
+
 from digilicense_ai.config import ProviderBackend
 from digilicense_ai.container import ServiceContainer
 from digilicense_ai.fallbacks import (
@@ -149,13 +151,14 @@ class AssistantService:
                 blocked_reason=BlockedReason.UNSUPPORTED,
             )
         try:
-            evidence = await self._container.retriever.retrieve(
-                RetrievalQuery(
-                    intent=intent_result.intent,
-                    topic=intent_result.topic,
-                    locale=request.locale,
+            async with asyncio.timeout(self._container.settings.retrieval_timeout_seconds):
+                evidence = await self._container.retriever.retrieve(
+                    RetrievalQuery(
+                        intent=intent_result.intent,
+                        topic=intent_result.topic,
+                        locale=request.locale,
+                    )
                 )
-            )
         except Exception:
             return AssistantMessageResponse(
                 answer=NO_EVIDENCE[request.locale],

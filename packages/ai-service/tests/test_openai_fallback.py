@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from digilicense_ai.config import EnvironmentProfile, Settings
@@ -63,6 +65,13 @@ class FailingRetriever:
     async def retrieve(self, query: RetrievalQuery) -> tuple[()]:
         del query
         raise RuntimeError("synthetic retrieval outage")
+
+
+class BlockingRetriever:
+    async def retrieve(self, query: RetrievalQuery) -> tuple[()]:
+        del query
+        await asyncio.Event().wait()
+        return ()
 
 
 class CapturingFakeProvider(FakeProvider):
@@ -182,6 +191,26 @@ async def test_retrieval_failure_returns_deterministic_fallback_without_provider
             context=FakeSemanticContextManager(),
             intent=FakeIntentRouter(),
             retriever=FailingRetriever(),
+            provider=provider,
+        )
+    )
+
+    response = await service.answer(_request())
+
+    assert provider.calls == 0
+    assert response.fallback_used is True
+    assert response.blocked_reason is BlockedReason.RETRIEVAL_UNAVAILABLE
+
+
+async def test_retrieval_timeout_returns_deterministic_fallback_without_provider_call() -> None:
+    provider = ProviderSpy()
+    service = AssistantService(
+        ServiceContainer(
+            settings=Settings(profile=EnvironmentProfile.TEST, retrieval_timeout_seconds=0.05),
+            dlp=FakeDlpGateway(),
+            context=FakeSemanticContextManager(),
+            intent=FakeIntentRouter(),
+            retriever=BlockingRetriever(),
             provider=provider,
         )
     )
