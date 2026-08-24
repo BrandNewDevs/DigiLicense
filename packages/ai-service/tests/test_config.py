@@ -71,6 +71,7 @@ def test_production_requires_service_perimeter_configuration() -> None:
     [
         ("service_bearer_token", "short"),
         ("context_signing_current_key", "short"),
+        ("context_signing_previous_key", "short"),
     ],
 )
 def test_production_rejects_short_perimeter_secrets(field: str, value: str) -> None:
@@ -99,6 +100,7 @@ def test_production_rejects_short_perimeter_secrets(field: str, value: str) -> N
     [
         ("service_bearer_token", "replace-with-a-32-character-minimum-rotated-credential"),
         ("context_signing_current_key", "replace-with-a-32-character-minimum-signing-key"),
+        ("context_signing_previous_key", "replace-with-a-32-character-minimum-signing-key"),
     ],
 )
 def test_production_rejects_public_template_secrets(field: str, value: str) -> None:

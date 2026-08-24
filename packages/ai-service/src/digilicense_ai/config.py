@@ -138,6 +138,14 @@ class Settings(BaseSettings):
                 in _PUBLIC_TEMPLATE_SECRETS
             ):
                 raise ValueError("production profile rejects public template credentials")
+            if self.context_signing_previous_key is not None:
+                previous_key = self.context_signing_previous_key.get_secret_value().strip()
+                if len(previous_key) < 32:
+                    raise ValueError(
+                        "production profile requires a 32-character previous context key"
+                    )
+                if previous_key in _PUBLIC_TEMPLATE_SECRETS:
+                    raise ValueError("production profile rejects public template credentials")
 
         if (
             self.provider_backend is ProviderBackend.OPENAI
