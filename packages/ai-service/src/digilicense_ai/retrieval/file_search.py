@@ -72,6 +72,8 @@ class FileSearchRetriever:
             section = self._corpus.section_by_id.get(section_id)
             if section is None or section[0].source_id != source_id:
                 continue
+            if section_id not in self._corpus.allowed_section_ids(query.intent):
+                continue
             score = float(getattr(result, "score", 0.0))
             if not 0 <= score <= 1 or score < self._relevance_threshold:
                 continue

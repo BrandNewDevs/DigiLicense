@@ -1,5 +1,7 @@
 """Application orchestration across the AI service trust boundaries."""
 
+import asyncio
+
 from digilicense_ai.config import ProviderBackend
 from digilicense_ai.container import ServiceContainer
 from digilicense_ai.fallbacks import (
@@ -25,8 +27,10 @@ from digilicense_ai.schemas import (
     DlpScope,
     Escalation,
     EscalationCode,
+    EvidenceChunk,
     IntentResult,
     Locale,
+    ProviderFact,
     RetrievalQuery,
     SourceReference,
 )
@@ -137,13 +141,36 @@ class AssistantService:
         request: AssistantMessageRequest,
         intent_result: IntentResult,
     ) -> AssistantMessageResponse:
-        evidence = await self._container.retriever.retrieve(
-            RetrievalQuery(
-                intent=intent_result.intent,
-                topic=intent_result.topic,
-                locale=request.locale,
+        if intent_result.intent is CanonicalIntent.UNSUPPORTED_QUESTION:
+            return AssistantMessageResponse(
+                answer=UNSUPPORTED[request.locale],
+                intent=CanonicalIntent.UNSUPPORTED_QUESTION,
+                sources=(),
+                uncertain=False,
+                fallback_used=True,
+                blocked_reason=BlockedReason.UNSUPPORTED,
             )
-        )
+        try:
+            async with asyncio.timeout(self._container.settings.retrieval_timeout_seconds):
+                evidence = await self._container.retriever.retrieve(
+                    RetrievalQuery(
+                        intent=intent_result.intent,
+                        topic=intent_result.topic,
+                        locale=request.locale,
+                    )
+                )
+        except TimeoutError:
+            return self._retrieval_failure_response(
+                request,
+                intent_result,
+                BlockedReason.RETRIEVAL_TIMEOUT,
+            )
+        except Exception:
+            return self._retrieval_failure_response(
+                request,
+                intent_result,
+                BlockedReason.RETRIEVAL_UNAVAILABLE,
+            )
         if not evidence:
             return AssistantMessageResponse(
                 answer=NO_EVIDENCE[request.locale],
@@ -167,6 +194,7 @@ class AssistantService:
             reason_code=request.reason_code,
             locale=request.locale,
             evidence=evidence,
+            facts=self._facts_for_evidence(evidence, intent_result.intent),
             prompt_version=(
                 "phase3-openai-v1"
                 if self._container.settings.provider_backend is ProviderBackend.OPENAI
@@ -245,6 +273,44 @@ class AssistantService:
             sources=sources,
             uncertain=provider_result.uncertain,
             context_token=context_token,
+        )
+
+    @staticmethod
+    def _retrieval_failure_response(
+        request: AssistantMessageRequest,
+        intent_result: IntentResult,
+        blocked_reason: BlockedReason,
+    ) -> AssistantMessageResponse:
+        return AssistantMessageResponse(
+            answer=NO_EVIDENCE[request.locale],
+            intent=intent_result.intent,
+            sources=(),
+            uncertain=True,
+            fallback_used=True,
+            blocked_reason=blocked_reason,
+            escalation=Escalation(
+                code=EscalationCode.REVIEW_PUBLIC_GUIDANCE,
+                message=ESCALATIONS[EscalationCode.REVIEW_PUBLIC_GUIDANCE.value][request.locale],
+            ),
+        )
+
+    def _facts_for_evidence(
+        self,
+        evidence: tuple[EvidenceChunk, ...],
+        intent: CanonicalIntent,
+    ) -> tuple[ProviderFact, ...]:
+        evidence_sections = {(item.source_id, item.section_id) for item in evidence}
+        return tuple(
+            ProviderFact(
+                fact_id=fact.fact_id,
+                source_id=fact.source_id,
+                section_id=fact.section_id,
+                label=fact.label,
+                value=fact.value,
+                unit=fact.unit,
+            )
+            for fact in self._output_validator.corpus.manifest.fact_packets
+            if (fact.source_id, fact.section_id) in evidence_sections and intent in fact.intents
         )
 
     async def _blocked_response(

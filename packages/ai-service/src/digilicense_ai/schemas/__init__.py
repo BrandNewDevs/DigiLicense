@@ -22,7 +22,7 @@ from digilicense_ai.schemas.enums import (
     Topic,
 )
 from digilicense_ai.schemas.intent import IntentResult
-from digilicense_ai.schemas.provider import CanonicalProviderRequest, ProviderResult
+from digilicense_ai.schemas.provider import CanonicalProviderRequest, ProviderFact, ProviderResult
 from digilicense_ai.schemas.retrieval import EvidenceChunk, RetrievalQuery
 
 __all__ = [
@@ -43,6 +43,7 @@ __all__ = [
     "IntentResult",
     "Locale",
     "Page",
+    "ProviderFact",
     "ProviderResult",
     "ReasonCode",
     "RetrievalQuery",

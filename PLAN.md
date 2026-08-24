@@ -64,16 +64,55 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (input validation, secure cookies, secret isolation, TLS-required database URLs, and structured dependency-failure logging done; broader log coverage, metrics/alerts, and CSRF outstanding)
 - [x] Keep applicant and operator authorization checks at every server boundary
 
-## Bilingual AI assistant
+## AI engineering service
 
-- [ ] Build a stateless FastAPI service using the official OpenAI SDK
-- [ ] Curate approved public Delhi driving-licence guidance and stable source identifiers
-- [ ] Accept only the question, locale, service, page, and public reason/context keys
-- [ ] Reject or redact identity, contact, licence, document, and payment information
-- [ ] Return a validated English or Hindi answer with citations, uncertainty, and escalation data
-- [ ] Prevent the assistant from mutating state, deciding eligibility, or ranking applicants
-- [ ] Add timeouts, rate limits, prompt-injection handling, and deterministic bilingual fallback guidance
-- [ ] Keep the AI service stateless and isolated from PostgreSQL, and call it only from the TanStack Start server
+The AI service is a separate Python 3.12/FastAPI package under `packages/ai-service`. It is
+stateless, has no product-database credentials, accepts only a question plus public enum/context
+keys, and is not published to browser clients.
+
+- [x] Phase 0 — Create the AI package, typed public/internal contracts, configuration profiles,
+  deterministic fake path, health endpoints, structured sanitized logging, non-root container, and
+  trust-boundary documentation.
+- [x] Phase 1 — Implement in-process local PII DLP: Unicode and Devanagari normalization,
+  invisible/bidi detection, Indian identifier/contact/payment recognizers, contextual name/address
+  protection, inbound/provider/outbound scanning, fail-closed behavior, and safe local help.
+- [x] Phase 2 — Implement short-lived signed semantic context tokens with rotation support. Tokens
+  contain only the previous canonical intent/topic/locale, never raw chat history or identity.
+- [x] Phase 3 — Add a reviewed, checksummed, versioned Delhi public-guidance corpus with stable
+  source/section IDs, fact packets, promotion/rollback validation, and explicit separation of
+  policy from simulated prototype behavior.
+- [x] Phase 4 — Add production local BM25 retrieval using canonical queries and both source and
+  section intent allowlists; add an evaluation-only File Search adapter and cleanup lifecycle.
+- [x] Phase 5 — Add canonical-only OpenAI Responses API integration, a development-only Gemini
+  smoke-test adapter, strict structured output, DLP payload scanning, timeouts, concurrency limits,
+  circuit breaking, and deterministic provider-failure fallbacks.
+- [x] Phase 6 — Add reviewed English/Hindi fallbacks, locale prompts, citation resolution, output
+  DLP, plain-text/length checks, source/fact-ID validation, numeric value-and-unit verification,
+  simulation disclosure, and affiliation-language rejection.
+- [x] Phase 7 — Add service-to-service bearer authentication, TLS/proxy validation, browser/CORS
+  rejection, bounded request/rate/daily-call controls, rotating context keys, readiness checks,
+  sanitized metrics, restricted container deployment guidance, and AI-only CI/security/SBOM checks.
+- [x] Phase 8 — Add synthetic English/Hindi/Hinglish DLP and intent-routing evaluation fixtures,
+  acceptance reporting that identifies unevaluated controls, provider-disabled fallbacks, and
+  concurrent fake-provider load coverage.
+- [x] Harden the service after the complete AI audit: reject unsupported/wrong-jurisdiction input
+  before retrieval/provider use; block separator-obfuscated identifiers; fail safely on weak or
+  failed retrieval; clean up failed evaluation uploads; bound rate-limit state; and keep optional
+  Gemini dependencies out of default pip/Conda installs.
+- [x] Curate approved public Delhi driving-licence guidance with stable source identifiers.
+- [x] Accept only the question, locale, service, page, reason code, and signed public semantic
+  context. The provider contract has no raw-question field.
+- [x] Reject or redact identity, contact, licence, document, payment, and contextual disclosure
+  information before any provider call; raw text is excluded from logs and provider payloads.
+- [x] Return validated English/Hindi answers with local citations, uncertainty, escalation data,
+  and deterministic bilingual fallbacks.
+- [x] Prevent the assistant from mutating state, deciding eligibility, ranking applicants, or
+  implying government affiliation.
+- [x] Add bounded timeouts, rate limits, prompt-injection handling, and deterministic bilingual
+  fallback guidance.
+- [ ] Connect the private AI service only from TanStack Start server code. The service boundary is
+  implemented; application-side integration is intentionally outside the AI-only work completed so
+  far.
 
 ## Testing and quality
 
@@ -81,9 +120,12 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Test learner-licence waiting-period and expiry boundaries
 - [ ] Test drafts, validation, payments, notifications, and audit-event creation
 - [ ] Test waitlist matching, priority ordering, offer lifecycle, and concurrent booking attempts
-- [ ] Test AI citations, Hindi/English responses, privacy filtering, injection attempts, timeouts, and fallback
+- [x] Test AI citations, Hindi/English responses, privacy filtering, injection attempts, timeouts,
+  fallback, retrieval allowlists, context tampering, provider payload safety, output safety, and
+  concurrent fake-provider behavior.
 - [ ] Add end-to-end tests for the featured applicant journey and operator allocation journey
-- [ ] Test the full core journey with AI unavailable
+- [ ] Test the full web-app core journey with AI unavailable (the AI service itself has deterministic
+  provider-disabled fallback tests; application integration remains outstanding)
 - [ ] Run accessibility, mobile viewport, slow-connection, and usability checks
 
 ## Delivery

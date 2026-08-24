@@ -16,6 +16,7 @@ from digilicense_ai.container import ServiceContainer, build_container
 from digilicense_ai.logging import configure_logging, safe_request_id, safe_request_path
 from digilicense_ai.middleware import BodySizeLimitMiddleware
 from digilicense_ai.schemas import AssistantMessageRequest, AssistantMessageResponse, HealthResponse
+from digilicense_ai.schemas.enums import BlockedReason
 from digilicense_ai.security import ServiceSecurityMiddleware
 from digilicense_ai.service import AssistantService
 
@@ -58,6 +59,7 @@ def create_app(
         ),
         require_tls=resolved_settings.require_tls,
         rate_limit=resolved_settings.gateway_rate_limit_per_minute,
+        trusted_proxy_ips=frozenset(resolved_settings.trusted_proxy_ips),
     )
 
     @app.middleware("http")
@@ -132,6 +134,26 @@ def _build_router(settings: Settings) -> APIRouter:
                 model=settings.model_id,
                 fallback_code=response.blocked_reason.value if response.blocked_reason else "none",
             )
+            failure_category = (
+                {
+                    BlockedReason.RETRIEVAL_TIMEOUT: "timeout",
+                    BlockedReason.RETRIEVAL_UNAVAILABLE: "error",
+                }.get(response.blocked_reason)
+                if response.blocked_reason is not None
+                else None
+            )
+            if failure_category is not None:
+                metrics.record_dependency_failure(
+                    request_id=request.state.request_id,
+                    dependency="retrieval",
+                    category=failure_category,
+                )
+                await logger.awarning(
+                    "dependency_failure",
+                    request_id=request.state.request_id,
+                    dependency="retrieval",
+                    category=failure_category,
+                )
         return response
 
     @router.get("/health/live", response_model=HealthResponse, response_model_by_alias=True)
@@ -145,13 +167,14 @@ def _build_router(settings: Settings) -> APIRouter:
     @router.get("/health/ready", response_model=HealthResponse, response_model_by_alias=True)
     async def ready(request: Request) -> HealthResponse | JSONResponse:
         container: ServiceContainer = request.app.state.container
+        is_ready = request.app.state.ready and all(container.readiness_checks().values())
         body = HealthResponse(
-            status="ready" if request.app.state.ready else "not_ready",
+            status="ready" if is_ready else "not_ready",
             service=settings.service_name,
             profile=settings.profile.value,
             components=container.component_statuses,
         )
-        if not request.app.state.ready:
+        if not is_ready:
             return JSONResponse(status_code=503, content=body.public_dump())
         return body
 

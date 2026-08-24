@@ -61,25 +61,33 @@ async def upload_promoted_sections(
     if not vector_store_id.startswith("vs_") or not 1 <= expires_after_days <= 30:
         raise ValueError("an explicit evaluation vector store and 1-30 day expiry are required")
     uploaded: list[UploadedSection] = []
-    for source in corpus.manifest.sources:
-        for section in source.sections:
-            stream = BytesIO(section.text.encode("utf-8"))
-            stream.name = f"{section.section_id}.md"
-            file = await client.files.create(
-                file=stream,
-                purpose="user_data",
-                expires_after={"anchor": "created_at", "days": expires_after_days},
-            )
-            await client.vector_stores.files.create(
-                vector_store_id,
-                file_id=file.id,
-                attributes={
-                    "source_id": source.source_id,
-                    "section_id": section.section_id,
-                    "corpus_version": corpus.version,
-                },
-            )
-            uploaded.append(UploadedSection(source.source_id, section.section_id, file.id))
+    pending: UploadedSection | None = None
+    try:
+        for source in corpus.manifest.sources:
+            for section in source.sections:
+                stream = BytesIO(section.text.encode("utf-8"))
+                stream.name = f"{section.section_id}.md"
+                file = await client.files.create(
+                    file=stream,
+                    purpose="user_data",
+                    expires_after={"anchor": "created_at", "days": expires_after_days},
+                )
+                pending = UploadedSection(source.source_id, section.section_id, file.id)
+                await client.vector_stores.files.create(
+                    vector_store_id,
+                    file_id=file.id,
+                    attributes={
+                        "source_id": source.source_id,
+                        "section_id": section.section_id,
+                        "corpus_version": corpus.version,
+                    },
+                )
+                uploaded.append(pending)
+                pending = None
+    except Exception:
+        cleanup_targets = tuple(uploaded) + ((pending,) if pending is not None else ())
+        await _cleanup_failed_upload(client, vector_store_id, cleanup_targets)
+        raise
     return tuple(uploaded)
 
 
@@ -151,6 +159,30 @@ async def _cleanup_operation(
         failures.append(operation_name)
         return False
     return True
+
+
+async def _cleanup_failed_upload(
+    client: FileSearchLifecycleClient,
+    vector_store_id: str,
+    uploaded: tuple[UploadedSection, ...],
+) -> None:
+    """Best-effort removal of every File created before an upload failure escapes."""
+
+    failures: list[str] = []
+    for item in uploaded:
+        detached = await _cleanup_operation(
+            f"detach:{item.file_id}",
+            client.vector_stores.files.delete(item.file_id, vector_store_id=vector_store_id),
+            failures,
+        )
+        if detached:
+            await _cleanup_operation(
+                f"delete_file:{item.file_id}",
+                client.files.delete(item.file_id),
+                failures,
+            )
+    if failures:
+        raise FileSearchCleanupError(tuple(failures))
 
 
 def _is_not_found(error: Exception) -> bool:

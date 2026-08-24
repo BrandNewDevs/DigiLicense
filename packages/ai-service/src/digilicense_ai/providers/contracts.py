@@ -8,7 +8,9 @@ from digilicense_ai.schemas import CanonicalIntent, CanonicalProviderRequest, Lo
 INSTRUCTIONS = """You are the DigiLicense public-guidance explanation provider.
 Use only the supplied reviewed public evidence. Do not infer eligibility, inspect identity,
 perform actions, or claim government affiliation. Answer in the requested locale. Every sourceId
-must exactly match a supplied evidence sourceId. If evidence is insufficient, set uncertain true.
+    must exactly match a supplied evidence sourceId. For every date, duration, fee, or other numeric
+    claim, include its exact reviewed factId and preserve the fact's value and unit. If evidence is
+    insufficient, set uncertain true.
 Return only the required structured response."""
 
 _LOCALE_INSTRUCTIONS = {
@@ -57,4 +59,9 @@ def validated_result(
         raise ValueError("provider returned a source ID outside supplied evidence")
     if request.intent is not CanonicalIntent.UNSUPPORTED_QUESTION and not returned_source_ids:
         raise ValueError("grounded provider response omitted its source")
+    allowed_fact_ids = {fact.fact_id for fact in request.facts}
+    if len(set(result.fact_ids)) != len(result.fact_ids):
+        raise ValueError("provider returned duplicate fact IDs")
+    if not set(result.fact_ids).issubset(allowed_fact_ids):
+        raise ValueError("provider returned a fact ID outside supplied evidence")
     return result

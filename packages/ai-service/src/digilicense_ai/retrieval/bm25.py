@@ -103,16 +103,14 @@ class Bm25Retriever:
         )
         # A caller-provided allowlist can only narrow the corpus's intent allowlist.
         allowed &= set(self._corpus.allowed_source_ids(query.intent))
+        allowed_sections = self._corpus.allowed_section_ids(query.intent)
         raw_scores = self._index.get_scores(_tokens(safe_query))
         allowed_scores = [
             (float(score), section)
             for score, section in zip(raw_scores, self._sections, strict=True)
-            if section.source_id in allowed
+            if section.source_id in allowed and section.section_id in allowed_sections
         ]
-        maximum = max((score for score, _ in allowed_scores), default=0.0)
-        candidates = [
-            (self._normalise(score, maximum), section) for score, section in allowed_scores
-        ]
+        candidates = [(self._normalise(score), section) for score, section in allowed_scores]
         candidates.sort(key=lambda item: (-item[0], item[1].source_id, item[1].section_id))
 
         evidence: list[EvidenceChunk] = []
@@ -147,7 +145,7 @@ class Bm25Retriever:
         return tuple(evidence)
 
     @staticmethod
-    def _normalise(score: float, maximum: float) -> float:
-        if maximum <= 0 or score <= 0:
+    def _normalise(score: float) -> float:
+        if score <= 0:
             return 0.0
-        return round(min(score / maximum, 1.0), 6)
+        return round(score / (score + 1), 6)

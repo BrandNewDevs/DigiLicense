@@ -31,12 +31,13 @@ python -m pip install --no-deps -e .
 uvicorn digilicense_ai.main:app --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
-`requirements.txt` is a fully hashed export of every dependency in `uv.lock`. The local package
-is installed separately because editable installs cannot participate in pip's hash-checking mode.
-After changing dependencies, regenerate the export from this directory:
+`requirements.txt` is a fully hashed export of the default, development, and security dependency
+groups in `uv.lock`. The local package is installed separately because editable installs cannot
+participate in pip's hash-checking mode. It deliberately excludes the optional Gemini smoke-test
+adapter. After changing default dependencies, regenerate the export from this directory:
 
 ```bash
-uv export --frozen --all-groups --no-emit-project --no-header --format requirements.txt --output-file requirements.txt
+uv export --frozen --group dev --group security --no-emit-project --no-header --format requirements.txt --output-file requirements.txt
 ```
 
 ### Conda
@@ -123,8 +124,9 @@ deployment gate, not a substitute for configuring the controls in the provider d
 
 Gemini is an optional, development-only smoke-test adapter. It uses separate development
 credentials, receives the same canonical public payload and reviewed evidence as OpenAI, and is
-not a fallback. It cannot be selected in evaluation or production, and the deployed prototype
-requires no Gemini credential.
+not a fallback. Install it only with `uv sync --group gemini`; it is not part of the default pip
+or Conda installation. It cannot be selected in evaluation or production, and the deployed
+prototype requires no Gemini credential.
 
 ### Answer release safety
 
@@ -132,8 +134,10 @@ English and Hindi instructions are locale-specific and require preservation of d
 waiting periods, fees, uncertainty, and simulation disclosures. The service validates provider
 answers after schema validation and before outbound DLP: answer length is capped at 1,200
 characters, markup and arbitrary URLs are rejected, government-affiliation language is blocked,
-citations must resolve through local corpus metadata, and known numeric claims must match reviewed
-fact packets. Prototype-behavior evidence must be described as simulated. Unsafe output becomes a
+citations must resolve through local corpus metadata, and every numeric claim must cite a reviewed
+fact ID with its exact value and unit. Hindi and English numeric facts are independently checked
+against that same reviewed fact packet. Prototype-behavior evidence must be described as simulated.
+Unsafe output becomes a
 reviewed bilingual fallback with one of the bounded escalation codes; model-generated URLs are
 never returned to callers.
 
@@ -230,7 +234,9 @@ local semantic-context and intent components rather than silently substituting f
 The prototype deployment runs one Uvicorn worker because the Phase 7 rate-limit and daily-budget
 guards are process-local; multiple workers require a shared atomic quota store before scaling out.
 When TLS terminates at a reverse proxy, that proxy must be the trusted component that sets the
-ASGI HTTPS scheme; the container does not trust client-supplied `X-Forwarded-Proto` headers.
+ASGI HTTPS scheme. Configure its IP through `DIGILICENSE_AI_TRUSTED_PROXY_IPS`; only a listed proxy
+may supply `X-Forwarded-Proto: https`. Loopback liveness/readiness probes remain intentionally
+available to the container over HTTP and cannot be reached from a remote peer without TLS.
 
 An AI-only hardened Compose example is in `deploy/compose.ai.yaml`. It exposes no host port, keeps
 internal traffic on an isolated `ai-private` network, and attaches the service to a separately
@@ -239,5 +245,7 @@ to TLS traffic for `api.openai.com:443` only; it must not be a general-purpose a
 This preserves a working OpenAI path without allowing arbitrary outbound destinations. Drops Linux
 capabilities, enables `no-new-privileges`, uses a read-only root with a bounded `/tmp`, applies one
 CPU/1 GiB memory limits, and reads secrets from an untracked `.env.ai`. Provision the external
-network before starting Compose, set `DIGILICENSE_AI_EGRESS_NETWORK` if its name differs, and start
-from `deploy/.env.ai.example`; never commit the populated secret file.
+network before starting Compose, then pass the non-secret network name to Compose interpolation,
+for example `docker compose --env-file .env.ai -f deploy/compose.ai.yaml up -d`. The egress network
+must be restricted by host/cloud firewall policy to `api.openai.com:443`; it is never a general
+application network. Start from `deploy/.env.ai.example`; never commit the populated secret file.

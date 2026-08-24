@@ -77,7 +77,7 @@ async def test_bm25_normalises_against_only_allowlisted_sections() -> None:
     first_allowed = next(
         index
         for index, section in enumerate(retriever._sections)
-        if section.source_id == "digilicense-prototype-behavior-v1"
+        if section.section_id == "prototype-waitlist-offers-v1"
     )
     scores[first_allowed] = 1.0
     retriever._index = cast(Any, _FixedScores(scores))
@@ -85,7 +85,16 @@ async def test_bm25_normalises_against_only_allowlisted_sections() -> None:
     result = await retriever.retrieve(_query(CanonicalIntent.WAITLIST_EXPLANATION))
 
     assert result
-    assert result[0].score == 1.0
+    assert result[0].score == 0.5
+
+
+async def test_bm25_rejects_low_absolute_relevance_even_when_it_is_the_best_match() -> None:
+    retriever = Bm25Retriever(load_promoted_corpus())
+    retriever._index = cast(Any, _FixedScores([0.001] * len(retriever._sections)))
+
+    result = await retriever.retrieve(_query(CanonicalIntent.WAITLIST_EXPLANATION))
+
+    assert result == ()
 
 
 def test_canonical_query_has_no_raw_question_input_surface() -> None:

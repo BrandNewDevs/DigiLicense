@@ -132,11 +132,30 @@ def test_policy_evidence_and_runtime_ingestion_are_both_gated() -> None:
         for fact in missing_policy["factPackets"]
         if fact["sourceId"] != "delhi-driving-licence-guidance-2026"
     ]
-    with pytest.raises(CorpusError, match="policy-bearing intent"):
+    with pytest.raises(
+        CorpusError,
+        match="section intent bypasses source allowlist",
+    ):
         _validated(missing_policy)
+
+    no_policy_evidence = _payload()
+    no_policy_evidence["sources"] = [
+        source for source in no_policy_evidence["sources"] if source["kind"] != "public_policy"
+    ]
+    no_policy_evidence["factPackets"] = []
+    with pytest.raises(CorpusError, match="policy-bearing intent"):
+        _validated(no_policy_evidence)
 
     with pytest.raises(CorpusError, match="not bundled"):
         load_promoted_corpus("https://example.invalid/user-upload.md")
+
+
+def test_fact_packet_intents_cannot_bypass_their_reviewed_section() -> None:
+    payload = _payload()
+    payload["factPackets"][0]["intents"] = ["WAITING_PERIOD_EXPLANATION"]
+
+    with pytest.raises(CorpusError, match="section allowlist"):
+        _validated(payload)
 
 
 def test_prior_validated_release_can_be_restored() -> None:

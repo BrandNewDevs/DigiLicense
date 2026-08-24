@@ -10,4 +10,4 @@ docs
 evaluations
 __pycache__
 *.pyc
-
+deploy/.env.ai

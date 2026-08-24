@@ -5,6 +5,7 @@ dist-ssr
 *.local
 .env*
 !.env.example
+!packages/ai-service/deploy/.env.ai.example
 .tanstack
 .wrangler
 .output

@@ -1,8 +1,10 @@
 """Service-perimeter authentication, browser rejection, and bounded quotas."""
 
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from hmac import compare_digest
+from ipaddress import ip_address
 from time import monotonic, time
 from typing import Any
 
@@ -18,12 +20,16 @@ class SecurityRejection(Exception):
 class FixedWindowLimiter:
     limit: int
     window_seconds: int = 60
+    max_keys: int = 2048
     clock: Callable[[], float] = monotonic
-    _windows: dict[str, tuple[int, int]] = field(default_factory=dict)
+    _windows: OrderedDict[str, tuple[int, int]] = field(default_factory=OrderedDict)
 
     def allow(self, key: str) -> bool:
         window = int(self.clock() // self.window_seconds)
-        previous_window, count = self._windows.get(key, (window, 0))
+        existing = self._windows.pop(key, None)
+        if existing is None and len(self._windows) >= self.max_keys:
+            self._windows.popitem(last=False)
+        previous_window, count = existing or (window, 0)
         if previous_window != window:
             count = 0
         if count >= self.limit:
@@ -73,10 +79,12 @@ class ServiceSecurityMiddleware:
         bearer_token: str | None,
         require_tls: bool,
         rate_limit: int,
+        trusted_proxy_ips: frozenset[str] = frozenset(),
     ) -> None:
         self.app = app
         self.bearer_token = bearer_token
         self.require_tls = require_tls
+        self.trusted_proxy_ips = trusted_proxy_ips
         self.limiter = FixedWindowLimiter(rate_limit)
         self.peer_limiter = FixedWindowLimiter(rate_limit)
 
@@ -89,8 +97,8 @@ class ServiceSecurityMiddleware:
         if headers.get(b"origin") is not None or scope.get("method") == "OPTIONS":
             await self._reject(send, 403, "browser access is not permitted")
             return
-        if self.require_tls:
-            if scope.get("scheme") != "https":
+        if self.require_tls and not self._is_loopback_health_request(scope):
+            if self._effective_scheme(scope, headers) != "https":
                 await self._reject(send, 426, "TLS is required")
                 return
         if path == "/v1/assistant/messages":
@@ -114,6 +122,32 @@ class ServiceSecurityMiddleware:
                     await self._reject(send, 429, "service rate limit exceeded")
                     return
         await self.app(scope, receive, send)
+
+    def _effective_scheme(self, scope: dict[str, Any], headers: dict[bytes, bytes]) -> str:
+        if scope.get("scheme") == "https":
+            return "https"
+        peer = self._peer_address(scope)
+        forwarded = headers.get(b"x-forwarded-proto", b"").decode("latin-1").strip().casefold()
+        if peer in self.trusted_proxy_ips and forwarded == "https":
+            return "https"
+        return "http"
+
+    def _is_loopback_health_request(self, scope: dict[str, Any]) -> bool:
+        return scope.get("path") in {"/health/live", "/health/ready"} and self._is_loopback_peer(
+            self._peer_address(scope)
+        )
+
+    @staticmethod
+    def _peer_address(scope: dict[str, Any]) -> str:
+        client = scope.get("client")
+        return str(client[0]) if isinstance(client, (tuple, list)) and client else ""
+
+    @staticmethod
+    def _is_loopback_peer(peer: str) -> bool:
+        try:
+            return ip_address(peer).is_loopback
+        except ValueError:
+            return False
 
     @staticmethod
     async def _reject(send: Any, status_code: int, detail: str) -> None:

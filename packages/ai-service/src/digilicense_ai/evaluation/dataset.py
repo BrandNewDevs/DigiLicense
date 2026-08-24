@@ -2,7 +2,16 @@
 
 from dataclasses import dataclass
 
-from digilicense_ai.schemas import DlpAction, Locale
+from digilicense_ai.schemas import (
+    CanonicalIntent,
+    DlpAction,
+    Locale,
+    Page,
+    ReasonCode,
+    SemanticContext,
+    Service,
+    Topic,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +23,20 @@ class EvaluationCase:
     expect_provider_allowed: bool
     expect_pii: bool = False
     expected_dlp_action: DlpAction = DlpAction.ALLOW
+
+
+@dataclass(frozen=True, slots=True)
+class IntentEvaluationCase:
+    """Synthetic local-routing case; it contains no user or production data."""
+
+    case_id: str
+    text: str
+    locale: Locale
+    service: Service
+    page: Page
+    reason_code: ReasonCode
+    expected_intent: CanonicalIntent
+    context: SemanticContext | None = None
 
 
 EVALUATION_CASES: tuple[EvaluationCase, ...] = (
@@ -256,4 +279,115 @@ EVALUATION_CASES: tuple[EvaluationCase, ...] = (
         True,
     ),
     EvaluationCase("dlp-failure", "dlp_failure", "Please answer safely", Locale.ENGLISH, True),
+)
+
+
+INTENT_EVALUATION_CASES: tuple[IntentEvaluationCase, ...] = (
+    IntentEvaluationCase(
+        "current-step",
+        "How do I apply?",
+        Locale.ENGLISH,
+        Service.LEARNER_LICENCE,
+        Page.GUIDED_APPLICATION,
+        ReasonCode.NONE,
+        CanonicalIntent.CURRENT_STEP_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "locked-action",
+        "Why is this unavailable?",
+        Locale.ENGLISH,
+        Service.PERMANENT_DRIVING_LICENCE,
+        Page.ELIGIBILITY,
+        ReasonCode.ACTION_LOCKED,
+        CanonicalIntent.LOCKED_ACTION_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "waiting-period",
+        "How long is the wait?",
+        Locale.ENGLISH,
+        Service.PERMANENT_DRIVING_LICENCE,
+        Page.ELIGIBILITY,
+        ReasonCode.WAITING_PERIOD_ACTIVE,
+        CanonicalIntent.WAITING_PERIOD_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "learner-expiry",
+        "When does this expire?",
+        Locale.ENGLISH,
+        Service.LEARNER_LICENCE,
+        Page.ELIGIBILITY,
+        ReasonCode.LEARNER_LICENCE_EXPIRED,
+        CanonicalIntent.LEARNER_LICENCE_EXPIRY_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "no-appointment",
+        "No appointment is available",
+        Locale.ENGLISH,
+        Service.APPOINTMENT_WAITLIST,
+        Page.APPOINTMENT_BOOKING,
+        ReasonCode.NO_MATCHING_SLOT,
+        CanonicalIntent.NO_APPOINTMENT_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "waitlist",
+        "How does the waitlist work?",
+        Locale.ENGLISH,
+        Service.APPOINTMENT_WAITLIST,
+        Page.APPOINTMENT_WAITLIST,
+        ReasonCode.WAITLIST_ACTIVE,
+        CanonicalIntent.WAITLIST_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "offer-expiry",
+        "When does the offer expire?",
+        Locale.ENGLISH,
+        Service.APPOINTMENT_WAITLIST,
+        Page.APPOINTMENT_OFFER,
+        ReasonCode.OFFER_PENDING,
+        CanonicalIntent.OFFER_EXPIRY_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "prototype-disclosure",
+        "Is this simulated?",
+        Locale.ENGLISH,
+        Service.FEES_PAYMENT,
+        Page.SIMULATION_DISCLOSURE,
+        ReasonCode.SIMULATED_ACTION,
+        CanonicalIntent.MOCK_VS_REAL_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "preparation",
+        "How should I prepare?",
+        Locale.HINDI,
+        Service.LEARNER_TEST,
+        Page.PREPARATION_CHECKLIST,
+        ReasonCode.PREPARATION_REQUIRED,
+        CanonicalIntent.PREPARATION_CHECKLIST_EXPLANATION,
+    ),
+    IntentEvaluationCase(
+        "referential-follow-up",
+        "Iske liye kitna time lagega?",
+        Locale.HINDI,
+        Service.APPOINTMENT_WAITLIST,
+        Page.ASSISTANT,
+        ReasonCode.NONE,
+        CanonicalIntent.WAITLIST_EXPLANATION,
+        SemanticContext(
+            last_intent=CanonicalIntent.WAITLIST_EXPLANATION,
+            topic=Topic.WAITLIST,
+            locale=Locale.HINDI,
+            issued_at=0,
+            expires_at=1,
+            key_id="evaluation",
+        ),
+    ),
+    IntentEvaluationCase(
+        "unsupported",
+        "How do I apply in Mumbai?",
+        Locale.ENGLISH,
+        Service.LEARNER_LICENCE,
+        Page.ASSISTANT,
+        ReasonCode.NONE,
+        CanonicalIntent.UNSUPPORTED_QUESTION,
+    ),
 )

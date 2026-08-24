@@ -74,6 +74,79 @@ _SERVICE_TOPICS: dict[Service, Topic] = {
     Service.APPOINTMENT_WAITLIST: Topic.WAITLIST,
 }
 
+_REFERENTIAL_FOLLOW_UP = (
+    "it",
+    "that",
+    "this",
+    "after that",
+    "iske",
+    "iske liye",
+    "is ke liye",
+    "उसके",
+    "उसके लिए",
+    "इसके",
+    "इसके लिए",
+    "यह",
+    "वह",
+)
+_OUT_OF_SCOPE_TERMS = (
+    "medical",
+    "diagnosis",
+    "medicine",
+    "weather",
+    "politics",
+    "election",
+    "investment",
+    "crypto",
+    "password",
+    "hack",
+)
+_SUPPORTED_JURISDICTION_TERMS = ("delhi", "दिल्ली")
+_UNSUPPORTED_JURISDICTION_TERMS = (
+    "mumbai",
+    "maharashtra",
+    "pune",
+    "nagpur",
+    "uttar pradesh",
+    "lucknow",
+    "uttarakhand",
+    "haryana",
+    "punjab",
+    "rajasthan",
+    "gujarat",
+    "madhya pradesh",
+    "bihar",
+    "jharkhand",
+    "west bengal",
+    "odisha",
+    "chhattisgarh",
+    "goa",
+    "karnataka",
+    "bengaluru",
+    "bangalore",
+    "kerala",
+    "tamil nadu",
+    "chennai",
+    "telangana",
+    "andhra pradesh",
+    "hyderabad",
+    "assam",
+    "meghalaya",
+    "manipur",
+    "mizoram",
+    "nagaland",
+    "tripura",
+    "sikkim",
+    "arunachal pradesh",
+    "kolkata",
+    "जम्मू",
+    "मुंबई",
+    "पुणे",
+    "बेंगलुरु",
+    "चेन्नई",
+    "कोलकाता",
+)
+
 
 class FakeIntentRouter:
     async def route(
@@ -82,7 +155,6 @@ class FakeIntentRouter:
         safe_routing_text: str,
         context: SemanticContext | None,
     ) -> IntentResult:
-        del context
         lowered = safe_routing_text.casefold()
 
         def contains(term: str) -> bool:
@@ -90,10 +162,33 @@ class FakeIntentRouter:
                 return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", lowered) is not None
             return term in lowered
 
+        if any(contains(term) for term in _OUT_OF_SCOPE_TERMS):
+            return IntentResult(
+                intent=CanonicalIntent.UNSUPPORTED_QUESTION,
+                topic=Topic.SIMULATION,
+                confidence=1.0,
+            )
+
+        matched_jurisdictions = tuple(
+            term
+            for term in (*_SUPPORTED_JURISDICTION_TERMS, *_UNSUPPORTED_JURISDICTION_TERMS)
+            if contains(term)
+        )
+        if any(term in _UNSUPPORTED_JURISDICTION_TERMS for term in matched_jurisdictions):
+            return IntentResult(
+                intent=CanonicalIntent.UNSUPPORTED_QUESTION,
+                topic=Topic.SIMULATION,
+                confidence=1.0,
+            )
+
         text_intent = next(
             (
                 intent
                 for terms, intent in (
+                    (
+                        ("offer", "ऑफर"),
+                        CanonicalIntent.OFFER_EXPIRY_EXPLANATION,
+                    ),
                     (
                         ("waitlist", "wait list", "प्रतीक्षा सूची"),
                         CanonicalIntent.WAITLIST_EXPLANATION,
@@ -115,9 +210,26 @@ class FakeIntentRouter:
             ),
             None,
         )
+        if text_intent is not None and (
+            context is None
+            or not any(contains(term) for term in _REFERENTIAL_FOLLOW_UP)
+            or text_intent is not CanonicalIntent.WAITING_PERIOD_EXPLANATION
+        ):
+            return IntentResult(
+                intent=text_intent,
+                topic=_SERVICE_TOPICS[request.service],
+                confidence=1.0,
+            )
+        if context is not None and any(contains(term) for term in _REFERENTIAL_FOLLOW_UP):
+            return IntentResult(
+                intent=context.last_intent,
+                topic=context.topic,
+                confidence=0.9,
+            )
         return IntentResult(
-            intent=text_intent
-            or _REASON_INTENTS.get(request.reason_code, CanonicalIntent.CURRENT_STEP_EXPLANATION),
+            intent=_REASON_INTENTS.get(
+                request.reason_code, CanonicalIntent.CURRENT_STEP_EXPLANATION
+            ),
             topic=_SERVICE_TOPICS[request.service],
             confidence=1.0,
         )

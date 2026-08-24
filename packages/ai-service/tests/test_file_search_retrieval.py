@@ -36,16 +36,20 @@ class _VectorStoreFiles:
         self,
         calls: list[tuple[str, str]],
         *,
+        attach_failures: set[str],
         detach_failures: set[str],
         detach_missing: set[str],
     ) -> None:
         self.calls = calls
+        self._attach_failures = attach_failures
         self._detach_failures = detach_failures
         self._detach_missing = detach_missing
 
     async def create(self, vector_store_id: str, **kwargs: Any) -> None:
         self.calls.append(("attach", kwargs["file_id"]))
         assert vector_store_id == "vs_evaluation"
+        if kwargs["file_id"] in self._attach_failures:
+            raise _CleanupFailure()
 
     async def retrieve(self, file_id: str, *, vector_store_id: str) -> object:
         self.calls.append(("inspect", file_id))
@@ -67,6 +71,7 @@ class _VectorStores:
         results: tuple[_SearchResult, ...],
         calls: list[tuple[str, str]],
         *,
+        attach_failures: set[str],
         detach_failures: set[str],
         detach_missing: set[str],
         delete_store_failure: bool,
@@ -74,6 +79,7 @@ class _VectorStores:
         self._results = results
         self.files = _VectorStoreFiles(
             calls,
+            attach_failures=attach_failures,
             detach_failures=detach_failures,
             detach_missing=detach_missing,
         )
@@ -124,6 +130,7 @@ class _Client:
         self,
         results: tuple[_SearchResult, ...] = (),
         *,
+        attach_failures: set[str] | None = None,
         detach_failures: set[str] | None = None,
         detach_missing: set[str] | None = None,
         delete_failures: set[str] | None = None,
@@ -134,6 +141,7 @@ class _Client:
         self.vector_stores = _VectorStores(
             results,
             self.calls,
+            attach_failures=attach_failures or set(),
             detach_failures=detach_failures or set(),
             detach_missing=detach_missing or set(),
             delete_store_failure=delete_store_failure,
@@ -269,6 +277,23 @@ async def test_file_search_lifecycle_sets_expiry_inspects_and_deletes_all_resour
         delete_index = client.calls.index(("delete_file", item.file_id))
         assert detach_index < delete_index
     assert client.calls[-1] == ("delete_store", "vs_evaluation")
+
+
+async def test_failed_upload_removes_attached_and_pending_files() -> None:
+    client = _Client(attach_failures={"file_2"})
+
+    with pytest.raises(_CleanupFailure):
+        await upload_promoted_sections(
+            cast(FileSearchLifecycleClient, client),
+            corpus=load_promoted_corpus(),
+            vector_store_id="vs_evaluation",
+            expires_after_days=7,
+        )
+
+    assert ("detach", "file_1") in client.calls
+    assert ("delete_file", "file_1") in client.calls
+    assert ("detach", "file_2") in client.calls
+    assert ("delete_file", "file_2") in client.calls
 
 
 def test_resource_manifest_must_match_the_configured_vector_store() -> None:

@@ -43,23 +43,24 @@ class StructuredRule:
 
 _AADHAAR_PATTERN = re.compile(r"(?<!\d)(?P<value>[2-9](?:[\s./-]?\d){11})(?!\d)")
 _PAN_PATTERN = re.compile(
-    r"(?<![A-Z0-9])(?P<value>[A-Z]{5}[\s-]?\d{4}[\s-]?[A-Z])(?![A-Z0-9])",
+    r"(?<![A-Z0-9])(?P<value>[A-Z](?:[\s-]?[A-Z]){4}[\s-]?\d(?:[\s-]?\d){3}[\s-]?[A-Z])(?![A-Z0-9])",
     re.IGNORECASE,
 )
 _MOBILE_PATTERN = re.compile(
     r"(?<!\d)(?P<value>(?:(?:\+|00)?91[\s.-]?)?[6-9](?:[\s.-]?\d){9})(?!\d)"
 )
 _EMAIL_PATTERN = re.compile(
-    r"(?<![\w.+-])(?P<value>[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]+\.[A-Z]{2,63})(?![\w.-])",
+    r"(?<![\w.+-])(?P<value>[A-Z0-9._%+-]{1,64}\s*@\s*[A-Z0-9.-]+\.[A-Z]{2,63})(?![\w.-])",
     re.IGNORECASE,
 )
 _UPI_PATTERN = re.compile(
-    r"(?<![\w.-])(?P<value>[A-Z0-9._-]{2,64}@[A-Z]{2,32})(?![\w.-])",
+    r"(?<![\w.-])(?P<value>[A-Z0-9._-]{2,64}\s*@\s*[A-Z]{2,32})(?![\w.-])",
     re.IGNORECASE,
 )
 _IFSC_PATTERN = re.compile(r"(?<![A-Z0-9])(?P<value>[A-Z]{4}0[A-Z0-9]{6})(?![A-Z0-9])", re.I)
 _DRIVING_LICENCE_PATTERN = re.compile(
-    r"(?<![A-Z0-9])(?P<value>[A-Z]{2}[\s-]?\d{2}[\s-]?\d{4}[\s-]?\d{7})(?![A-Z0-9])",
+    r"(?<![A-Z0-9])(?P<value>[A-Z]{2}[\s-]?\d(?:[\s.-]?\d){1}[\s-]?\d(?:[\s.-]?\d){3}"
+    r"[\s-]?\d(?:[\s.-]?\d){6})(?![A-Z0-9])",
     re.IGNORECASE,
 )
 _LEARNER_LICENCE_PATTERN = re.compile(
@@ -75,7 +76,7 @@ _OTP_PATTERN = re.compile(
     r"(?:\botp\b|one[\s-]?time password|verification code|security code|"
     r"\bcode\b|ओटीपी|सत्यापन कोड|वेरिफिकेशन कोड|"
     r"(?:mera|merā|मेरा)\s+(?:otp|code))"
-    r"\s*(?:(?:is|hai|है)\s*)?[:=-]?\s*(?P<value>\d{4,8})(?!\d)",
+    r"\s*(?:(?:is|hai|है)\s*)?[:=-]?\s*(?P<value>\d(?:[\s.-]?\d){3,7})(?!\d)",
     re.IGNORECASE,
 )
 _APPLICATION_PATTERN = re.compile(

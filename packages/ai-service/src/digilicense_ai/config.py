@@ -1,10 +1,18 @@
 """Validated configuration profiles for the AI service."""
 
 from enum import StrEnum
+from ipaddress import ip_address
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_PUBLIC_TEMPLATE_SECRETS = frozenset(
+    {
+        "replace-with-a-32-character-minimum-rotated-credential",
+        "replace-with-a-32-character-minimum-signing-key",
+    }
+)
 
 
 class EnvironmentProfile(StrEnum):
@@ -50,6 +58,7 @@ class Settings(BaseSettings):
     service_name: str = "digilicense-ai"
     max_request_body_bytes: int = Field(default=4096, ge=1024, le=65536)
     dlp_timeout_ms: int = Field(default=250, ge=10, le=2000)
+    retrieval_timeout_seconds: float = Field(default=0.5, ge=0.05, le=2.0)
     model_id: Literal["gpt-5.4-mini-2026-03-17"] = "gpt-5.4-mini-2026-03-17"
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     openai_project_id: str | None = Field(default=None, min_length=1, max_length=128)
@@ -68,6 +77,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     service_bearer_token: SecretStr | None = Field(default=None, repr=False)
     require_tls: bool = False
+    trusted_proxy_ips: tuple[str, ...] = Field(default=(), max_length=32)
     gateway_rate_limit_per_minute: int = Field(default=60, ge=1, le=60)
     provider_daily_call_limit: int = Field(default=1500, ge=1, le=1500)
     context_signing_current_key: SecretStr | None = Field(default=None, repr=False)
@@ -75,6 +85,16 @@ class Settings(BaseSettings):
     context_current_key_id: str = Field(default="current", min_length=1, max_length=64)
     context_previous_key_id: str = Field(default="previous", min_length=1, max_length=64)
     context_token_ttl_seconds: int = Field(default=900, ge=60, le=86400)
+
+    @field_validator("trusted_proxy_ips")
+    @classmethod
+    def trusted_proxy_ips_must_be_ips(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        for value in values:
+            try:
+                ip_address(value)
+            except ValueError as error:
+                raise ValueError("trusted_proxy_ips must contain IP addresses") from error
+        return values
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
@@ -99,16 +119,33 @@ class Settings(BaseSettings):
                 raise ValueError("production profile requires confirmed OpenAI budget controls")
             if (
                 self.service_bearer_token is None
-                or not self.service_bearer_token.get_secret_value().strip()
+                or len(self.service_bearer_token.get_secret_value().strip()) < 32
             ):
-                raise ValueError("production profile requires a service bearer credential")
+                raise ValueError(
+                    "production profile requires a 32-character service bearer credential"
+                )
+            if self.service_bearer_token.get_secret_value().strip() in _PUBLIC_TEMPLATE_SECRETS:
+                raise ValueError("production profile rejects public template credentials")
             if not self.require_tls:
                 raise ValueError("production profile requires TLS")
             if (
                 self.context_signing_current_key is None
-                or not self.context_signing_current_key.get_secret_value().strip()
+                or len(self.context_signing_current_key.get_secret_value().strip()) < 32
             ):
-                raise ValueError("production profile requires a context signing key")
+                raise ValueError("production profile requires a 32-character context signing key")
+            if (
+                self.context_signing_current_key.get_secret_value().strip()
+                in _PUBLIC_TEMPLATE_SECRETS
+            ):
+                raise ValueError("production profile rejects public template credentials")
+            if self.context_signing_previous_key is not None:
+                previous_key = self.context_signing_previous_key.get_secret_value().strip()
+                if len(previous_key) < 32:
+                    raise ValueError(
+                        "production profile requires a 32-character previous context key"
+                    )
+                if previous_key in _PUBLIC_TEMPLATE_SECRETS:
+                    raise ValueError("production profile rejects public template credentials")
 
         if (
             self.provider_backend is ProviderBackend.OPENAI
