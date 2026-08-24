@@ -13,6 +13,7 @@ from digilicense_ai.schemas import (
     CanonicalProviderRequest,
     Locale,
     Page,
+    ProviderFact,
     ProviderResult,
     ReasonCode,
     SemanticContext,
@@ -40,6 +41,16 @@ def _request(
                 url="https://transport.delhi.gov.in/transport/driving-license",
                 text="A learner licence must be held for at least 30 days.",
                 score=1,
+            ),
+        ),
+        facts=(
+            ProviderFact(
+                fact_id="delhi-permanent-licence-waiting-period-v1",
+                source_id="delhi-driving-licence-guidance-2026",
+                section_id="delhi-permanent-licence-timing-v1",
+                label="Minimum learner licence holding period before competence test",
+                value="30",
+                unit="days",
             ),
         ),
         prompt_version="phase6-test-v1",
@@ -166,6 +177,17 @@ def test_citations_must_be_retrieved_and_known() -> None:
     )
     with pytest.raises(OutputSafetyError, match="unknown source"):
         validator.validate(unknown, _request().model_copy(update={"evidence": (unknown_evidence,)}))
+
+
+def test_fact_ids_must_be_supplied_for_the_exact_retrieved_section() -> None:
+    with pytest.raises(OutputSafetyError, match="outside retrieved evidence"):
+        OutputSafetyValidator(load_promoted_corpus()).validate(
+            _result(
+                "The learner licence is valid for 6 months.",
+                fact_ids=("delhi-learner-validity-six-months-v1",),
+            ),
+            _request(),
+        )
 
 
 async def test_waitlist_routing_precedes_generic_waiting_term() -> None:

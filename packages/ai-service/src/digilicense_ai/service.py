@@ -25,8 +25,10 @@ from digilicense_ai.schemas import (
     DlpScope,
     Escalation,
     EscalationCode,
+    EvidenceChunk,
     IntentResult,
     Locale,
+    ProviderFact,
     RetrievalQuery,
     SourceReference,
 )
@@ -192,6 +194,7 @@ class AssistantService:
             reason_code=request.reason_code,
             locale=request.locale,
             evidence=evidence,
+            facts=self._facts_for_evidence(evidence, intent_result.intent),
             prompt_version=(
                 "phase3-openai-v1"
                 if self._container.settings.provider_backend is ProviderBackend.OPENAI
@@ -270,6 +273,25 @@ class AssistantService:
             sources=sources,
             uncertain=provider_result.uncertain,
             context_token=context_token,
+        )
+
+    def _facts_for_evidence(
+        self,
+        evidence: tuple[EvidenceChunk, ...],
+        intent: CanonicalIntent,
+    ) -> tuple[ProviderFact, ...]:
+        evidence_sections = {(item.source_id, item.section_id) for item in evidence}
+        return tuple(
+            ProviderFact(
+                fact_id=fact.fact_id,
+                source_id=fact.source_id,
+                section_id=fact.section_id,
+                label=fact.label,
+                value=fact.value,
+                unit=fact.unit,
+            )
+            for fact in self._output_validator.corpus.manifest.fact_packets
+            if (fact.source_id, fact.section_id) in evidence_sections and intent in fact.intents
         )
 
     async def _blocked_response(

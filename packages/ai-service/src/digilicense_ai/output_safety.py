@@ -173,7 +173,8 @@ class OutputSafetyValidator:
         if not result.source_ids or not set(result.source_ids).issubset(permitted_source_ids):
             raise OutputSafetyError("answer cites a source outside retrieved evidence")
 
-        allowed_facts = {}
+        evidence_sections = {(item.source_id, item.section_id) for item in request.evidence}
+        expected_facts = {}
         known_sources = set()
         for source_id in result.source_ids:
             try:
@@ -187,23 +188,39 @@ class OutputSafetyValidator:
                 marker in lowered for marker in _SIMULATION_MARKERS
             ):
                 raise OutputSafetyError("prototype behavior lacks simulation disclosure")
-            allowed_facts.update(
+            expected_facts.update(
                 {
                     fact.fact_id: fact
                     for fact in self.corpus.manifest.fact_packets
-                    if fact.source_id == source_id and request.intent in fact.intents
+                    if (fact.source_id, fact.section_id) in evidence_sections
+                    and fact.source_id == source_id
+                    and request.intent in fact.intents
                 }
             )
 
+        supplied_facts = {fact.fact_id: fact for fact in request.facts}
+        if set(supplied_facts) != set(expected_facts):
+            raise OutputSafetyError("provider fact payload does not match retrieved evidence")
+        for fact_id, fact in supplied_facts.items():
+            expected = expected_facts[fact_id]
+            if (
+                fact.source_id != expected.source_id
+                or fact.section_id != expected.section_id
+                or fact.label != expected.label
+                or fact.value != expected.value
+                or fact.unit != expected.unit
+            ):
+                raise OutputSafetyError("provider fact payload does not match reviewed fact")
+
         if len(set(result.fact_ids)) != len(result.fact_ids):
             raise OutputSafetyError("answer returned duplicate fact IDs")
-        if not set(result.fact_ids).issubset(allowed_facts):
+        if not set(result.fact_ids).issubset(supplied_facts):
             raise OutputSafetyError("answer cites a fact outside retrieved evidence")
 
         numeric_claims = _numeric_claims(answer)
         if numeric_claims and not result.fact_ids:
             raise OutputSafetyError("numeric answer omits reviewed fact IDs")
-        cited_facts = tuple(allowed_facts[fact_id] for fact_id in result.fact_ids)
+        cited_facts = tuple(expected_facts[fact_id] for fact_id in result.fact_ids)
         for value, unit in numeric_claims:
             if not any(
                 fact.value.translate(_DEVANAGARI_DIGITS) == value

@@ -59,4 +59,9 @@ def validated_result(
         raise ValueError("provider returned a source ID outside supplied evidence")
     if request.intent is not CanonicalIntent.UNSUPPORTED_QUESTION and not returned_source_ids:
         raise ValueError("grounded provider response omitted its source")
+    allowed_fact_ids = {fact.fact_id for fact in request.facts}
+    if len(set(result.fact_ids)) != len(result.fact_ids):
+        raise ValueError("provider returned duplicate fact IDs")
+    if not set(result.fact_ids).issubset(allowed_fact_ids):
+        raise ValueError("provider returned a fact ID outside supplied evidence")
     return result
