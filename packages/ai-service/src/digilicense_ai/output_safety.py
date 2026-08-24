@@ -57,6 +57,8 @@ _HINDI_NUMBER_WORDS = {
     "आठ": 8,
     "नौ": 9,
     "दस": 10,
+    "बीस": 20,
+    "तीस": 30,
 }
 _ENGLISH_SPELLED_NUMBER = re.compile(
     r"\b(?:(?P<tens>twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)"
@@ -65,12 +67,13 @@ _ENGLISH_SPELLED_NUMBER = re.compile(
     r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen))\b",
     re.IGNORECASE,
 )
-_HINDI_SPELLED_NUMBER = re.compile(r"एक|दो|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस")
+_HINDI_SPELLED_NUMBER = re.compile(r"एक|दो|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस|बीस|तीस")
 _UNPARSED_SPELLED_QUANTITY = re.compile(
     r"\b(?:hundred|thousand|million|billion|dozen)(?:[-\s]+[a-z]+){0,2}\s+"
     r"(?:days?|months?|years?|inr|rupees?)\b",
     re.IGNORECASE,
 )
+_UNPARSED_HINDI_QUANTITY = re.compile(r"[\u0900-\u097f]+\s*(?:दिन|महीने?|साल|वर्ष|रुपये?)")
 _UNIT = re.compile(
     r"\b(?P<unit>days?|months?|years?|inr|rupees?)\b|(?P<hindi>दिन|महीने?|साल|वर्ष|रुपये?)",
     re.IGNORECASE,
@@ -251,9 +254,12 @@ class OutputSafetyValidator:
         ):
             raise OutputSafetyError("answer cites a fact outside its cited source")
 
+        normalized_answer = _normalize_spelled_numbers(answer)
         numeric_claims = _numeric_claims(answer)
         if _UNPARSED_SPELLED_QUANTITY.search(answer):
             raise OutputSafetyError("answer contains an unsupported spelled numeric claim")
+        if _UNPARSED_HINDI_QUANTITY.search(normalized_answer):
+            raise OutputSafetyError("answer contains an unsupported Hindi numeric claim")
         if numeric_claims and not result.fact_ids:
             raise OutputSafetyError("numeric answer omits reviewed fact IDs")
         cited_facts = tuple(expected_facts[fact_id] for fact_id in result.fact_ids)

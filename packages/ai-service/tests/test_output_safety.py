@@ -105,6 +105,20 @@ def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
             ),
             _request(),
         )
+    with pytest.raises(OutputSafetyError, match="numeric claim"):
+        validator.validate(
+            _result("आपको बीस दिन प्रतीक्षा करनी होगी।", fact_ids=fact_ids),
+            _request(),
+        )
+    assert validator.validate(
+        _result("आपको तीस दिन प्रतीक्षा करनी होगी।", fact_ids=fact_ids),
+        _request(),
+    )
+    with pytest.raises(OutputSafetyError, match="unsupported Hindi"):
+        validator.validate(
+            _result("आपको आधा साल प्रतीक्षा करनी होगी।", fact_ids=fact_ids),
+            _request(),
+        )
 
 
 @pytest.mark.parametrize(
