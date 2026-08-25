@@ -92,7 +92,7 @@ const learnerTestBank: readonly BankQuestion[] = [
     ],
     prompt: {
       en: "People are waiting to cross at a pedestrian crossing ahead. You should:",
-      hi: "आगे पैदल यात्री पारंग (क्रॉसिंग) पर लोग पार करने की प्रतीक्षा कर रहे हैं। आपको:",
+      hi: "आगे पैदल यात्री क्रॉसिंग पर लोग पार करने की प्रतीक्षा कर रहे हैं। आपको:",
     },
   },
   {
