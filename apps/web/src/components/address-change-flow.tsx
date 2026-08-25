@@ -504,25 +504,37 @@ function AddressChangeFlow() {
           We verify the current mobile number ending in {currentMobileLastFour}.
           No message is sent to a real phone.
         </p>
-        <label
-          className="mt-6 block text-sm font-medium"
-          htmlFor="address-change-licence"
-        >
-          Licence record
-        </label>
-        <select
-          className={`${inputClassName} mt-2`}
-          id="address-change-licence"
-          onChange={(event) => setLicenceRecordId(event.target.value)}
-          required
-          value={licenceRecordId}
-        >
-          {licences.map((licence) => (
-            <option key={licence.id} value={licence.id}>
-              {licence.licenceNumber}
-            </option>
-          ))}
-        </select>
+        {licences.length === 0 ? (
+          <p
+            className="mt-6 rounded-xl border border-border p-4 text-sm leading-6 text-muted-foreground"
+            role="status"
+          >
+            No licence record is available for this account. Address change can
+            start only after a licence record is available.
+          </p>
+        ) : (
+          <>
+            <label
+              className="mt-6 block text-sm font-medium"
+              htmlFor="address-change-licence"
+            >
+              Licence record
+            </label>
+            <select
+              className={`${inputClassName} mt-2`}
+              id="address-change-licence"
+              onChange={(event) => setLicenceRecordId(event.target.value)}
+              required
+              value={licenceRecordId}
+            >
+              {licences.map((licence) => (
+                <option key={licence.id} value={licence.id}>
+                  {licence.licenceNumber}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <p aria-live="polite" className="mt-4 text-sm text-destructive">
           {message}
         </p>
