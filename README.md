@@ -143,34 +143,35 @@ docker compose version
 
 ## Getting started
 
-Run the complete local stack, including PostgreSQL and Adminer, from the
-repository root:
+With Docker running, set up the complete local stack (web app, PostgreSQL,
+Adminer, migrations, and synthetic seed data) from the repository root:
 
 ```bash
-cp .env.example .env
-cp apps/web/.env.example apps/web/.env
-openssl rand -hex 24
-openssl rand -base64 48
-docker compose up -d --build
-docker compose exec web pnpm --filter @digilicense/db db:migrate:deploy
-docker compose exec web pnpm --filter @digilicense/db db:seed
+pnpm setup
 ```
 
-Before `docker compose up`, paste the first generated value into
-`DIGILICENSE_LOCAL_DB_PASSWORD` in `.env`, and the second into
-`DIGILICENSE_SESSION_SECRET`. `.env` is ignored by Git. Do not use either
-local value in a deployed environment.
+The script generates local secrets into the ignored `.env` on first run,
+syncs `apps/web/.env` for host-side Prisma commands, builds and starts the
+Compose stack, applies checked-in migrations, and seeds demo data. It is safe
+to re-run; it never deletes data.
+
+Other lifecycle commands:
+
+| Command       | Purpose                                          |
+| ------------- | ------------------------------------------------ |
+| `pnpm setup`  | Start or finish setting up the stack. Keeps data. |
+| `pnpm stop`   | Stop the stack. Keeps all local data.             |
+| `pnpm reset`  | Delete all local data and rebuild from scratch.   |
 
 Open these local addresses:
-
 - App: [http://localhost:3000](http://localhost:3000)
 - Database viewer: [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
 The app runs with Vite inside Docker and reloads after source changes. Check
-the running services with `docker compose ps`. Stop the stack with
-`docker compose down`. This preserves the local database volume. Use
-`docker compose down -v` only when you deliberately want to delete all local
-synthetic database data.
+the running services with `docker compose ps`. Stop the stack with `pnpm stop`
+(or `docker compose down`). This preserves the local database volume. Use
+`pnpm reset` (or `docker compose down -v`) only when you deliberately want to
+delete all local synthetic database data.
 
 Use these credentials only with the local synthetic environment:
 
@@ -213,11 +214,14 @@ generated output.
 
 ## Database setup and migrations
 
-Copy `apps/web/.env.example` to `apps/web/.env`, point `DATABASE_URL` at a
-synthetic development database, and set a session secret. The database package
-uses that same uncommitted file for Prisma commands. All database hosts,
-including loopback development hosts, must require TLS (`sslmode=require`,
-`verify-ca`, or `verify-full`).
+`pnpm setup` writes both environment files for you. The root `.env` owns the
+single source of truth for the local database password and session secret.
+`apps/web/.env` mirrors that password with a `localhost` `DATABASE_URL` so
+Prisma commands run on the host work without manual copying; Docker Compose
+overrides `DATABASE_URL` inside containers, so the localhost URL only affects
+host-side commands. The database package uses that same uncommitted file for
+Prisma commands. All database hosts, including loopback development hosts,
+must require TLS (`sslmode=require`, `verify-ca`, or `verify-full`).
 
 For the local Docker database, apply new checked-in migrations and ensure the
 synthetic seed records exist with:
