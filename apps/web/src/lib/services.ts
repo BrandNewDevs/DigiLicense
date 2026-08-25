@@ -9,7 +9,12 @@ type ServiceField = {
 
 // A service can declare a persisted workflow. Workflow-backed services render
 // a guided, server-validated flow instead of the static prototype form.
-type ServiceWorkflow = "learner-licence" | "learner-test" | "mobile-update"
+type ServiceWorkflow =
+  | "address-change"
+  | "application-status"
+  | "learner-licence"
+  | "learner-test"
+  | "mobile-update"
 
 type ServiceDefinition = {
   action: string
@@ -159,8 +164,9 @@ const services = [
     summary: "Prepare an address-change request for Delhi.",
     description:
       "Choose a Delhi locality and review which proof would be required.",
-    action: "Prepare address change",
+    action: "Start address change",
     protected: true,
+    workflow: "address-change",
     whatYouNeed: [
       "A driving-licence record",
       "A Delhi locality",
@@ -218,6 +224,7 @@ const services = [
       "Look up the seeded application. Results are limited to the applicant account.",
     action: "Show status",
     protected: true,
+    workflow: "application-status",
     whatYouNeed: [
       "The seeded applicant",
       "An application number",

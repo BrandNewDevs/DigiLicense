@@ -40,7 +40,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="sky-glow-background">
+      <body>
         <a
           href="#main-content"
           className="sr-only fixed top-4 left-4 z-50 rounded-md border border-foreground px-4 py-3 text-sm font-medium text-foreground focus:not-sr-only focus:outline-2 focus:outline-offset-4 focus:outline-ring"
