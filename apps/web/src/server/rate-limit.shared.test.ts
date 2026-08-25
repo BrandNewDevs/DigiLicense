@@ -12,6 +12,14 @@ describe("rate limit rules", () => {
   it("keeps login account attempts tightly bounded", () => {
     expect(rateLimitRules["login-account"].limit).toBeLessThanOrEqual(10)
   })
+
+  it("keeps address-change OTP verification tightly bounded", () => {
+    expect(rateLimitRules["address-change-otp-start"].limit).toBe(3)
+    expect(rateLimitRules["address-change-otp-verify"].limit).toBe(5)
+    expect(rateLimitRules["address-change-otp-verify"].windowMs).toBe(
+      10 * 60_000
+    )
+  })
 })
 
 describe("getWindowStart", () => {

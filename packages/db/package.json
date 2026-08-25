@@ -9,6 +9,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:purge-expired-mobile-changes": "tsx scripts/purge-expired-mobile-changes.ts",
+    "db:purge-expired-address-change-verifications": "tsx scripts/purge-expired-address-change-verifications.ts",
     "db:purge-expired-drafts": "tsx scripts/purge-expired-application-drafts.ts",
     "db:seed": "prisma db seed",
     "test": "vitest run",
