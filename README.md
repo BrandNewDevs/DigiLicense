@@ -390,6 +390,11 @@ stylesheet rather than hard-coded colors wherever possible.
   workspace exports.
 - Run `pnpm lint` before opening a pull request.
 - Keep generated route files out of manual edits.
+- Restart the dev server after heavy git operations such as branch switches,
+  rebases, or merges (`docker compose restart web`). The running Vite process
+  watches the bind-mounted repository, and files that appear or disappear
+  mid-flight can leave its generated route tree referencing deleted routes,
+  causing import-analysis errors until a restart clears the cache.
 - Replace the placeholder service-page text and client-only tracking redirect
   when the real application and status APIs are available.
 
