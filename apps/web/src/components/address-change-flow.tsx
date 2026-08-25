@@ -188,7 +188,13 @@ function AddressChangeFlow() {
   async function handleStart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const idempotencyKey = createIdempotencyKey()
-    if (!idempotencyKey || !licenceRecordId) {
+    if (!idempotencyKey) {
+      setMessage(
+        "This browser cannot start the secure address-change workflow. Update your browser and try again."
+      )
+      return
+    }
+    if (!licenceRecordId) {
       setMessage("Choose a licence record before starting verification.")
       return
     }
@@ -223,7 +229,19 @@ function AddressChangeFlow() {
   async function handleVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const idempotencyKey = createIdempotencyKey()
-    if (!idempotencyKey || !verification) return
+    if (!idempotencyKey) {
+      setMessage(
+        "This browser cannot verify the secure address-change workflow. Update your browser and try again."
+      )
+      return
+    }
+    if (!verification) {
+      setMessage(
+        "This verification request is no longer available. Start a new request."
+      )
+      setPhase("ready")
+      return
+    }
 
     setIsSubmitting(true)
     setMessage("")
@@ -290,7 +308,19 @@ function AddressChangeFlow() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const idempotencyKey = createIdempotencyKey()
-    if (!verification || !idempotencyKey) return
+    if (!idempotencyKey) {
+      setMessage(
+        "This browser cannot submit the secure address-change workflow. Update your browser and try again."
+      )
+      return
+    }
+    if (!verification) {
+      setMessage(
+        "This verification request is no longer available. Start a new request."
+      )
+      setPhase("ready")
+      return
+    }
     if (!declarationAccepted) {
       setMessage("Accept the declaration before submitting.")
       return
