@@ -81,10 +81,16 @@ function DisplayPreferencesProvider({ children }: { children: ReactNode }) {
     root.dataset.digilicenseContentWidth = preferences.contentWidth
 
     if (hasLoadedPreferences) {
-      window.localStorage.setItem(
-        displayPreferencesStorageKey,
-        JSON.stringify(preferences)
-      )
+      try {
+        window.localStorage.setItem(
+          displayPreferencesStorageKey,
+          JSON.stringify(preferences)
+        )
+      } catch {
+        // Private browsing or a full quota must not crash the page after a
+        // preference change; the in-memory preference still applies.
+        window.localStorage.removeItem(displayPreferencesStorageKey)
+      }
     }
   }, [hasLoadedPreferences, preferences])
 

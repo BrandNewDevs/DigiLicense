@@ -110,7 +110,13 @@ function startMockSession(role: MockRole) {
     version: 1,
   }
 
-  window.localStorage.setItem(sessionKeys[role], JSON.stringify(session))
+  try {
+    window.localStorage.setItem(sessionKeys[role], JSON.stringify(session))
+  } catch {
+    // Storage may be unavailable (private mode, quota). Sign-in then only
+    // lasts for this page load instead of crashing; that beats failing the
+    // whole page after the applicant entered a valid code.
+  }
   window.dispatchEvent(new Event(sessionEvent))
 }
 
