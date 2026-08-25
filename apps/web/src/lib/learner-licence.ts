@@ -67,9 +67,9 @@ const identityProofValues = [
 ] as const
 
 const identityProofOptions = [
-  { label: "Aadhaar card", value: "MOCK_AADHAAR_CARD" },
-  { label: "Voter ID card", value: "MOCK_VOTER_ID" },
-  { label: "Passport", value: "MOCK_PASSPORT" },
+  { label: "Aadhaar card (mock)", value: "MOCK_AADHAAR_CARD" },
+  { label: "Voter ID card (mock)", value: "MOCK_VOTER_ID" },
+  { label: "Passport (mock)", value: "MOCK_PASSPORT" },
 ] as const satisfies readonly ProofOption[]
 
 // Written out explicitly so Zod receives a stable tuple of literals.

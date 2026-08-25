@@ -51,6 +51,7 @@ The primary demo journey is learner's licence through permanent driving-test app
 ## What not to do
 
 - Do not use "more" or simulation labels in user-facing headings, descriptions, or calls to action. This includes "mock", "synthetic", "demo", "prototype", "simulated", "sample", and "fake", plus close synonyms. Describe the action directly and explain service boundaries without those labels.
+  - Exception — service-boundary disclosure: where the product must distinguish implemented behavior from mocked government actions (per the engineering guardrail "Clearly distinguish implemented product behavior from mocked government actions in code, records, UI, documentation, and demos"), precise boundary language such as "(mock)" on a synthetic proof option, "recorded by DigiLicense only; no government service was contacted", or a labelled simulated result is required, not banned. The ban targets vague decoration like calling the whole service a demo; it does not suppress honest boundary statements. Keep such language exact, adjacent to the affected element, and free of the banned filler words used decoratively.
 - Do not access, test, automate, submit to, or interfere with a live government system.
 - Do not reverse-engineer private systems or use undocumented/private APIs.
 - Do not scrape personal, sensitive, or restricted information.
