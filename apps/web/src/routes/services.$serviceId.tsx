@@ -3,6 +3,7 @@ import { ArrowLeft, Check, ShieldAlert } from "lucide-react"
 
 import { ApplicantHeader } from "../components/applicant-header"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
+import { applicantNavigation } from "../lib/applicant-navigation"
 import { LearnerLicenceForm } from "../components/learner-licence-form"
 import { LearnerTestFlow } from "../components/learner-test-flow"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
@@ -34,11 +35,7 @@ function ServicePage() {
   return (
     <div className="min-h-svh text-foreground">
       <ApplicantHeader
-        navigation={[
-          { href: "/#about", label: "About" },
-          { href: "/services", label: "Services" },
-          { href: "/#how-it-works", label: "How it works" },
-        ]}
+navigation={applicantNavigation}
         returnTo={`/services/${service.id}`}
       />
 
