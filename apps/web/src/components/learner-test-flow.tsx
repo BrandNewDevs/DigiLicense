@@ -39,6 +39,26 @@ type GradedOutcome = {
 const inputClassName =
   "h-11 w-full rounded-lg border border-input px-3 text-base sm:max-w-xs"
 
+// Always yields a spec-compliant v4 UUID so the server's z.uuid() boundary
+// accepts it even where crypto.randomUUID is unavailable.
+function createTestIdempotencyKey(): string | null {
+  if (typeof crypto === "undefined") return null
+
+  if ("randomUUID" in crypto && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("")
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 function LearnerTestFlow() {
   const loadState = useServerFn(readLearnerTestState)
   const submitTest = useServerFn(submitLearnerTest)
@@ -100,13 +120,28 @@ function LearnerTestFlow() {
     }
   }, [phase])
 
+  function announce(message: string) {
+    setAnnouncement(message)
+  }
+
   function beginTest() {
     setAnswers(new Array(state?.questionCount ?? 0).fill(-1))
-    setIdempotencyKey(
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `lt-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    )
+
+    const key = createTestIdempotencyKey()
+
+    if (!key) {
+      setSubmitError({
+        kind: "unsupported-browser",
+        message:
+          "This browser cannot start the test securely. Update your browser or open DigiLicense over HTTPS.",
+      })
+      announce(
+        "This browser cannot start the test securely. Update your browser or open DigiLicense over HTTPS."
+      )
+      return
+    }
+
+    setIdempotencyKey(key)
     setSubmitError(undefined)
     setPhase("test")
     setAnnouncement(
@@ -430,8 +465,18 @@ function LearnerTestFlow() {
           </select>
         </div>
 
+        {submitError?.kind === "unsupported-browser" ? (
+          <div
+            className="mt-5 rounded-xl border border-destructive/40 p-4 text-sm leading-6 text-destructive"
+            role="alert"
+          >
+            {submitError.message}
+          </div>
+        ) : null}
+
         <Button
           className="mt-7 h-11 w-full text-base sm:w-auto"
+          disabled={submitError?.kind === "unsupported-browser"}
           onClick={beginTest}
           size="lg"
         >

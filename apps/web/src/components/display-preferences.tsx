@@ -89,7 +89,12 @@ function DisplayPreferencesProvider({ children }: { children: ReactNode }) {
       } catch {
         // Private browsing or a full quota must not crash the page after a
         // preference change; the in-memory preference still applies.
-        window.localStorage.removeItem(displayPreferencesStorageKey)
+        try {
+          window.localStorage.removeItem(displayPreferencesStorageKey)
+        } catch {
+          // If storage itself is unavailable, removeItem throws the same way;
+          // nothing further can or needs to be cleaned up.
+        }
       }
     }
   }, [hasLoadedPreferences, preferences])
