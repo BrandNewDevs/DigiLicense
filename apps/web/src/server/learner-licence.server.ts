@@ -394,7 +394,7 @@ async function submitLearnerLicenceApplication(
             service: learnerServiceName,
             status: "DOCUMENTS_VERIFIED",
             nextAction:
-              "Your application is ready for the appointment waitlist.",
+              "Your application is ready for the learner's test.",
             workflowEvents: {
               create: [
                 {

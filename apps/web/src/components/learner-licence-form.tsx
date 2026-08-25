@@ -503,7 +503,7 @@ function LearnerLicenceForm() {
               Next action for you
             </dt>
             <dd className="mt-1">
-              Your application is ready for the appointment waitlist.
+              Your application is ready for the learner's test.
             </dd>
           </div>
         </dl>

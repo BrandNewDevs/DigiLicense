@@ -9,7 +9,7 @@ type ServiceField = {
 
 // A service can declare a persisted workflow. Workflow-backed services render
 // a guided, server-validated flow instead of the static prototype form.
-type ServiceWorkflow = "learner-licence"
+type ServiceWorkflow = "learner-licence" | "learner-test"
 
 type ServiceDefinition = {
   action: string
@@ -56,30 +56,18 @@ const services = [
   {
     id: "learner-test",
     title: "Take the learner's test",
-    summary: "Complete a short learner's test.",
+    summary: "Complete the learner's test for your application.",
     description:
-      "Use the application to try the test flow. The result has no official effect.",
+      "Answer road-sign and road-rule questions in English or Hindi. The result decides whether you continue or retake.",
     action: "Start learner's test",
     protected: true,
     whatYouNeed: [
-      "A learner application",
-      "Ten uninterrupted minutes",
+      "A learner's-licence application whose checks are complete",
+      "Ten questions and a pass mark of six",
       "No real licence or identity details",
     ],
-    fields: [
-      {
-        label: "Application number",
-        name: "applicationNumber",
-        type: "text",
-        defaultValue: "DLDEMO20260001",
-      },
-      {
-        label: "Test language",
-        name: "language",
-        type: "select",
-        options: ["English", "Hindi"],
-      },
-    ],
+    workflow: "learner-test",
+    fields: [],
   },
   {
     id: "permanent-licence",

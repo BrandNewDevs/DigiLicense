@@ -22,6 +22,11 @@ enum ApplicationStatus {
   WAITLISTED
 }
 
+enum TestLanguage {
+  ENGLISH
+  HINDI
+}
+
 enum WorkflowActor {
   APPLICANT
   OPERATOR
@@ -72,6 +77,7 @@ model Application {
   documents         DocumentRecord[]
   payments          PaymentRecord[]
   notifications     NotificationRecord[]
+  learnerTestAttempts LearnerTestAttempt[]
 
   @@index([applicantId, applicationNumber])
   @@index([status, submittedAt])
@@ -173,6 +179,23 @@ model NotificationRecord {
   application   Application?       @relation(fields: [applicationId], references: [id], onDelete: Restrict)
 
   @@index([applicantId, status, createdAt])
+  @@index([applicationId, createdAt])
+}
+
+// One row per completed learner's-test submission. Question identifiers and
+// submitted answers are stored so the result is reproducible and reviewable.
+model LearnerTestAttempt {
+  id            String       @id @default(cuid())
+  applicationId String
+  language      TestLanguage
+  questionIds   String
+  answers       String
+  score         Int
+  passed        Boolean
+  isSimulated   Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  application   Application  @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
   @@index([applicationId, createdAt])
 }
 

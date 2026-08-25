@@ -16,7 +16,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 ## Ten core capabilities
 
 - [x] 1. New learner's-licence application (guided multi-step form, server-validated eligibility, persisted drafts with seven-day retention, transactional submission with duplicate-application guard)
-- [ ] 2. Simulated learner's test, result, and retest flow
+- [x] 2. Simulated learner's test, result, and retest flow
 - [ ] 3. New permanent driving-licence application with waiting-period eligibility
 - [ ] 4. Driving-licence renewal application
 - [ ] 5. Duplicate or replacement driving-licence application

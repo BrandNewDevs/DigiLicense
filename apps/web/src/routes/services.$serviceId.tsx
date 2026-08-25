@@ -4,6 +4,7 @@ import { ArrowLeft, Check, ShieldAlert } from "lucide-react"
 import { ApplicantHeader } from "../components/applicant-header"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
 import { LearnerLicenceForm } from "../components/learner-licence-form"
+import { LearnerTestFlow } from "../components/learner-test-flow"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
 import { getService } from "../lib/services"
 
@@ -19,13 +20,16 @@ function ServicePage() {
     return <UnknownService />
   }
 
-  const isLearnerLicenceWorkflow = "workflow" in service
+  const workflow = "workflow" in service ? service.workflow : undefined
 
-  const form = isLearnerLicenceWorkflow ? (
-    <LearnerLicenceForm />
-  ) : (
-    <ServicePrototypeForm service={service} />
-  )
+  const form =
+    workflow === "learner-licence" ? (
+      <LearnerLicenceForm />
+    ) : workflow === "learner-test" ? (
+      <LearnerTestFlow />
+    ) : (
+      <ServicePrototypeForm service={service} />
+    )
 
   return (
     <div className="min-h-svh text-foreground">
@@ -78,7 +82,7 @@ function ServicePage() {
                   aria-hidden="true"
                 />
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {isLearnerLicenceWorkflow
+                  {workflow
                     ? "Use only the values shown on this page. Answers are stored so status and history work end to end, and nothing is sent to a government service."
                     : "Use only the values shown on this page. No data is saved or sent to an external service."}
                 </p>

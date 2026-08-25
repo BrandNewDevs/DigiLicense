@@ -11,6 +11,9 @@ type RateLimitRule = {
 const rateLimitRules = {
   "application-draft": { limit: 30, windowMs: 15 * 60_000 },
   "application-submit": { limit: 5, windowMs: 15 * 60_000 },
+  // Test submissions grade a full attempt each time, so the budget stays
+  // tight; genuine retests after a failed result still fit comfortably.
+  "learner-test": { limit: 5, windowMs: 15 * 60_000 },
   "login-ip": { limit: 30, windowMs: 15 * 60_000 },
   "login-account": { limit: 5, windowMs: 5 * 60_000 },
 } as const
