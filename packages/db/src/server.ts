@@ -10,6 +10,8 @@ export {
 } from "./generated/prisma/enums.ts"
 export type { ApplicationStatus } from "./generated/prisma/enums.ts"
 export {
+  getCurrentMobileHmacKeyVersion,
+  getMobileHashCandidates,
   hashMobileNumber,
   normalizeMobileNumber,
 } from "./mobile-identity.ts"

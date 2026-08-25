@@ -3,6 +3,8 @@ import "@tanstack/react-start/server-only"
 import { prisma } from "@digilicense/db/server"
 import { setResponseHeader, useSession } from "@tanstack/react-start/server"
 
+import { recordDependencyFailure } from "./logger.server"
+
 type ApplicantSessionData = {
   applicantId: string
   authVersion: number
@@ -63,10 +65,20 @@ async function requireApplicant() {
     return null
   }
 
-  const account = await prisma.applicantAccount.findUnique({
-    where: { id: session.data.applicantId },
-    select: { authVersion: true },
-  })
+  let account: { authVersion: number } | null
+
+  try {
+    account = await prisma.applicantAccount.findUnique({
+      where: { id: session.data.applicantId },
+      select: { authVersion: true },
+    })
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "applicant_session_auth_version",
+    })
+    return null
+  }
 
   if (!account || account.authVersion !== session.data.authVersion) return null
 

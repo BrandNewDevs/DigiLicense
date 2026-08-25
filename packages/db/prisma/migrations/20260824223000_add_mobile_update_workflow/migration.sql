@@ -15,6 +15,7 @@ CREATE TYPE "MockAadhaarVerificationStatus" AS ENUM ('PENDING', 'PASSED', 'FAILE
 CREATE TABLE "ApplicantAccount" (
   "id" TEXT NOT NULL,
   "mobileHmac" TEXT NOT NULL,
+  "mobileHmacKeyVersion" TEXT NOT NULL,
   "mobileLastFour" TEXT NOT NULL,
   "authVersion" INTEGER NOT NULL DEFAULT 1,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,6 +30,7 @@ CREATE TABLE "MobileChangeRequest" (
   "id" TEXT NOT NULL,
   "applicantId" TEXT NOT NULL,
   "targetMobileHmac" TEXT NOT NULL,
+  "targetMobileHmacKeyVersion" TEXT NOT NULL,
   "targetMobileLastFour" TEXT NOT NULL,
   "method" "MobileChangeVerificationMethod" NOT NULL,
   "status" "MobileChangeStatus" NOT NULL,
@@ -56,6 +58,11 @@ ON "MobileChangeRequest"("applicantId", "updatedAt");
 
 CREATE INDEX "MobileChangeRequest_expiresAt_idx"
 ON "MobileChangeRequest"("expiresAt");
+
+ALTER TABLE "MobileChangeRequest"
+ADD CONSTRAINT "MobileChangeRequest_applicantId_fkey"
+FOREIGN KEY ("applicantId") REFERENCES "ApplicantAccount"("id")
+ON DELETE RESTRICT ON UPDATE CASCADE;
 
 CREATE TABLE "MobileChangeOtpChallenge" (
   "id" TEXT NOT NULL,
