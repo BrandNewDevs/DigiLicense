@@ -333,9 +333,15 @@ function SiteHeader({
         )}
       </div>
       {utility ? (
-        <div className="absolute top-5 right-5 hidden md:block">
-          {utility}
-        </div>
+        <>
+          <div className="absolute top-5 right-5 hidden md:block">
+            {utility}
+          </div>
+          {/* Small screens have no room beside the navigation pill. Render
+              the utility (accessibility controls) in flow under the header
+              row so it stays reachable instead of being display:none. */}
+          <div className="flex justify-end px-4 pb-1 md:hidden">{utility}</div>
+        </>
       ) : null}
     </header>
   )
