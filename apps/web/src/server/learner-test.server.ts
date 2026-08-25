@@ -170,6 +170,7 @@ async function startLearnerTestAttempt(): Promise<LearnerTestReadResult> {
 async function submitLearnerTest(input: {
   language: LearnerTestLanguage
   answers: number[]
+  idempotencyKey: string
 }): Promise<LearnerTestSubmitResult> {
   const applicant = await requireApplicant()
 
@@ -233,6 +234,33 @@ async function submitLearnerTest(input: {
         SELECT pg_advisory_xact_lock(hashtextextended(${applicant.applicantId}, 0))
       `
 
+      // A retried submission whose first request already committed returns
+      // the stored graded result without recording anything new.
+      const replay = await transaction.learnerTestAttempt.findUnique({
+        where: { idempotencyKey: input.idempotencyKey },
+        select: {
+          score: true,
+          passed: true,
+          application: { select: { applicationNumber: true } },
+        },
+      })
+
+      if (replay) {
+        const graded: {
+          replayed: true
+          score: number
+          passed: boolean
+          applicationNumber: string
+        } = {
+          replayed: true,
+          score: replay.score,
+          passed: replay.passed,
+          applicationNumber: replay.application.applicationNumber,
+        }
+
+        return graded
+      }
+
       const application = await transaction.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
@@ -249,6 +277,7 @@ async function submitLearnerTest(input: {
       await transaction.learnerTestAttempt.create({
         data: {
           applicationId: application.id,
+          idempotencyKey: input.idempotencyKey,
           language,
           questionIds: JSON.stringify(
             learnerTestBank.map((question) => question.id)
@@ -319,6 +348,17 @@ async function submitLearnerTest(input: {
         kind: "no-application",
         message:
           "No learner's-licence application is ready for the test. Submit the learner's-licence application first.",
+      }
+    }
+
+    if ("replayed" in result) {
+      // Replay surfaces the stored outcome; nothing new was recorded.
+      return {
+        kind: "graded",
+        applicationNumber: result.applicationNumber,
+        score: result.score,
+        passMark: learnerTestPassMark,
+        passed: result.passed,
       }
     }
 
