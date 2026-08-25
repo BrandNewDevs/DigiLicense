@@ -1,5 +1,8 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
+import { ArrowLeft } from "lucide-react"
 
+import { AddressChangeFlow } from "../components/address-change-flow"
+import { ApplicationStatusFlow } from "../components/application-status-flow"
 import { ApplicantHeader } from "../components/applicant-header"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
 import { applicantNavigation } from "../lib/applicant-navigation"
@@ -24,12 +27,16 @@ function ServicePage() {
   const workflow = "workflow" in service ? service.workflow : undefined
 
   const form =
-    workflow === "learner-licence" ? (
+    workflow === "application-status" ? (
+      <ApplicationStatusFlow />
+    ) : workflow === "learner-licence" ? (
       <LearnerLicenceForm />
     ) : workflow === "learner-test" ? (
       <LearnerTestFlow />
     ) : workflow === "mobile-update" ? (
       <MobileUpdateFlow />
+    ) : workflow === "address-change" ? (
+      <AddressChangeFlow />
     ) : (
       <ServicePrototypeForm service={service} />
     )
@@ -48,6 +55,7 @@ function ServicePage() {
               className="inline-flex min-h-11 items-center gap-2 text-base text-muted-foreground underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
               to="/services"
             >
+              <ArrowLeft aria-hidden="true" className="size-4" />
               Back to services
             </Link>
 
@@ -108,6 +116,7 @@ function UnknownService() {
         className="inline-flex min-h-11 items-center gap-2 text-muted-foreground underline"
         to="/services"
       >
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to services
       </Link>
       <p className="mt-20 text-base text-muted-foreground">Service not found</p>

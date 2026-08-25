@@ -7,7 +7,7 @@ export const Route = createFileRoute("/")({ component: App })
 
 function App() {
   return (
-    <div className="flex min-h-svh flex-col overflow-hidden text-foreground">
+    <div className="sky-glow-background flex min-h-svh flex-col overflow-hidden text-foreground">
       <ApplicantHeader navigation={applicantNavigation} returnTo="/" />
 
       <main className="flex flex-col items-center pt-10" id="main-content">
@@ -29,21 +29,27 @@ function App() {
           </p>
         </div>
 
-        <section className="w-full max-w-[var(--digilicense-home-width)] px-5 pb-16 pt-10 text-left" id="about">
+        <section
+          className="w-full max-w-[var(--digilicense-home-width)] px-5 pt-10 pb-16 text-left"
+          id="about"
+        >
           <h2 className="font-heading text-xl font-medium tracking-[-0.03em]">
             About this service
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
             DigiLicense is an independent Delhi-only service for driving-
-            licence journeys. It is not a government website and does not
-            submit anything to a government system. Actions that would reach a
+            licence journeys. It is not a government website and does not submit
+            anything to a government system. Actions that would reach a
             government office, such as document verification or test results
-            being registered officially, are carried out inside DigiLicense
-            only and are labelled at the point where they happen.
+            being registered officially, are carried out inside DigiLicense only
+            and are labelled at the point where they happen.
           </p>
         </section>
 
-        <section className="w-full max-w-[var(--digilicense-home-width)] px-5 pb-16 text-left" id="how-it-works">
+        <section
+          className="w-full max-w-[var(--digilicense-home-width)] px-5 pb-16 text-left"
+          id="how-it-works"
+        >
           <h2 className="font-heading text-xl font-medium tracking-[-0.03em]">
             How it works
           </h2>
