@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { LogOut } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -43,7 +42,6 @@ function ApplicantHeader({ navigation, returnTo }: ApplicantHeaderProps) {
               type="button"
               variant="outline"
             >
-              <LogOut className="size-4" aria-hidden="true" />
               {isSigningOut ? "Logging out..." : "Logout"}
             </Button>
           </>

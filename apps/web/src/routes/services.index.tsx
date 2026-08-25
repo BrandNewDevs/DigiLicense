@@ -1,5 +1,4 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { ArrowUpRight } from "lucide-react"
 
 import { ApplicantHeader } from "../components/applicant-header"
 import { applicantNavigation } from "../lib/applicant-navigation"
@@ -62,7 +61,6 @@ navigation={applicantNavigation}
                           params={{ serviceId: service.id }}
                         >
                           {service.action}
-                          <ArrowUpRight className="size-4" aria-hidden="true" />
                         </Link>
                         <Link
                           className="inline-flex min-h-11 items-center text-sm font-medium text-[#d96b16] underline decoration-2 decoration-dotted decoration-[#d96b16] underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d96b16]"

@@ -1,4 +1,3 @@
-import { LogIn, ShieldCheck } from "lucide-react"
 import type { ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
@@ -24,7 +23,6 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
         aria-labelledby="mock-sign-in-title"
       >
         <div className="flex size-12 items-center justify-center rounded-2xl border border-border">
-          <LogIn className="size-5" aria-hidden="true" />
         </div>
         <p className="mt-6 text-sm font-medium text-muted-foreground">
           Sign in required
@@ -54,7 +52,6 @@ function MockApplicantGate({ children, returnTo }: MockApplicantGateProps) {
     <div>
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="size-5" aria-hidden="true" />
           <div>
             <p className="text-sm font-medium">Applicant active</p>
             <p className="text-sm text-muted-foreground">

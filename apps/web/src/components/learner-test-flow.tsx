@@ -1,4 +1,3 @@
-import { AlertCircle, Award, CheckCircle2, RotateCcw } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
@@ -271,7 +270,6 @@ function LearnerTestFlow() {
   if (phase === "unavailable") {
     return (
       <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <AlertCircle className="size-8" aria-hidden="true" />
         <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
           Service unavailable
         </h2>
@@ -286,7 +284,6 @@ function LearnerTestFlow() {
   if (phase === "no-application") {
     return (
       <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <AlertCircle className="size-8" aria-hidden="true" />
         <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
           No application is ready for the test
         </h2>
@@ -308,7 +305,6 @@ function LearnerTestFlow() {
   if (phase === "already-passed") {
     return (
       <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <Award className="size-8" aria-hidden="true" />
         <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
           Learner's test already passed
         </h2>
@@ -334,11 +330,6 @@ function LearnerTestFlow() {
         aria-labelledby="test-result-title"
         className="rounded-3xl border border-border p-6 sm:p-8"
       >
-        {outcome.passed ? (
-          <Award className="size-10" aria-hidden="true" />
-        ) : (
-          <RotateCcw className="size-10" aria-hidden="true" />
-        )}
         <p className="mt-6 text-sm font-medium text-muted-foreground">
           Test result for {outcome.applicationNumber}
         </p>
@@ -399,7 +390,6 @@ function LearnerTestFlow() {
         aria-labelledby="learner-test-intro-title"
         className="rounded-3xl border border-border p-6 sm:p-8"
       >
-        <CheckCircle2 className="size-8" aria-hidden="true" />
         <h2
           className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]"
           id="learner-test-intro-title"

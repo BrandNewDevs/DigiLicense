@@ -1,4 +1,3 @@
-import { AlertCircle, BadgeCheck, CheckCircle2, FileCheck2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
@@ -386,7 +385,6 @@ function LearnerLicenceForm() {
   if (phase === "unavailable") {
     return (
       <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <AlertCircle className="size-8" aria-hidden="true" />
         <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
           Service unavailable
         </h2>
@@ -406,7 +404,6 @@ function LearnerLicenceForm() {
         aria-labelledby="active-application-title"
         className="rounded-3xl border border-border p-6 sm:p-8"
       >
-        <FileCheck2 className="size-8" aria-hidden="true" />
         <p className="mt-5 text-sm font-medium text-muted-foreground">
           Application already in progress
         </p>
@@ -471,7 +468,6 @@ function LearnerLicenceForm() {
         aria-labelledby="submission-complete-title"
         className="rounded-3xl border border-border p-6 sm:p-8"
       >
-        <BadgeCheck className="size-10" aria-hidden="true" />
         <p className="mt-6 text-sm font-medium text-muted-foreground">
           Submission complete
         </p>
@@ -514,10 +510,6 @@ function LearnerLicenceForm() {
             "Your saved draft was closed so it cannot create a second application.",
           ].map((item) => (
             <li className="flex gap-3 leading-6" key={item}>
-              <CheckCircle2
-                className="mt-1 size-4 shrink-0"
-                aria-hidden="true"
-              />
               <span>{item}</span>
             </li>
           ))}

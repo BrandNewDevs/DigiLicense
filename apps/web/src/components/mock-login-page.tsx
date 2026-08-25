@@ -1,4 +1,3 @@
-import { ArrowLeft, BadgeCheck } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
@@ -54,14 +53,12 @@ function MockLoginPage({ returnTo }: MockLoginPageProps) {
           className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           to={destination}
         >
-          <ArrowLeft className="size-4" aria-hidden="true" />
           Back
         </Link>
         <h1 className="sr-only">Applicant sign in</h1>
 
         {isSignedIn ? (
           <section className="mt-6 rounded-2xl border border-[#d96b16]/25 bg-[#fff8f0] p-5">
-            <BadgeCheck className="size-8 text-[#d96b16]" aria-hidden="true" />
             <h2 className="mt-4 font-heading text-xl font-semibold tracking-[-0.03em]">
               You are signed in
             </h2>

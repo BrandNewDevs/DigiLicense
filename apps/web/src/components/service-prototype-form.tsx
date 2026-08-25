@@ -1,4 +1,3 @@
-import { CheckCircle2 } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -18,7 +17,6 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
         className="rounded-3xl border border-border p-6 sm:p-8"
         aria-live="polite"
       >
-        <CheckCircle2 className="size-8" aria-hidden="true" />
         <p className="mt-5 text-sm font-medium text-muted-foreground">
           Completed
         </p>

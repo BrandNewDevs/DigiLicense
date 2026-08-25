@@ -1,5 +1,4 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { ArrowLeft, Check, ShieldAlert } from "lucide-react"
 
 import { ApplicantHeader } from "../components/applicant-header"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
@@ -46,7 +45,6 @@ navigation={applicantNavigation}
               className="inline-flex min-h-11 items-center gap-2 text-base text-muted-foreground underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
               to="/services"
             >
-              <ArrowLeft className="size-4" aria-hidden="true" />
               Back to services
             </Link>
 
@@ -67,17 +65,12 @@ navigation={applicantNavigation}
             <ul className="mt-5 space-y-4">
               {service.whatYouNeed.map((item) => (
                 <li className="flex gap-3 leading-6" key={item}>
-                  <Check className="mt-1 size-4 shrink-0" aria-hidden="true" />
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
             <div className="mt-7">
               <div className="flex gap-3">
-                <ShieldAlert
-                  className="mt-1 size-4 shrink-0"
-                  aria-hidden="true"
-                />
                 <p className="text-sm leading-6 text-muted-foreground">
                   {workflow
                     ? "Use only the values shown on this page. Answers are stored so status and history work end to end, and nothing is sent to a government service."
@@ -113,7 +106,6 @@ function UnknownService() {
         className="inline-flex min-h-11 items-center gap-2 text-muted-foreground underline"
         to="/services"
       >
-        <ArrowLeft className="size-4" aria-hidden="true" />
         Back to services
       </Link>
       <p className="mt-20 text-base text-muted-foreground">Service not found</p>

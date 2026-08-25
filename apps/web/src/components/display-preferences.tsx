@@ -1,10 +1,3 @@
-import {
-  Binoculars,
-  Minus,
-  RotateCcw,
-  TextCursorInput,
-  Plus,
-} from "lucide-react"
 import { createContext, useContext, useEffect, useState } from "react"
 import type { ReactNode } from "react"
 
@@ -143,7 +136,7 @@ function DisplayPreferencesControl() {
         className="inline-flex size-9 items-center justify-center rounded-full bg-black text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         title="Display settings"
       >
-        <Binoculars className="size-4" aria-hidden="true" />
+        <span className="text-xs font-semibold">Aa</span>
       </PopoverTrigger>
 
       <PopoverContent
@@ -158,10 +151,6 @@ function DisplayPreferencesControl() {
                 Adjust the page for easier reading.
               </p>
             </div>
-            <TextCursorInput
-              className="mt-0.5 size-4 text-muted-foreground"
-              aria-hidden="true"
-            />
           </div>
 
           <div aria-hidden="true" className="mt-3 border-t border-border" />
@@ -170,10 +159,10 @@ function DisplayPreferencesControl() {
             <legend className="font-medium">Text size</legend>
             <div className="mt-1.5 grid grid-cols-3 gap-2" role="group">
               {[
-                { icon: Minus, label: "Small", value: "small" },
-                { icon: TextCursorInput, label: "Default", value: "default" },
-                { icon: Plus, label: "Large", value: "large" },
-              ].map(({ icon: Icon, label, value }) => (
+                { label: "Small", value: "small" },
+                { label: "Default", value: "default" },
+                { label: "Large", value: "large" },
+              ].map(({ label, value }) => (
                 <button
                   aria-pressed={textScale === value}
                   className={`inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
@@ -185,7 +174,6 @@ function DisplayPreferencesControl() {
                   onClick={() => setTextScale(value as TextScale)}
                   type="button"
                 >
-                  <Icon className="size-3.5" aria-hidden="true" />
                   {label}
                 </button>
               ))}
@@ -226,7 +214,6 @@ function DisplayPreferencesControl() {
               onClick={resetPreferences}
               type="button"
             >
-              <RotateCcw className="size-3.5" aria-hidden="true" />
               Reset display settings
             </button>
           </div>
