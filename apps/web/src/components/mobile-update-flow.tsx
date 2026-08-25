@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
 
+import { scheduleMobileUpdateExpiry } from "../lib/mobile-update-expiry"
 import type {
   MobileUpdateReadResult,
   MobileUpdateStartResult,
@@ -113,6 +114,17 @@ function MobileUpdateFlow() {
     if (phase === "completed" || phase === "unavailable")
       headingRef.current?.focus()
   }, [phase])
+
+  useEffect(() => {
+    if (!activeRequest) return
+
+    return scheduleMobileUpdateExpiry(activeRequest.expiresAt, () => {
+      setActiveRequest(null)
+      setOtp("")
+      setMessage("This verification request has expired. Start a new one.")
+      setPhase("ready")
+    })
+  }, [activeRequest])
 
   function setRequestFromStart(
     result: Extract<MobileUpdateStartResult, { kind: "started" }>
