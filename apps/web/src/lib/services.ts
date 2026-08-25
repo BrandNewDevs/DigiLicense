@@ -9,7 +9,7 @@ type ServiceField = {
 
 // A service can declare a persisted workflow. Workflow-backed services render
 // a guided, server-validated flow instead of the static prototype form.
-type ServiceWorkflow = "learner-licence" | "learner-test"
+type ServiceWorkflow = "learner-licence" | "learner-test" | "mobile-update"
 
 type ServiceDefinition = {
   action: string
@@ -190,16 +190,17 @@ const services = [
     action: "Send OTP",
     protected: true,
     whatYouNeed: [
-      "The fixed mobile number",
-      "The displayed OTP",
-      "Optional Aadhaar consent",
+      "A synthetic ten-digit mobile number",
+      "The synthetic OTP shown for the prototype",
+      "Optional mock Aadhaar verification — no Aadhaar number",
     ],
+    workflow: "mobile-update",
     fields: [
       {
         label: "Mobile number",
         name: "mobileNumber",
         type: "text",
-        defaultValue: "9000000001",
+        defaultValue: "9000000004",
       },
       {
         label: "Verification method",

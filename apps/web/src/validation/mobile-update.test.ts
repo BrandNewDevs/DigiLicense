@@ -23,8 +23,18 @@ describe("startMobileUpdateSchema", () => {
   it.each([
     { idempotencyKey, method: "SMS", targetMobileNumber: "9000000002" },
     { idempotencyKey, method: "OTP", targetMobileNumber: "900000002" },
-    { idempotencyKey: "not-a-uuid", method: "OTP", targetMobileNumber: "9000000002" },
-    { extra: "rejected", idempotencyKey, method: "OTP", targetMobileNumber: "9000000002" },
+    { idempotencyKey, method: "OTP", targetMobileNumber: "9876543210" },
+    {
+      idempotencyKey: "not-a-uuid",
+      method: "OTP",
+      targetMobileNumber: "9000000002",
+    },
+    {
+      extra: "rejected",
+      idempotencyKey,
+      method: "OTP",
+      targetMobileNumber: "9000000002",
+    },
   ])("rejects invalid input", (input) => {
     expect(startMobileUpdateSchema.safeParse(input).success).toBe(false)
   })
