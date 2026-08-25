@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto"
 
 import {
   Prisma,
+  getCurrentMobileHmacKeyVersion,
+  getMobileHashCandidates,
   hashMobileNumber,
   prisma,
 } from "@digilicense/db/server"
@@ -84,6 +86,7 @@ type PendingRequest = {
     | "EXPIRED"
     | "CANCELLED"
   targetMobileHmac: string
+  targetMobileHmacKeyVersion: string
   targetMobileLastFour: string
 }
 
@@ -200,6 +203,10 @@ async function startMobileUpdate(input: {
   }
 
   const targetMobileHmac = hashMobileNumber(input.targetMobileNumber)
+  const targetMobileHashCandidates = getMobileHashCandidates(
+    input.targetMobileNumber
+  )
+  const targetMobileHmacKeyVersion = getCurrentMobileHmacKeyVersion()
   const expiresAt = new Date(Date.now() + mobileChangeExpiryMs)
 
   try {
@@ -211,13 +218,16 @@ async function startMobileUpdate(input: {
           expiresAt: true,
           id: true,
           method: true,
+          status: true,
           targetMobileLastFour: true,
         },
       })
 
       if (previous) {
         if (previous.applicantId !== applicant.applicantId) return { kind: "unavailable" as const }
-        if (previous.expiresAt <= new Date()) return { kind: "active-expired" as const }
+        if (!isActiveStatus(previous.status) || previous.expiresAt <= new Date()) {
+          return { kind: "active-expired" as const }
+        }
 
         return {
           kind: "started" as const,
@@ -229,18 +239,28 @@ async function startMobileUpdate(input: {
       }
 
       const [account, targetAccount] = await Promise.all([
-        transaction.applicantAccount.findUnique({
+        transaction.applicantAccount.findFirst({
           where: { id: applicant.applicantId },
           select: { mobileHmac: true },
         }),
-        transaction.applicantAccount.findUnique({
-          where: { mobileHmac: targetMobileHmac },
+        transaction.applicantAccount.findFirst({
+          where: {
+            mobileHmac: {
+              in: targetMobileHashCandidates.map((candidate) => candidate.hmac),
+            },
+          },
           select: { id: true },
         }),
       ])
 
       if (!account) return { kind: "unavailable" as const }
-      if (account.mobileHmac === targetMobileHmac) return { kind: "same" as const }
+      if (
+        targetMobileHashCandidates.some(
+          (candidate) => candidate.hmac === account.mobileHmac
+        )
+      ) {
+        return { kind: "same" as const }
+      }
       if (targetAccount) return { kind: "in-use" as const }
 
       await transaction.mobileChangeRequest.updateMany({
@@ -260,6 +280,7 @@ async function startMobileUpdate(input: {
           startIdempotencyKey: input.idempotencyKey,
           status: input.method === "OTP" ? "OTP_PENDING" : "AADHAAR_PENDING",
           targetMobileHmac,
+          targetMobileHmacKeyVersion,
           targetMobileLastFour: input.targetMobileNumber.slice(-4),
         },
         select: { id: true },
@@ -359,6 +380,7 @@ async function completeMobileUpdate(
     data: {
       authVersion: { increment: 1 },
       mobileHmac: request.targetMobileHmac,
+      mobileHmacKeyVersion: request.targetMobileHmacKeyVersion,
       mobileLastFour: request.targetMobileLastFour,
     },
     select: { authVersion: true, mobileLastFour: true },
@@ -449,7 +471,9 @@ async function verifyMobileUpdateOtp(input: {
         return { kind: "otp-replayed", message: "This OTP challenge has already been used." }
       }
       if (!isActiveStatus(request.status) || request.expiresAt <= new Date() || !request.otpChallenge || request.otpChallenge.expiresAt <= new Date()) {
-        await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "EXPIRED" } })
+        if (isActiveStatus(request.status) && request.expiresAt <= new Date()) {
+          await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "EXPIRED" } })
+        }
         return { kind: "request-expired", message: "This OTP request has expired. Start a new one." }
       }
 
@@ -508,7 +532,9 @@ async function completeMockAadhaarVerification(input: {
         return { kind: "otp-replayed", message: "This verification request has already been used." }
       }
       if (!isActiveStatus(request.status) || request.expiresAt <= new Date() || !request.aadhaarVerification) {
-        await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "EXPIRED" } })
+        if (isActiveStatus(request.status) && request.expiresAt <= new Date()) {
+          await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "EXPIRED" } })
+        }
         return { kind: "request-expired", message: "This verification request has expired. Start a new one." }
       }
 

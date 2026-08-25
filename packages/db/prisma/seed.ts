@@ -8,7 +8,10 @@ import {
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
 import { createDatabaseAdapter } from "../src/database-adapter.ts"
-import { hashMobileNumber } from "../src/mobile-identity.ts"
+import {
+  getCurrentMobileHmacKeyVersion,
+  hashMobileNumber,
+} from "../src/mobile-identity.ts"
 
 config({
   path: fileURLToPath(new URL("../../../apps/web/.env", import.meta.url)),
@@ -33,10 +36,15 @@ const applicantAccounts = [
 for (const applicant of applicantAccounts) {
   await prisma.applicantAccount.upsert({
     where: { id: applicant.id },
-    update: {},
+    update: {
+      mobileHmac: hashMobileNumber(applicant.mobileNumber),
+      mobileHmacKeyVersion: getCurrentMobileHmacKeyVersion(),
+      mobileLastFour: applicant.mobileNumber.slice(-4),
+    },
     create: {
       id: applicant.id,
       mobileHmac: hashMobileNumber(applicant.mobileNumber),
+      mobileHmacKeyVersion: getCurrentMobileHmacKeyVersion(),
       mobileLastFour: applicant.mobileNumber.slice(-4),
     },
   })

@@ -198,12 +198,14 @@ model NotificationRecord {
 }
 
 model ApplicantAccount {
-  id             String   @id
-  mobileHmac     String   @unique
-  mobileLastFour String
-  authVersion    Int      @default(1)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                      String                @id
+  mobileHmac              String                @unique
+  mobileHmacKeyVersion    String
+  mobileLastFour          String
+  authVersion             Int                   @default(1)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  mobileChangeRequests    MobileChangeRequest[]
 
   @@index([updatedAt])
 }
@@ -212,6 +214,7 @@ model MobileChangeRequest {
   id                         String                         @id @default(cuid())
   applicantId                String
   targetMobileHmac           String
+  targetMobileHmacKeyVersion String
   targetMobileLastFour       String
   method                     MobileChangeVerificationMethod
   status                     MobileChangeStatus
@@ -223,6 +226,7 @@ model MobileChangeRequest {
   updatedAt                  DateTime                       @updatedAt
   otpChallenge               MobileChangeOtpChallenge?
   aadhaarVerification        MockAadhaarVerification?
+  applicant                  ApplicantAccount               @relation(fields: [applicantId], references: [id], onDelete: Restrict)
 
   @@index([applicantId, updatedAt])
   @@index([expiresAt])
