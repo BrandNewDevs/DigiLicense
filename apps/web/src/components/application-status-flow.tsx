@@ -23,6 +23,7 @@ function ApplicationStatusFlow() {
   const [applicationNumber, setApplicationNumber] = useState("")
   const [result, setResult] = useState<StatusResult>()
   const [message, setMessage] = useState("")
+  const [authenticationRequired, setAuthenticationRequired] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -31,12 +32,14 @@ function ApplicationStatusFlow() {
 
     if (!parsed.success) {
       setResult(undefined)
+      setAuthenticationRequired(false)
       setMessage("Enter a valid application reference to continue.")
       return
     }
 
     setIsSubmitting(true)
     setResult(undefined)
+    setAuthenticationRequired(false)
     setMessage("")
     try {
       const response = await lookupStatus({ data: parsed.data })
@@ -49,6 +52,9 @@ function ApplicationStatusFlow() {
         return
       }
 
+      if (response.kind === "authentication-required") {
+        setAuthenticationRequired(true)
+      }
       setMessage(response.message)
     } catch {
       setMessage("Application tracking is temporarily unavailable.")
@@ -147,7 +153,7 @@ function ApplicationStatusFlow() {
         </section>
       ) : null}
 
-      {message.includes("Sign in") ? (
+      {authenticationRequired ? (
         <Link
           className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-foreground px-5 font-medium"
           search={{ returnTo: "/services/track-application" }}
