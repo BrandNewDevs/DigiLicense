@@ -8,6 +8,10 @@ import {
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
 import { createDatabaseAdapter } from "../src/database-adapter.ts"
+import {
+  getCurrentMobileHmacKeyVersion,
+  hashMobileNumber,
+} from "../src/mobile-identity.ts"
 
 config({
   path: fileURLToPath(new URL("../../../apps/web/.env", import.meta.url)),
@@ -23,17 +27,66 @@ const prisma = new PrismaClient({
   adapter: createDatabaseAdapter(databaseUrl),
 })
 
-// The primary demo applicant (001) keeps a clean learner's-licence slate so
-// the guided submission flow can be demonstrated live. The other records
-// support applicant-facing status and waitlist demonstrations.
+const applicantAccounts = [
+  { id: "demo-applicant-001", mobileNumber: "9000000001" },
+  { id: "demo-applicant-002", mobileNumber: "9000000002" },
+  { id: "demo-applicant-003", mobileNumber: "9000000003" },
+] as const
+
+for (const applicant of applicantAccounts) {
+  await prisma.applicantAccount.upsert({
+    where: { id: applicant.id },
+    update: {
+      mobileHmac: hashMobileNumber(applicant.mobileNumber),
+      mobileHmacKeyVersion: getCurrentMobileHmacKeyVersion(),
+      mobileLastFour: applicant.mobileNumber.slice(-4),
+    },
+    create: {
+      id: applicant.id,
+      mobileHmac: hashMobileNumber(applicant.mobileNumber),
+      mobileHmacKeyVersion: getCurrentMobileHmacKeyVersion(),
+      mobileLastFour: applicant.mobileNumber.slice(-4),
+    },
+  })
+}
+
+// Scenarios are spread across synthetic applicants because the database
+// allows only one active application per (applicant, service) pair. The
+// primary demo applicant (001) keeps a clean learner's-licence slate so the
+// guided submission flow can be demonstrated live; 002 and 003 hold the
+// remaining in-flight cases so the operator dashboard stays varied.
 const scenarios = [
   {
     applicantId: "demo-applicant-002",
     applicationNumber: "DLDEMO20260001",
     service: "Learner's licence",
-    status: ApplicationStatus.DOCUMENTS_VERIFIED,
-    nextAction: "Your application is ready for the appointment-waitlist demo.",
-    title: "Automatic simulated checks completed",
+    status: ApplicationStatus.DOCUMENT_REVIEW,
+    nextAction: "Wait for the mock document review.",
+    title: "Synthetic application submitted",
+  },
+  {
+    applicantId: "demo-applicant-003",
+    applicationNumber: "DLDEMO20260002",
+    service: "Learner's licence",
+    status: ApplicationStatus.TEST_PENDING,
+    nextAction: "Wait for the simulated learner-test result.",
+    title: "Simulated test completed",
+  },
+  {
+    applicantId: "demo-applicant-002",
+    applicationNumber: "DLDEMO20260003",
+    service: "Permanent driving licence",
+    status: ApplicationStatus.PAYMENT_REVIEW,
+    nextAction: "Wait for the simulated payment check.",
+    title: "Mock payment needs review",
+  },
+  {
+    applicantId: "demo-applicant-001",
+    applicationNumber: "DLDEMO20260004",
+    service: "Driving-licence renewal",
+    status: ApplicationStatus.APPROVAL_PENDING,
+    nextAction: "Wait for the mock operator decision.",
+    title: "Synthetic checks completed",
   },
   {
     applicantId: "demo-applicant-001",

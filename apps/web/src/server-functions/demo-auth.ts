@@ -38,7 +38,8 @@ const loginDemoSession = createServerFn({ method: "POST" })
       }
     }
 
-    const accountIdentifier = data.mobileNumber
+    const accountIdentifier =
+      data.role === "applicant" ? data.mobileNumber : data.username
 
     let accountLimit: ConsumeRateLimitResult
 
@@ -67,21 +68,92 @@ const loginDemoSession = createServerFn({ method: "POST" })
       }
     }
 
-    const { getApplicantSession } = await import(
-      "../server/demo-session.server"
-    )
+    const { getApplicantSession, getOperatorSession } =
+      await import("../server/demo-session.server")
 
-    if (data.mobileNumber !== "9000000001" || data.otp !== "123456") {
+    if (data.role === "applicant") {
+      const {
+        getCurrentMobileHmacKeyVersion,
+        getMobileHashCandidates,
+        hashMobileNumber,
+        normalizeMobileNumber,
+        prisma,
+      } = await import(
+        "@digilicense/db/server"
+      )
+      const { getMockMobileUpdateOtp } = await import(
+        "../server/mobile-update.shared"
+      )
+      const mobileNumber = normalizeMobileNumber(data.mobileNumber)
+
+      if (!mobileNumber || data.otp !== getMockMobileUpdateOtp()) {
+        return {
+          ok: false as const,
+          message: "The demo credentials were not accepted.",
+        }
+      }
+
+      const hashCandidates = getMobileHashCandidates(mobileNumber)
+      const account = await prisma.applicantAccount.findFirst({
+        where: { mobileHmac: { in: hashCandidates.map((candidate) => candidate.hmac) } },
+        select: { authVersion: true, id: true, mobileHmac: true },
+      })
+
+      if (!account) {
+        return {
+          ok: false as const,
+          message: "The demo credentials were not accepted.",
+        }
+      }
+
+      const currentMobileHmac = hashMobileNumber(mobileNumber)
+      const currentKeyVersion = getCurrentMobileHmacKeyVersion()
+
+      if (account.mobileHmac !== currentMobileHmac) {
+        await prisma.applicantAccount.update({
+          where: { id: account.id },
+          data: {
+            mobileHmac: currentMobileHmac,
+            mobileHmacKeyVersion: currentKeyVersion,
+          },
+        })
+      }
+
+      const session = await getApplicantSession()
+      await session.update({
+        applicantId: account.id,
+        authVersion: account.authVersion,
+        role: "applicant",
+      })
+      return { ok: true as const }
+    }
+
+    const configuredUsername =
+      process.env.DEMO_OPERATOR_USERNAME?.trim().toLowerCase()
+    const configuredPassword = process.env.DEMO_OPERATOR_PASSWORD
+
+    if (!configuredUsername || !configuredPassword) {
       return {
         ok: false as const,
-        message: "The credentials were not accepted.",
+        message:
+          "Operator sign in is unavailable because synthetic operator credentials are not configured.",
       }
     }
 
-    const session = await getApplicantSession()
+    if (
+      data.username !== configuredUsername ||
+      data.password !== configuredPassword
+    ) {
+      return {
+        ok: false as const,
+        message: "The demo credentials were not accepted.",
+      }
+    }
+
+    const session = await getOperatorSession()
     await session.update({
-      applicantId: "demo-applicant-001",
-      role: "applicant",
+      operatorId: "demo-operator-001",
+      role: "operator",
     })
 
     return { ok: true as const }
@@ -89,11 +161,13 @@ const loginDemoSession = createServerFn({ method: "POST" })
 
 const logoutDemoSession = createServerFn({ method: "POST" })
   .validator((input: unknown) => demoLogoutSchema.parse(input))
-  .handler(async () => {
-    const { getApplicantSession } = await import(
-      "../server/demo-session.server"
-    )
-    const session = await getApplicantSession()
+  .handler(async ({ data }) => {
+    const { getApplicantSession, getOperatorSession } =
+      await import("../server/demo-session.server")
+    const session =
+      data.role === "applicant"
+        ? await getApplicantSession()
+        : await getOperatorSession()
 
     await session.clear()
     return { ok: true as const }
