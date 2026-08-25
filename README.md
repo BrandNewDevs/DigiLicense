@@ -147,7 +147,7 @@ With Docker running, set up the complete local stack (web app, PostgreSQL,
 Adminer, migrations, and synthetic seed data) from the repository root:
 
 ```bash
-pnpm setup
+pnpm dev:setup
 ```
 
 The script generates local secrets into the ignored `.env` on first run,
@@ -159,18 +159,18 @@ Other lifecycle commands:
 
 | Command       | Purpose                                          |
 | ------------- | ------------------------------------------------ |
-| `pnpm setup`  | Start or finish setting up the stack. Keeps data. |
-| `pnpm stop`   | Stop the stack. Keeps all local data.             |
-| `pnpm reset`  | Delete all local data and rebuild from scratch.   |
+| `pnpm dev:setup`  | Start or finish setting up the stack. Keeps data. |
+| `pnpm dev:stop`   | Stop the stack. Keeps all local data.             |
+| `pnpm dev:reset`  | Delete all local data and rebuild from scratch.   |
 
 Open these local addresses:
 - App: [http://localhost:3000](http://localhost:3000)
 - Database viewer: [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
 The app runs with Vite inside Docker and reloads after source changes. Check
-the running services with `docker compose ps`. Stop the stack with `pnpm stop`
+the running services with `docker compose ps`. Stop the stack with `pnpm dev:stop`
 (or `docker compose down`). This preserves the local database volume. Use
-`pnpm reset` (or `docker compose down -v`) only when you deliberately want to
+`pnpm dev:reset` (or `docker compose down -v`) only when you deliberately want to
 delete all local synthetic database data.
 
 Use these credentials only with the local synthetic environment:
@@ -214,7 +214,7 @@ generated output.
 
 ## Database setup and migrations
 
-`pnpm setup` writes both environment files for you. The root `.env` owns the
+`pnpm dev:setup` writes both environment files for you. The root `.env` owns the
 single source of truth for the local database password and session secret.
 `apps/web/.env` mirrors that password with a `localhost` `DATABASE_URL` so
 Prisma commands run on the host work without manual copying; Docker Compose
