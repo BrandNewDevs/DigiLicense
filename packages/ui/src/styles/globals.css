@@ -194,6 +194,10 @@ html[data-digilicense-content-width="wide"] {
   }
 
   .sky-glow-background {
+    /* Muted text sits directly on the orange gradient top. The default
+       muted gray measures 2.22:1 there; gray-700 keeps >= 4.5:1 against
+       both the solid and the translucent gradient stops. */
+    --muted-foreground: oklch(0.379 0.03 258);
     background-color: #fff;
     background-image: linear-gradient(
       180deg,

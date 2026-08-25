@@ -43,7 +43,7 @@ function InputOTP({
   const slots = Array.from({ length: maxLength }, (_, index) => ({
     char: safeValue[index] ?? "",
     hasFakeCaret:
-      isFocused && index === activeIndex && safeValue[index] === undefined,
+      isFocused && index === activeIndex && index >= safeValue.length,
     isActive: isFocused && index === activeIndex,
   }))
 
