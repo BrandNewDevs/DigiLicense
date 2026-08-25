@@ -4,7 +4,7 @@
 @import "@fontsource-variable/geist";
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: Satoshi;
   src: url("/fonts/satoshi-400.woff2") format("woff2");
   font-display: swap;
   font-style: normal;
@@ -12,7 +12,7 @@
 }
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: Satoshi;
   src: url("/fonts/satoshi-700.woff2") format("woff2");
   font-display: swap;
   font-style: normal;
@@ -20,7 +20,7 @@
 }
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: Satoshi;
   src: url("/fonts/satoshi-400-italic.woff2") format("woff2");
   font-display: swap;
   font-style: italic;
@@ -28,7 +28,7 @@
 }
 
 @font-face {
-  font-family: "Satoshi";
+  font-family: Satoshi;
   src: url("/fonts/satoshi-700-italic.woff2") format("woff2");
   font-display: swap;
   font-style: italic;
@@ -190,7 +190,7 @@ html[data-digilicense-content-width="wide"] {
 
 @layer utilities {
   .font-satoshi {
-    font-family: "Satoshi", var(--font-geist), sans-serif;
+    font-family: Satoshi, var(--font-geist), sans-serif;
   }
 
   .sky-glow-background {
