@@ -10,10 +10,7 @@ function App() {
     <div className="flex min-h-svh flex-col overflow-hidden text-foreground">
       <ApplicantHeader navigation={applicantNavigation} returnTo="/" />
 
-      <main
-      className="flex flex-1 flex-col items-center justify-center pt-16"
-      id="main-content"
-    >
+      <main className="flex flex-col items-center pt-10" id="main-content">
         <div className="w-full max-w-[var(--digilicense-home-width)] px-5 text-center">
           <h1 className="font-satoshi text-2xl font-semibold tracking-tight text-foreground sm:text-5xl">
             <span className="block text-black">
