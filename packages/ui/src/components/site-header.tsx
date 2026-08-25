@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type {
   ElementType,
   FocusEvent,
@@ -127,6 +127,28 @@ function SiteHeader({
     }, INDICATOR_HIDE_DELAY)
   }
 
+  // Consumers often pass an inline array literal, so navigation identity
+  // changes every render. Derive a primitive key from the hrefs and read the
+  // latest navigation through a ref so effects below do not tear down and
+  // rebuild observers on unrelated re-renders.
+  const navigationItemsRef = useRef(navigation)
+
+  useEffect(() => {
+    navigationItemsRef.current = navigation
+  }, [navigation])
+
+  const sectionIds = useMemo(
+    () =>
+      navigation
+        .map((item) => getHashTarget(item.href))
+        .filter((id): id is string => Boolean(id)),
+    [navigation]
+  )
+
+  const sectionIdsKey = sectionIds.join(" ")
+
+  // Runs once: location listeners read navigation through the ref, so they
+  // never need re-subscription and never discard an observed section.
   useEffect(() => {
     const syncLocation = () => {
       const pathname = window.location.pathname
@@ -134,26 +156,31 @@ function SiteHeader({
 
       setCurrentPath(pathname)
       setActiveHash(hash.startsWith("#") ? hash.slice(1) : "")
-      setActiveHref(getActiveNavigationHref(navigation, pathname, hash))
+      setActiveHref(
+        getActiveNavigationHref(navigationItemsRef.current, pathname, hash)
+      )
     }
 
     syncLocation()
     window.addEventListener("hashchange", syncLocation)
     window.addEventListener("popstate", syncLocation)
 
-    const hashTargets = navigation
-      .map((item) => item.href)
-      .filter((href) => href.includes("#"))
-      .map((href) => href.slice(href.indexOf("#") + 1))
+    return () => {
+      window.removeEventListener("hashchange", syncLocation)
+      window.removeEventListener("popstate", syncLocation)
+    }
+  }, [])
+
+  // Re-subscribes only when the set of observed sections actually changes.
+  useEffect(() => {
+    if (!sectionIdsKey) return
+
+    const hashTargets = sectionIdsKey
+      .split(" ")
       .map((id) => document.getElementById(id))
       .filter((element): element is HTMLElement => Boolean(element))
 
-    if (hashTargets.length === 0) {
-      return () => {
-        window.removeEventListener("hashchange", syncLocation)
-        window.removeEventListener("popstate", syncLocation)
-      }
-    }
+    if (hashTargets.length === 0) return
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -164,7 +191,7 @@ function SiteHeader({
           .forEach((entry) => {
             setActiveHash(entry.target.id)
             setActiveHref(
-              navigation.find(
+              navigationItemsRef.current.find(
                 (item) => getHashTarget(item.href) === entry.target.id
               )?.href ?? ""
             )
@@ -176,10 +203,8 @@ function SiteHeader({
     hashTargets.forEach((target) => observer.observe(target))
     return () => {
       observer.disconnect()
-      window.removeEventListener("hashchange", syncLocation)
-      window.removeEventListener("popstate", syncLocation)
     }
-  }, [navigation])
+  }, [sectionIdsKey])
 
   useEffect(() => {
     const activeLink = getNavigationLink(activeHref)
