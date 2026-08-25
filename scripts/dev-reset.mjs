@@ -2,7 +2,7 @@
 // Full local reset: deletes all local synthetic data (the Postgres volume),
 // rebuilds the stack, reapplies migrations, and reseeds demo data.
 //
-//   node scripts/dev-reset.mjs    (or: pnpm reset)
+//   node scripts/dev-reset.mjs    (or: pnpm dev:reset)
 //
 // This is deliberately destructive for local development only. It never
 // touches any non-local environment because every value lives in the ignored

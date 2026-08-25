@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // One-command local development setup.
 //
-//   node scripts/dev-setup.mjs        (or: pnpm setup)
+//   node scripts/dev-setup.mjs        (or: pnpm dev:setup)
 //
 // What it does:
 //  1. Creates the ignored root .env with freshly generated secrets when it is
@@ -142,6 +142,6 @@ Setup complete.
   Sign in:  mobile 9000000001, OTP 123456
 
 Useful next commands:
-  pnpm reset    wipe all local data and start over
-  pnpm stop     stop the stack, keeping data
+  pnpm dev:reset    wipe all local data and start over
+  pnpm dev:stop     stop the stack, keeping data
 `)
