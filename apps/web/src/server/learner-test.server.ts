@@ -181,6 +181,46 @@ async function submitLearnerTest(input: {
     }
   }
 
+  // Ownership-scoped replay check runs before any rate-limit token is
+  // charged: a retried submission after a lost response should never be
+  // penalized, and keys are filtered through the applicant's own
+  // applications so another applicant's key can never leak their result.
+  let replay
+  try {
+    replay = await prisma.learnerTestAttempt.findFirst({
+      where: {
+        idempotencyKey: input.idempotencyKey,
+        application: { applicantId: applicant.applicantId },
+      },
+      select: {
+        score: true,
+        passed: true,
+        application: { select: { applicationNumber: true } },
+      },
+    })
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "learner_test_replay_lookup",
+    })
+
+    return {
+      kind: "unavailable",
+      message:
+        "Test submissions are temporarily unavailable. Try again in a few minutes.",
+    }
+  }
+
+  if (replay) {
+    return {
+      kind: "graded",
+      applicationNumber: replay.application.applicationNumber,
+      score: replay.score,
+      passMark: learnerTestPassMark,
+      passed: replay.passed,
+    }
+  }
+
   let testLimit
 
   try {
@@ -234,33 +274,6 @@ async function submitLearnerTest(input: {
         SELECT pg_advisory_xact_lock(hashtextextended(${applicant.applicantId}, 0))
       `
 
-      // A retried submission whose first request already committed returns
-      // the stored graded result without recording anything new.
-      const replay = await transaction.learnerTestAttempt.findUnique({
-        where: { idempotencyKey: input.idempotencyKey },
-        select: {
-          score: true,
-          passed: true,
-          application: { select: { applicationNumber: true } },
-        },
-      })
-
-      if (replay) {
-        const graded: {
-          replayed: true
-          score: number
-          passed: boolean
-          applicationNumber: string
-        } = {
-          replayed: true,
-          score: replay.score,
-          passed: replay.passed,
-          applicationNumber: replay.application.applicationNumber,
-        }
-
-        return graded
-      }
-
       const application = await transaction.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
@@ -272,6 +285,35 @@ async function submitLearnerTest(input: {
 
       if (!application) {
         return "no-application" as const
+      }
+
+      // Concurrent retries serialize on the advisory lock above; whichever
+      // commits first wins. The second sees the stored attempt through the
+      // same composite uniqueness and replays it instead of double-writing.
+      const committed = await transaction.learnerTestAttempt.findUnique({
+        where: {
+          applicationId_idempotencyKey: {
+            applicationId: application.id,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+        select: { score: true, passed: true },
+      })
+
+      if (committed) {
+        const graded: {
+          replayed: true
+          score: number
+          passed: boolean
+          applicationNumber: string
+        } = {
+          replayed: true,
+          score: committed.score,
+          passed: committed.passed,
+          applicationNumber: application.applicationNumber,
+        }
+
+        return graded
       }
 
       await transaction.learnerTestAttempt.create({

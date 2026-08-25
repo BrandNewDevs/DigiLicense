@@ -194,11 +194,14 @@ model LearnerTestAttempt {
   passed         Boolean
   // Client-generated key so a retried submission after a lost response
   // returns the stored graded result instead of recording a second attempt.
-  idempotencyKey String       @unique
+  // Uniqueness is scoped per application: keys are never matched across
+  // applicants, so another applicant's key cannot leak their result.
+  idempotencyKey String
   isSimulated    Boolean      @default(true)
   createdAt      DateTime     @default(now())
   application    Application  @relation(fields: [applicationId], references: [id], onDelete: Restrict)
 
+  @@unique([applicationId, idempotencyKey])
   @@index([applicationId, createdAt])
 }
 
