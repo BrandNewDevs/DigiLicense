@@ -84,7 +84,7 @@ const learnerLicenceSubmissionSchema = learnerLicenceDraftPayloadSchema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["dateOfBirth"],
-        message: `The selected vehicle class requires an age of ${minimumAge} or more.`,
+        message: `The selected vehicle class requires a minimum age of ${minimumAge}.`,
       })
     }
   })
@@ -100,4 +100,3 @@ export type {
   LearnerLicenceDraftPayload,
   LearnerLicenceSubmission,
 }
-

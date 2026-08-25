@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-type MockRole = "applicant" | "operator"
+type MockRole = "applicant"
 
 type MockSession = {
   expiresAt: number
@@ -17,20 +17,14 @@ const mockCredentials = {
     mobileNumber: "9000000001",
     otp: "123456",
   },
-  operator: {
-    password: "demo-only",
-    username: "operator.demo",
-  },
 } as const
 
 const mockSubjects: Record<MockRole, string> = {
   applicant: "demo-applicant-001",
-  operator: "demo-operator-001",
 }
 
 const sessionKeys: Record<MockRole, string> = {
   applicant: "digilicense.mock-session.applicant",
-  operator: "digilicense.mock-session.operator",
 }
 
 const sessionEvent = "digilicense:mock-session-change"
@@ -116,7 +110,13 @@ function startMockSession(role: MockRole) {
     version: 1,
   }
 
-  window.localStorage.setItem(sessionKeys[role], JSON.stringify(session))
+  try {
+    window.localStorage.setItem(sessionKeys[role], JSON.stringify(session))
+  } catch {
+    // Storage may be unavailable (private mode, quota). Sign-in then only
+    // lasts for this page load instead of crashing; that beats failing the
+    // whole page after the applicant entered a valid code.
+  }
   window.dispatchEvent(new Event(sessionEvent))
 }
 

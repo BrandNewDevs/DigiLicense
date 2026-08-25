@@ -10,7 +10,7 @@ type ServiceCardProps = {
 
 function ServiceCard({ children, description, meta, title }: ServiceCardProps) {
   return (
-    <article className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-5 sm:p-6">
+    <article className="flex h-full min-h-0 flex-col rounded-xl border border-border p-5 sm:p-6">
       <div>
         <h3 className="max-w-[280px] font-heading text-2xl font-medium tracking-[-0.05em] sm:min-h-16">
           {title}
@@ -44,7 +44,7 @@ function ServiceCardAction({
 
   return (
     <LinkElement
-      className="group inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 text-base font-medium text-background transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transition-none sm:w-auto"
+      className="group inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-foreground px-4 text-base font-medium text-foreground transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-reduce:transition-none sm:w-auto"
       {...(linkComponent ? { to: href } : { href })}
     >
       {label}

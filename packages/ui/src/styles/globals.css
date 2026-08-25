@@ -3,6 +3,38 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+@font-face {
+  font-family: Satoshi;
+  src: url("/fonts/satoshi-400.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: Satoshi;
+  src: url("/fonts/satoshi-700.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: Satoshi;
+  src: url("/fonts/satoshi-400-italic.woff2") format("woff2");
+  font-display: swap;
+  font-style: italic;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: Satoshi;
+  src: url("/fonts/satoshi-700-italic.woff2") format("woff2");
+  font-display: swap;
+  font-style: italic;
+  font-weight: 700;
+}
+
 @custom-variant dark (&:is(.dark *));
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
@@ -52,7 +84,7 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.97 0.008 95);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -84,6 +116,21 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --digilicense-home-width: 48rem;
+  --digilicense-page-width: 68.75rem;
+}
+
+html[data-digilicense-text-scale="small"] {
+  font-size: 90%;
+}
+
+html[data-digilicense-text-scale="large"] {
+  font-size: 112.5%;
+}
+
+html[data-digilicense-content-width="wide"] {
+  --digilicense-home-width: 56rem;
+  --digilicense-page-width: 80rem;
 }
 
 .dark {
@@ -121,9 +168,15 @@
 }
 
 @layer base {
+  html {
+    background-color: #ff9933;
+    overscroll-behavior-y: none;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     margin: 0;
@@ -132,5 +185,28 @@
   :where(a, button, input, textarea, select):focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 3px;
+  }
+}
+
+@layer utilities {
+  .font-satoshi {
+    font-family: Satoshi, var(--font-geist), sans-serif;
+  }
+
+  .sky-glow-background {
+    /* Muted text sits directly on the orange gradient top. The default
+       muted gray measures 2.22:1 there; gray-700 keeps >= 4.5:1 against
+       both the solid and the translucent gradient stops. */
+    --muted-foreground: oklch(0.379 0.03 258);
+    background-color: #fff;
+    background-image: linear-gradient(
+      180deg,
+      #ff9933 0%,
+      rgb(255 204 143 / 0.55) 58%,
+      rgb(255 255 255 / 0) 100%
+    );
+    background-position: top center;
+    background-repeat: no-repeat;
+    background-size: 100% 68%;
   }
 }

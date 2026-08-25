@@ -8,7 +8,10 @@ export {
   MockAadhaarVerificationStatus,
   WorkflowActor,
 } from "./generated/prisma/enums.ts"
-export type { ApplicationStatus } from "./generated/prisma/enums.ts"
+export type {
+  ApplicationStatus,
+  TestLanguage,
+} from "./generated/prisma/enums.ts"
 export {
   getCurrentMobileHmacKeyVersion,
   getMobileHashCandidates,

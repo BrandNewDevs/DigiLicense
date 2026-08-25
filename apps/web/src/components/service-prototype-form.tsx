@@ -15,15 +15,15 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
   if (submitted) {
     return (
       <section
-        className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+        className="rounded-3xl border border-border p-6 sm:p-8"
         aria-live="polite"
       >
         <CheckCircle2 className="size-8" aria-hidden="true" />
         <p className="mt-5 text-sm font-medium text-muted-foreground">
-          Simulation complete
+          Completed
         </p>
         <h2 className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]">
-          Your mock request is ready
+          Your request is ready
         </h2>
         <p className="mt-3 max-w-xl leading-7 text-muted-foreground">
           Nothing was sent or saved. This confirms the route and its basic form
@@ -43,15 +43,15 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
 
   return (
     <form
-      className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+      className="rounded-3xl border border-border p-6 sm:p-8"
       onSubmit={(event) => {
         event.preventDefault()
         setSubmitted(true)
       }}
     >
-      <p className="text-sm font-medium text-muted-foreground">Simple demo</p>
+      <p className="text-sm font-medium text-muted-foreground">Service form</p>
       <h2 className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]">
-        Enter synthetic details
+        Enter details
       </h2>
       <p className="mt-3 leading-7 text-muted-foreground">
         Do not enter a real licence number, mobile number, address, or identity
@@ -69,7 +69,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
             </label>
             {field.type === "select" ? (
               <select
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+                className="h-11 w-full rounded-lg border border-input px-3 text-base"
                 id={field.name}
                 name={field.name}
                 required
@@ -83,7 +83,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
               </select>
             ) : (
               <input
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+                className="h-11 w-full rounded-lg border border-input px-3 text-base"
                 defaultValue={field.defaultValue}
                 id={field.name}
                 name={field.name}

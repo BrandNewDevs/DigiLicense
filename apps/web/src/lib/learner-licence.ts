@@ -83,7 +83,7 @@ const addressProofValues = [
 const addressProofOptions = [
   ...identityProofOptions,
   {
-    label: "Recent utility bill (mock)",
+    label: "Recent utility bill",
     value: "MOCK_UTILITY_BILL",
   },
 ] as const satisfies readonly ProofOption[]

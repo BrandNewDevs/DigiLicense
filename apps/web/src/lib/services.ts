@@ -9,7 +9,7 @@ type ServiceField = {
 
 // A service can declare a persisted workflow. Workflow-backed services render
 // a guided, server-validated flow instead of the static prototype form.
-type ServiceWorkflow = "learner-licence"
+type ServiceWorkflow = "learner-licence" | "learner-test"
 
 type ServiceDefinition = {
   action: string
@@ -29,11 +29,11 @@ const services = [
     title: "Apply for a learner's licence",
     summary: "Start a first-time driving-licence application.",
     description:
-      "Choose a vehicle class and Delhi zone, then review the mock application before submission.",
-    action: "Create mock application",
+      "Choose a vehicle class and Delhi zone, then review the application before submission.",
+    action: "Create application",
     protected: true,
     whatYouNeed: [
-      "Synthetic proof of age and address",
+      "Proof of age and address",
       "A vehicle class",
       "A Delhi test zone",
     ],
@@ -56,47 +56,35 @@ const services = [
   {
     id: "learner-test",
     title: "Take the learner's test",
-    summary: "Complete a short simulated learner's test.",
+    summary: "Complete the learner's test for your application.",
     description:
-      "Use the demo application to try the test flow. The result has no official effect.",
-    action: "Start simulated test",
+      "Answer road-sign and road-rule questions in English or Hindi. The result decides whether you continue or retake.",
+    action: "Start learner's test",
     protected: true,
     whatYouNeed: [
-      "A mock learner application",
-      "Ten uninterrupted minutes",
+      "A learner's-licence application whose checks are complete",
+      "Ten questions and a pass mark of six",
       "No real licence or identity details",
     ],
-    fields: [
-      {
-        label: "Mock application number",
-        name: "applicationNumber",
-        type: "text",
-        defaultValue: "DLDEMO20260001",
-      },
-      {
-        label: "Test language",
-        name: "language",
-        type: "select",
-        options: ["English", "Hindi"],
-      },
-    ],
+    workflow: "learner-test",
+    fields: [],
   },
   {
     id: "permanent-licence",
     title: "Apply for a permanent licence",
     summary: "Continue after the learner's-licence waiting period.",
     description:
-      "Check the mock eligibility date, prepare the application, and continue to an appointment.",
-    action: "Check mock eligibility",
+      "Check the eligibility date, prepare the application, and continue to an appointment.",
+    action: "Check eligibility",
     protected: true,
     whatYouNeed: [
-      "An eligible mock learner's licence",
+      "An eligible learner's licence",
       "The same vehicle class",
       "A driving-test appointment",
     ],
     fields: [
       {
-        label: "Mock learner's-licence number",
+        label: "Learner's-licence number",
         name: "learnerLicenceNumber",
         type: "text",
         defaultValue: "DL-LL-DEMO-26001",
@@ -114,17 +102,17 @@ const services = [
     title: "Renew a driving licence",
     summary: "Prepare a renewal for a licence nearing expiry.",
     description:
-      "Review a synthetic licence record, choose the renewal reason, and see the next step.",
-    action: "Prepare mock renewal",
+      "Review a licence record, choose the renewal reason, and see the next step.",
+    action: "Prepare renewal",
     protected: true,
     whatYouNeed: [
-      "A synthetic driving-licence number",
+      "A driving-licence number",
       "A renewal reason",
-      "Mock documents if requested",
+      "Documents if requested",
     ],
     fields: [
       {
-        label: "Mock driving-licence number",
+        label: "Driving-licence number",
         name: "licenceNumber",
         type: "text",
         defaultValue: "DL-DEMO-2020-0042",
@@ -142,17 +130,17 @@ const services = [
     title: "Replace a driving licence",
     summary: "Request a duplicate for a lost or damaged licence.",
     description:
-      "Tell us why the synthetic licence needs replacement and review the mock fee.",
-    action: "Create mock replacement request",
+      "Tell us why the licence needs replacement and review the fee.",
+    action: "Create replacement request",
     protected: true,
     whatYouNeed: [
-      "A synthetic driving-licence record",
+      "A driving-licence record",
       "The replacement reason",
-      "A mock declaration",
+      "A declaration",
     ],
     fields: [
       {
-        label: "Mock driving-licence number",
+        label: "Driving-licence number",
         name: "licenceNumber",
         type: "text",
         defaultValue: "DL-DEMO-2020-0042",
@@ -170,23 +158,23 @@ const services = [
     title: "Change the address on a licence",
     summary: "Prepare an address-change request for Delhi.",
     description:
-      "Choose a synthetic Delhi locality and review which mock proof would be required.",
-    action: "Prepare mock address change",
+      "Choose a Delhi locality and review which proof would be required.",
+    action: "Prepare address change",
     protected: true,
     whatYouNeed: [
-      "A synthetic driving-licence record",
+      "A driving-licence record",
       "A Delhi locality",
-      "Synthetic address proof",
+      "Address proof",
     ],
     fields: [
       {
-        label: "Mock driving-licence number",
+        label: "Driving-licence number",
         name: "licenceNumber",
         type: "text",
         defaultValue: "DL-DEMO-2020-0042",
       },
       {
-        label: "New mock locality",
+        label: "New locality",
         name: "locality",
         type: "select",
         options: ["Dwarka", "Lajpat Nagar", "Mayur Vihar", "Rohini"],
@@ -196,19 +184,19 @@ const services = [
   {
     id: "update-mobile",
     title: "Update a mobile number",
-    summary: "Try the mobile-update and simulated verification flow.",
+    summary: "Try the mobile-update and verification flow.",
     description:
-      "The prototype uses a fixed demo number and never sends an OTP or contacts anyone.",
-    action: "Send simulated OTP",
+      "The service uses a fixed number and never sends an OTP or contacts anyone.",
+    action: "Send OTP",
     protected: true,
     whatYouNeed: [
-      "The fixed synthetic mobile number",
-      "The displayed demo OTP",
-      "Optional mock Aadhaar consent",
+      "The fixed mobile number",
+      "The displayed OTP",
+      "Optional Aadhaar consent",
     ],
     fields: [
       {
-        label: "Synthetic mobile number",
+        label: "Mobile number",
         name: "mobileNumber",
         type: "text",
         defaultValue: "9000000001",
@@ -217,7 +205,7 @@ const services = [
         label: "Verification method",
         name: "verificationMethod",
         type: "select",
-        options: ["Simulated OTP", "Mock Aadhaar authentication"],
+        options: ["OTP", "Aadhaar authentication"],
       },
     ],
   },
@@ -226,17 +214,17 @@ const services = [
     title: "Track an application",
     summary: "See the current status and the next required action.",
     description:
-      "Look up the seeded demo application. Results are limited to the mock applicant account.",
-    action: "Show mock status",
+      "Look up the seeded application. Results are limited to the applicant account.",
+    action: "Show status",
     protected: true,
     whatYouNeed: [
-      "The seeded demo applicant",
-      "A mock application number",
+      "The seeded applicant",
+      "An application number",
       "No real application details",
     ],
     fields: [
       {
-        label: "Mock application number",
+        label: "Application number",
         name: "applicationNumber",
         type: "text",
         defaultValue: "DLDEMO20260001",
@@ -246,10 +234,10 @@ const services = [
   {
     id: "fees",
     title: "Check licence fees",
-    summary: "View the prototype fee schedule without signing in.",
+    summary: "View the fee schedule without signing in.",
     description:
-      "Choose a service to see a simulated fee estimate. Confirm final fees with the relevant authority outside this prototype.",
-    action: "Calculate mock fee",
+      "Choose a service to see a fee estimate. Confirm final fees with the relevant authority.",
+    action: "Calculate fee",
     protected: false,
     whatYouNeed: [
       "The service you plan to use",
@@ -275,11 +263,11 @@ const services = [
     title: "Book a driving-test appointment",
     summary: "Choose a slot or join the transparent waitlist.",
     description:
-      "Set a Delhi zone and date preference. If no mock slot is available, the demo can place the applicant on a waitlist.",
-    action: "Check mock appointments",
+      "Set a Delhi zone and date preference. If no slot is available, the applicant can join a waitlist.",
+    action: "Check appointments",
     protected: true,
     whatYouNeed: [
-      "An eligible mock application",
+      "An eligible application",
       "A preferred Delhi test zone",
       "A date preference",
     ],

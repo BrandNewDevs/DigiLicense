@@ -78,6 +78,10 @@ if (rootEnvContent === null) {
 
 const existingPassword = parseEnvValue(rootEnvContent, "DIGILICENSE_LOCAL_DB_PASSWORD")
 const existingSessionSecret = parseEnvValue(rootEnvContent, "DIGILICENSE_SESSION_SECRET")
+const existingIdentifierSecret = parseEnvValue(
+  readEnvFile(webEnvPath) ?? "",
+  "DIGILICENSE_IDENTIFIER_HMAC_SECRET"
+)
 
 const dbPassword = isPlaceholderOrMissing(existingPassword)
   ? generateSecret(24)
@@ -85,11 +89,26 @@ const dbPassword = isPlaceholderOrMissing(existingPassword)
 const sessionSecret = isPlaceholderOrMissing(existingSessionSecret)
   ? generateSecret(48)
   : existingSessionSecret
+// Distinct from the other two secrets: it hashes synthetic mobile numbers
+// for storage and rate-limit keys.
+const identifierHmacSecret = isPlaceholderOrMissing(existingIdentifierSecret)
+  ? generateSecret(32)
+  : existingIdentifierSecret
 
-if (dbPassword !== existingPassword || sessionSecret !== existingSessionSecret) {
+if (
+  dbPassword !== existingPassword ||
+  sessionSecret !== existingSessionSecret ||
+  !existingIdentifierSecret
+) {
   let nextContent = rootEnvContent
   nextContent = upsertEnvValue(nextContent, "DIGILICENSE_LOCAL_DB_PASSWORD", dbPassword)
   nextContent = upsertEnvValue(nextContent, "DIGILICENSE_SESSION_SECRET", sessionSecret)
+  if (!existingIdentifierSecret) {
+    // The identifier secret lives with the web env so Compose injects it
+    // into the web container via env_file.
+    nextContent = upsertEnvValue(nextContent, "DIGILICENSE_IDENTIFIER_HMAC_SECRET", identifierHmacSecret)
+    nextContent = upsertEnvValue(nextContent, "DIGILICENSE_IDENTIFIER_HMAC_KEY_VERSION", "v1")
+  }
   writeFileSync(rootEnvPath, nextContent)
   console.log("Wrote fresh local secrets to .env")
 } else {
@@ -108,6 +127,12 @@ if (parseEnvValue(webEnvContent, "DATABASE_URL") !== hostDatabaseUrl) {
 }
 if (parseEnvValue(webEnvContent, "DIGILICENSE_SESSION_SECRET") !== sessionSecret) {
   webEnvContent = upsertEnvValue(webEnvContent, "DIGILICENSE_SESSION_SECRET", sessionSecret)
+}
+// Compose injects this file into the web container via env_file, so the
+// mobile-identity hashing secret lives here too.
+if (isPlaceholderOrMissing(parseEnvValue(webEnvContent, "DIGILICENSE_IDENTIFIER_HMAC_SECRET"))) {
+  webEnvContent = upsertEnvValue(webEnvContent, "DIGILICENSE_IDENTIFIER_HMAC_SECRET", identifierHmacSecret)
+  webEnvContent = upsertEnvValue(webEnvContent, "DIGILICENSE_IDENTIFIER_HMAC_KEY_VERSION", "v1")
 }
 writeFileSync(webEnvPath, webEnvContent)
 console.log("Synced apps/web/.env with the local database credentials.")

@@ -1,11 +1,11 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { ArrowLeft, Check, ShieldAlert } from "lucide-react"
 
-import { SiteFooter } from "@workspace/ui/components/site-footer"
-import { SiteHeader } from "@workspace/ui/components/site-header"
-
+import { ApplicantHeader } from "../components/applicant-header"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
+import { applicantNavigation } from "../lib/applicant-navigation"
 import { LearnerLicenceForm } from "../components/learner-licence-form"
+import { LearnerTestFlow } from "../components/learner-test-flow"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
 import { getService } from "../lib/services"
 
@@ -21,27 +21,27 @@ function ServicePage() {
     return <UnknownService />
   }
 
-  const isLearnerLicenceWorkflow = "workflow" in service
+  const workflow = "workflow" in service ? service.workflow : undefined
 
-  const form = isLearnerLicenceWorkflow ? (
-    <LearnerLicenceForm />
-  ) : (
-    <ServicePrototypeForm service={service} />
-  )
+  const form =
+    workflow === "learner-licence" ? (
+      <LearnerLicenceForm />
+    ) : workflow === "learner-test" ? (
+      <LearnerTestFlow />
+    ) : (
+      <ServicePrototypeForm service={service} />
+    )
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <SiteHeader
-        brand="DigiLicense"
-        brandHref="/"
-        brandLabel="DigiLicense home"
-        linkComponent={Link}
-        navigation={[{ href: "/services", label: "All services" }]}
+    <div className="min-h-svh text-foreground">
+      <ApplicantHeader
+navigation={applicantNavigation}
+        returnTo={`/services/${service.id}`}
       />
 
       <main id="main-content">
         <section>
-          <div className="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
+          <div className="mx-auto max-w-[var(--digilicense-page-width)] px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
             <Link
               className="inline-flex min-h-11 items-center gap-2 text-base text-muted-foreground underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
               to="/services"
@@ -59,8 +59,8 @@ function ServicePage() {
           </div>
         </section>
 
-        <div className="mx-auto grid max-w-[1100px] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:px-10 lg:py-12">
-          <aside className="h-fit rounded-3xl bg-muted p-6 sm:p-7">
+        <div className="mx-auto grid max-w-[var(--digilicense-page-width)] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:px-10 lg:py-12">
+          <aside className="h-fit rounded-3xl border border-border p-6 sm:p-7">
             <h2 className="font-heading text-xl font-medium tracking-[-0.035em]">
               What you need
             </h2>
@@ -79,9 +79,9 @@ function ServicePage() {
                   aria-hidden="true"
                 />
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {isLearnerLicenceWorkflow
-                    ? "Use only synthetic values. Answers are stored in the prototype database so status and history work end to end, and nothing is sent to a government service."
-                    : "Use only the synthetic values shown on this page. No data is saved or sent to an external service."}
+                  {workflow
+                    ? "Use only the values shown on this page. Answers are stored so status and history work end to end, and nothing is sent to a government service."
+                    : "Use only the values shown on this page. No data is saved or sent to an external service."}
                 </p>
               </div>
             </div>
@@ -99,12 +99,6 @@ function ServicePage() {
         </div>
       </main>
 
-      <SiteFooter title="DigiLicense">
-        <p>
-          This is a Delhi-only independent prototype. It is not affiliated with
-          or endorsed by a government department, and all actions are simulated.
-        </p>
-      </SiteFooter>
     </div>
   )
 }
@@ -112,7 +106,7 @@ function ServicePage() {
 function UnknownService() {
   return (
     <main
-      className="mx-auto min-h-svh max-w-3xl px-5 py-20 sm:px-8"
+      className="mx-auto min-h-svh max-w-[var(--digilicense-home-width)] px-5 py-20 sm:px-8"
       id="main-content"
     >
       <Link
@@ -127,7 +121,7 @@ function UnknownService() {
         This service route does not exist
       </h1>
       <p className="mt-6 text-lg leading-8 text-muted-foreground">
-        Choose one of the ten prototype services from the service directory.
+        Choose one of the ten services from the service directory.
       </p>
     </main>
   )

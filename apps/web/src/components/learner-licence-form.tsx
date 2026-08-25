@@ -14,7 +14,7 @@ import {
   minimumLearnerAgeYears,
   vehicleClasses,
 } from "../lib/learner-licence"
-import { getStatusLabel } from "../lib/operator-workflow"
+import { getApplicationStatusLabel } from "../lib/application-status"
 import { learnerLicenceDraftPayloadSchema } from "../validation/learner-licence"
 import {
   readLearnerLicenceState,
@@ -48,20 +48,20 @@ const steps = [
   {
     checksEligibility: false,
     fields: ["fullName", "dateOfBirth"] as const,
-    hint: "Use any synthetic name and birth date. Real identity details must never be entered.",
+    hint: "Use any name and birth date. Real identity details must never be entered.",
     title: "Personal details",
   },
   {
     checksEligibility: true,
     fields: ["vehicleClass", "zone"] as const,
-    hint: "The class decides the minimum age, and the zone is where a mock test would run.",
+    hint: "The class decides the minimum age, and the zone is where the test would run.",
     title: "Licence request",
   },
   {
     checksEligibility: false,
     fields: ["identityProofType", "addressProofType"] as const,
-    hint: "No file upload exists in this prototype. Choosing an option records a synthetic document entry.",
-    title: "Mock documents",
+    hint: "No file upload exists here. Choosing an option records a document entry.",
+    title: "Documents",
   },
 ]
 
@@ -79,7 +79,7 @@ const fieldLabels: Record<FieldName, string> = {
 }
 
 const inputClassName =
-  "h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+  "h-11 w-full rounded-lg border border-input px-3 text-base"
 
 function formatDate(isoDateTime: string) {
   return new Date(isoDateTime).toLocaleDateString("en-IN", {
@@ -229,7 +229,7 @@ function LearnerLicenceForm() {
     }
 
     return {
-      dateOfBirth: `This vehicle class needs an age of ${minimumAge} or more when you apply.`,
+      dateOfBirth: `This vehicle class needs a minimum age of ${minimumAge} when you apply.`,
     }
   }
 
@@ -275,7 +275,7 @@ function LearnerLicenceForm() {
       if (result.kind === "saved") {
         setDraftSavedAt(result.savedAt)
         announce(
-          `Draft saved. The prototype keeps drafts for seven days after each save.`
+          `Draft saved. The service keeps drafts for seven days after each save.`
         )
       }
     } catch {
@@ -354,7 +354,7 @@ function LearnerLicenceForm() {
 
   if (phase === "loading") {
     return (
-      <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
+      <section className="rounded-3xl border border-border p-6 sm:p-8">
         <p className="text-base leading-7 text-muted-foreground" role="status">
           Loading your learner's licence progress...
         </p>
@@ -364,20 +364,20 @@ function LearnerLicenceForm() {
 
   if (phase === "authentication-required") {
     return (
-      <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
+      <section className="rounded-3xl border border-border p-6 sm:p-8">
         <h2 className="font-heading text-2xl font-medium tracking-[-0.04em]">
           Sign in required
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          Your mock applicant session ended. Sign in again to continue the
+          Your applicant session ended. Sign in again to continue the
           learner's licence workflow.
         </p>
         <Link
-          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-base font-medium text-primary-foreground hover:bg-primary/80"
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
           search={{ returnTo: "/services/learner-licence" }}
           to="/applicant/login"
         >
-          Go to mock sign in
+          Go to sign in
         </Link>
       </section>
     )
@@ -385,7 +385,7 @@ function LearnerLicenceForm() {
 
   if (phase === "unavailable") {
     return (
-      <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
+      <section className="rounded-3xl border border-border p-6 sm:p-8">
         <AlertCircle className="size-8" aria-hidden="true" />
         <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
           Service unavailable
@@ -404,7 +404,7 @@ function LearnerLicenceForm() {
     return (
       <section
         aria-labelledby="active-application-title"
-        className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+        className="rounded-3xl border border-border p-6 sm:p-8"
       >
         <FileCheck2 className="size-8" aria-hidden="true" />
         <p className="mt-5 text-sm font-medium text-muted-foreground">
@@ -418,7 +418,7 @@ function LearnerLicenceForm() {
         </h2>
         {activeApplication ? (
           <>
-            <dl className="mt-6 space-y-4 rounded-2xl bg-muted p-5">
+            <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">
                   Reference number
@@ -432,7 +432,7 @@ function LearnerLicenceForm() {
                   Current status
                 </dt>
                 <dd className="mt-1">
-                  {getStatusLabel(activeApplication.status)}
+                  {getApplicationStatusLabel(activeApplication.status)}
                 </dd>
               </div>
               <div>
@@ -452,7 +452,7 @@ function LearnerLicenceForm() {
             </dl>
             <p className="mt-5 text-sm leading-6 text-muted-foreground">
               Only one learner's licence application can be open at a time. This
-              rule is enforced by the prototype database, not just this page.
+              rule is enforced by the database, not just this page.
             </p>
           </>
         ) : (
@@ -469,11 +469,11 @@ function LearnerLicenceForm() {
     return (
       <section
         aria-labelledby="submission-complete-title"
-        className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+        className="rounded-3xl border border-border p-6 sm:p-8"
       >
         <BadgeCheck className="size-10" aria-hidden="true" />
         <p className="mt-6 text-sm font-medium text-muted-foreground">
-          Simulation complete
+          Submission complete
         </p>
         <h2
           className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
@@ -483,7 +483,7 @@ function LearnerLicenceForm() {
         >
           Learner's licence application received
         </h2>
-        <dl className="mt-6 space-y-4 rounded-2xl bg-muted p-5">
+        <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
           <div>
             <dt className="text-sm font-medium text-muted-foreground">
               Reference number
@@ -496,19 +496,21 @@ function LearnerLicenceForm() {
             <dt className="text-sm font-medium text-muted-foreground">
               Current status
             </dt>
-            <dd className="mt-1">Document review</dd>
+            <dd className="mt-1">Checks complete</dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-muted-foreground">
               Next action for you
             </dt>
-            <dd className="mt-1">Wait for the mock document review.</dd>
+            <dd className="mt-1">
+              Your application is ready for the learner's test.
+            </dd>
           </div>
         </dl>
         <ul className="mt-6 space-y-3">
           {[
-            "Three synthetic document records were created for this application.",
-            "An operator can now run the simulated verification actions.",
+            "Three document records were created for this application.",
+            "The service completed its automatic checks.",
             "Your saved draft was closed so it cannot create a second application.",
           ].map((item) => (
             <li className="flex gap-3 leading-6" key={item}>
@@ -521,7 +523,7 @@ function LearnerLicenceForm() {
           ))}
         </ul>
         <p className="mt-6 text-sm leading-6 text-muted-foreground">
-          This created synthetic DigiLicense records only. No government
+          This created DigiLicense records only. No government
           service was contacted and no fee was collected.
         </p>
       </section>
@@ -535,7 +537,7 @@ function LearnerLicenceForm() {
   return (
     <form
       aria-describedby="learner-form-note"
-      className="rounded-3xl border border-border bg-card p-6 sm:p-8"
+      className="rounded-3xl border border-border p-6 sm:p-8"
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
@@ -547,7 +549,7 @@ function LearnerLicenceForm() {
       </div>
 
       <p className="text-sm font-medium text-muted-foreground">
-        Guided workflow · synthetic data only
+          Guided workflow
       </p>
       <h2
         className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
@@ -566,12 +568,12 @@ function LearnerLicenceForm() {
             {index === stepIndex ? (
               <span
                 aria-current="step"
-                className="rounded-full bg-primary px-3 py-1.5 text-primary-foreground"
+                className="rounded-full border border-border px-3 py-1.5 text-foreground"
               >
                 {index + 1}. {label}
               </span>
             ) : (
-              <span className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">
+              <span className="rounded-full border border-border px-3 py-1.5 text-muted-foreground">
                 {index + 1}. {label}
               </span>
             )}
@@ -591,7 +593,7 @@ function LearnerLicenceForm() {
           className="mt-5 text-sm leading-6 text-muted-foreground"
           id="learner-form-note"
         >
-          Check every answer. Submitting records synthetic data on the server
+          Check every answer. Submitting saves the application on the server
           and closes any saved draft.
         </p>
       )}
@@ -663,7 +665,7 @@ function LearnerLicenceForm() {
           <>
             {errors.dateOfBirth ? (
               <div
-                className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm leading-6 text-destructive"
+                className="rounded-xl border border-destructive/40 p-4 text-sm leading-6 text-destructive"
                 role="alert"
               >
                 {errors.dateOfBirth}
@@ -683,7 +685,7 @@ function LearnerLicenceForm() {
               <div className="space-y-2">
                 {vehicleClasses.map((option) => (
                   <label
-                    className="flex min-h-11 items-center gap-3 rounded-lg border border-input bg-background px-3 text-base has-checked:border-ring"
+                    className="flex min-h-11 items-center gap-3 rounded-lg border border-input px-3 text-base has-checked:border-ring"
                     key={option.value}
                   >
                     <input
@@ -792,7 +794,7 @@ function LearnerLicenceForm() {
 
         {isReviewStep ? (
           <>
-            <dl className="space-y-4 rounded-2xl bg-muted p-5">
+            <dl className="space-y-4 rounded-2xl border border-border p-5">
               {(Object.keys(fieldLabels) as FieldName[]).map((field) => (
                 <div key={field}>
                   <dt className="text-sm font-medium text-muted-foreground">
@@ -828,8 +830,8 @@ function LearnerLicenceForm() {
                 type="checkbox"
               />
               <span className="leading-6">
-                I confirm these are synthetic details for a prototype
-                demonstration, and I understand nothing is sent to a government
+                I confirm these are the details for this application, and I
+                understand nothing is sent to a government
                 service.
               </span>
             </label>
@@ -846,7 +848,7 @@ function LearnerLicenceForm() {
 
       {submitError ? (
         <div
-          className="mt-5 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm leading-6 text-destructive"
+          className="mt-5 rounded-xl border border-destructive/40 p-4 text-sm leading-6 text-destructive"
           role="alert"
         >
           <p className="font-medium">{submitError.message}</p>

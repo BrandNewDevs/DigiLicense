@@ -18,5 +18,5 @@ export const Route = createFileRoute("/applicant/login")({
 function ApplicantLoginPage() {
   const { returnTo } = Route.useSearch()
 
-  return <MockLoginPage returnTo={returnTo} role="applicant" />
+  return <MockLoginPage returnTo={returnTo} />
 }
