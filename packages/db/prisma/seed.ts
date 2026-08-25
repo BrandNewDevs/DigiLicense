@@ -50,6 +50,35 @@ for (const applicant of applicantAccounts) {
   })
 }
 
+const drivingLicenceRecords = [
+  {
+    applicantId: "demo-applicant-001",
+    currentAddressSummary: "Synthetic Dwarka address",
+    licenceNumber: "DL-DEMO-2020-0042",
+  },
+  {
+    applicantId: "demo-applicant-002",
+    currentAddressSummary: "Synthetic Mayur Vihar address",
+    licenceNumber: "DL-DEMO-2021-0043",
+  },
+  {
+    applicantId: "demo-applicant-003",
+    currentAddressSummary: "Synthetic Rohini address",
+    licenceNumber: "DL-DEMO-2022-0044",
+  },
+] as const
+
+for (const licence of drivingLicenceRecords) {
+  await prisma.drivingLicenceRecord.upsert({
+    where: { licenceNumber: licence.licenceNumber },
+    update: {
+      applicantId: licence.applicantId,
+      currentAddressSummary: licence.currentAddressSummary,
+    },
+    create: licence,
+  })
+}
+
 // Scenarios are spread across synthetic applicants because the database
 // allows only one active application per (applicant, service) pair. The
 // primary demo applicant (001) keeps a clean learner's-licence slate so the
