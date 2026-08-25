@@ -123,6 +123,7 @@ async function readMobileUpdateState(): Promise<MobileUpdateReadResult> {
       prisma.mobileChangeRequest.findFirst({
         where: {
           applicantId: applicant.applicantId,
+          expiresAt: { gt: new Date() },
           status: { in: ["OTP_PENDING", "AADHAAR_PENDING"] },
         },
         orderBy: { createdAt: "desc" },
@@ -182,7 +183,10 @@ async function startMobileUpdate(input: {
 
   let rateLimit
   try {
-    rateLimit = await consumeRateLimit("mobile-update-start", applicant.applicantId)
+    rateLimit = await consumeRateLimit(
+      "mobile-update-start",
+      applicant.applicantId
+    )
   } catch (error) {
     recordDependencyFailure(error, {
       dependency: "postgres",
@@ -224,8 +228,12 @@ async function startMobileUpdate(input: {
       })
 
       if (previous) {
-        if (previous.applicantId !== applicant.applicantId) return { kind: "unavailable" as const }
-        if (!isActiveStatus(previous.status) || previous.expiresAt <= new Date()) {
+        if (previous.applicantId !== applicant.applicantId)
+          return { kind: "unavailable" as const }
+        if (
+          !isActiveStatus(previous.status) ||
+          previous.expiresAt <= new Date()
+        ) {
           return { kind: "active-expired" as const }
         }
 
@@ -330,16 +338,29 @@ async function startMobileUpdate(input: {
     })
 
     if (outcome.kind === "same") {
-      return { kind: "same-as-current-mobile", message: "Enter a different synthetic mobile number." }
+      return {
+        kind: "same-as-current-mobile",
+        message: "Enter a different synthetic mobile number.",
+      }
     }
     if (outcome.kind === "in-use") {
-      return { kind: "mobile-already-in-use", message: "This synthetic mobile number is already in use." }
+      return {
+        kind: "mobile-already-in-use",
+        message: "This synthetic mobile number is already in use.",
+      }
     }
     if (outcome.kind === "unavailable") {
-      return { kind: "unavailable", message: "Mobile update is temporarily unavailable. Try again shortly." }
+      return {
+        kind: "unavailable",
+        message: "Mobile update is temporarily unavailable. Try again shortly.",
+      }
     }
     if (outcome.kind === "active-expired") {
-      return { kind: "request-expired", message: "The previous request expired. Start a new request with a new idempotency key." }
+      return {
+        kind: "request-expired",
+        message:
+          "The previous request expired. Start a new request with a new idempotency key.",
+      }
     }
 
     return {
@@ -354,7 +375,8 @@ async function startMobileUpdate(input: {
     if (targets.includes("mobilechangerequest_one_active_per_applicant_key")) {
       return {
         kind: "active-request-exists",
-        message: "Complete or wait for the existing mobile-update request to expire.",
+        message:
+          "Complete or wait for the existing mobile-update request to expire.",
       }
     }
 
@@ -433,7 +455,10 @@ async function verifyMobileUpdateOtp(input: {
 }): Promise<MobileUpdateVerificationResult> {
   const applicant = await requireApplicant()
   if (!applicant) {
-    return { kind: "authentication-required", message: "Sign in as an applicant to verify the OTP." }
+    return {
+      kind: "authentication-required",
+      message: "Sign in as an applicant to verify the OTP.",
+    }
   }
 
   let rateLimit
@@ -443,12 +468,23 @@ async function verifyMobileUpdateOtp(input: {
       `${applicant.applicantId}:${input.requestId}`
     )
   } catch (error) {
-    recordDependencyFailure(error, { dependency: "postgres", operation: "rate_limit_mobile_update_otp" })
-    return { kind: "unavailable", message: "OTP verification is temporarily unavailable. Try again shortly." }
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "rate_limit_mobile_update_otp",
+    })
+    return {
+      kind: "unavailable",
+      message:
+        "OTP verification is temporarily unavailable. Try again shortly.",
+    }
   }
 
   if (!rateLimit.allowed) {
-    return { kind: "rate-limited", message: "Too many OTP attempts. Try again later.", retryAfterSeconds: rateLimit.retryAfterSeconds }
+    return {
+      kind: "rate-limited",
+      message: "Too many OTP attempts. Try again later.",
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+    }
   }
 
   try {
@@ -458,44 +494,99 @@ async function verifyMobileUpdateOtp(input: {
         include: { otpChallenge: true },
       })
 
-      if (!request) return { kind: "request-not-found", message: "The mobile-update request was not found." }
-      if (request.method !== "OTP") return { kind: "method-mismatch", message: "This request uses mock Aadhaar verification." }
+      if (!request)
+        return {
+          kind: "request-not-found",
+          message: "The mobile-update request was not found.",
+        }
+      if (request.method !== "OTP")
+        return {
+          kind: "method-mismatch",
+          message: "This request uses mock Aadhaar verification.",
+        }
       if (request.status === "COMPLETED") {
         if (request.confirmationIdempotencyKey === input.idempotencyKey) {
           const account = await transaction.applicantAccount.findUnique({
             where: { id: applicant.applicantId },
             select: { authVersion: true, mobileLastFour: true },
           })
-          if (account) return { kind: "completed", authVersion: account.authVersion, mobileLastFour: account.mobileLastFour }
+          if (account)
+            return {
+              kind: "completed",
+              authVersion: account.authVersion,
+              mobileLastFour: account.mobileLastFour,
+            }
         }
-        return { kind: "otp-replayed", message: "This OTP challenge has already been used." }
+        return {
+          kind: "otp-replayed",
+          message: "This OTP challenge has already been used.",
+        }
       }
-      if (!isActiveStatus(request.status) || request.expiresAt <= new Date() || !request.otpChallenge || request.otpChallenge.expiresAt <= new Date()) {
+      if (
+        !isActiveStatus(request.status) ||
+        request.expiresAt <= new Date() ||
+        !request.otpChallenge ||
+        request.otpChallenge.expiresAt <= new Date()
+      ) {
         if (isActiveStatus(request.status) && request.expiresAt <= new Date()) {
-          await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "EXPIRED" } })
+          await transaction.mobileChangeRequest.update({
+            where: { id: request.id },
+            data: { status: "EXPIRED" },
+          })
         }
-        return { kind: "request-expired", message: "This OTP request has expired. Start a new one." }
+        return {
+          kind: "request-expired",
+          message: "This OTP request has expired. Start a new one.",
+        }
       }
 
       if (!otpMatches(request.otpChallenge.codeHash, input.otp)) {
         const attemptCount = request.otpChallenge.attemptCount + 1
         const locked = attemptCount >= request.otpChallenge.maxAttempts
-        await transaction.mobileChangeOtpChallenge.update({ where: { id: request.otpChallenge.id }, data: { attemptCount } })
-        if (locked) await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "LOCKED" } })
+        await transaction.mobileChangeOtpChallenge.update({
+          where: { id: request.otpChallenge.id },
+          data: { attemptCount },
+        })
+        if (locked)
+          await transaction.mobileChangeRequest.update({
+            where: { id: request.id },
+            data: { status: "LOCKED" },
+          })
         return locked
-          ? { kind: "otp-locked", message: "Too many OTP attempts. Start a new request later." }
-          : { kind: "otp-invalid", message: "The synthetic OTP was not accepted." }
+          ? {
+              kind: "otp-locked",
+              message: "Too many OTP attempts. Start a new request later.",
+            }
+          : {
+              kind: "otp-invalid",
+              message: "The synthetic OTP was not accepted.",
+            }
       }
 
-      return completeMobileUpdate(transaction, request, input.idempotencyKey, applicant.applicantId)
+      return completeMobileUpdate(
+        transaction,
+        request,
+        input.idempotencyKey,
+        applicant.applicantId
+      )
     })
   } catch (error) {
     const targets = getUniqueConstraintTargets(error)
     if (targets.includes("applicantaccount_mobilehmac_key")) {
-      return { kind: "mobile-already-in-use", message: "This synthetic mobile number is already in use." }
+      return {
+        kind: "mobile-already-in-use",
+        message: "This synthetic mobile number is already in use.",
+      }
     }
-    recordDependencyFailure(error, { dependency: "postgres", operation: "mobile_update_otp_verify" })
-    return { kind: "unavailable", message: "OTP verification is temporarily unavailable. Try again shortly." }
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "mobile_update_otp_verify",
+    })
+    return {
+      kind: "unavailable",
+      message:
+        "OTP verification is temporarily unavailable. Try again shortly.",
+    }
   }
 }
 
@@ -505,16 +596,35 @@ async function completeMockAadhaarVerification(input: {
   requestId: string
 }): Promise<MobileUpdateVerificationResult> {
   const applicant = await requireApplicant()
-  if (!applicant) return { kind: "authentication-required", message: "Sign in as an applicant to complete mock Aadhaar verification." }
+  if (!applicant)
+    return {
+      kind: "authentication-required",
+      message: "Sign in as an applicant to complete mock Aadhaar verification.",
+    }
 
   let rateLimit
   try {
-    rateLimit = await consumeRateLimit("mobile-update-aadhaar-verify", `${applicant.applicantId}:${input.requestId}`)
+    rateLimit = await consumeRateLimit(
+      "mobile-update-aadhaar-verify",
+      `${applicant.applicantId}:${input.requestId}`
+    )
   } catch (error) {
-    recordDependencyFailure(error, { dependency: "postgres", operation: "rate_limit_mobile_update_aadhaar" })
-    return { kind: "unavailable", message: "Mock Aadhaar verification is temporarily unavailable. Try again shortly." }
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "rate_limit_mobile_update_aadhaar",
+    })
+    return {
+      kind: "unavailable",
+      message:
+        "Mock Aadhaar verification is temporarily unavailable. Try again shortly.",
+    }
   }
-  if (!rateLimit.allowed) return { kind: "rate-limited", message: "Too many verification attempts. Try again later.", retryAfterSeconds: rateLimit.retryAfterSeconds }
+  if (!rateLimit.allowed)
+    return {
+      kind: "rate-limited",
+      message: "Too many verification attempts. Try again later.",
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+    }
 
   try {
     return await prisma.$transaction(async (transaction) => {
@@ -522,37 +632,111 @@ async function completeMockAadhaarVerification(input: {
         where: { applicantId: applicant.applicantId, id: input.requestId },
         include: { aadhaarVerification: true },
       })
-      if (!request) return { kind: "request-not-found", message: "The mobile-update request was not found." }
-      if (request.method !== "MOCK_AADHAAR") return { kind: "method-mismatch", message: "This request uses OTP verification." }
+      if (!request)
+        return {
+          kind: "request-not-found",
+          message: "The mobile-update request was not found.",
+        }
+      if (request.method !== "MOCK_AADHAAR")
+        return {
+          kind: "method-mismatch",
+          message: "This request uses OTP verification.",
+        }
       if (request.status === "COMPLETED") {
         if (request.confirmationIdempotencyKey === input.idempotencyKey) {
-          const account = await transaction.applicantAccount.findUnique({ where: { id: applicant.applicantId }, select: { authVersion: true, mobileLastFour: true } })
-          if (account) return { kind: "completed", authVersion: account.authVersion, mobileLastFour: account.mobileLastFour }
+          const account = await transaction.applicantAccount.findUnique({
+            where: { id: applicant.applicantId },
+            select: { authVersion: true, mobileLastFour: true },
+          })
+          if (account)
+            return {
+              kind: "completed",
+              authVersion: account.authVersion,
+              mobileLastFour: account.mobileLastFour,
+            }
         }
-        return { kind: "otp-replayed", message: "This verification request has already been used." }
+        return {
+          kind: "otp-replayed",
+          message: "This verification request has already been used.",
+        }
       }
-      if (!isActiveStatus(request.status) || request.expiresAt <= new Date() || !request.aadhaarVerification) {
+      if (
+        !isActiveStatus(request.status) ||
+        request.expiresAt <= new Date() ||
+        !request.aadhaarVerification
+      ) {
         if (isActiveStatus(request.status) && request.expiresAt <= new Date()) {
-          await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "EXPIRED" } })
+          await transaction.mobileChangeRequest.update({
+            where: { id: request.id },
+            data: { status: "EXPIRED" },
+          })
         }
-        return { kind: "request-expired", message: "This verification request has expired. Start a new one." }
+        return {
+          kind: "request-expired",
+          message: "This verification request has expired. Start a new one.",
+        }
       }
 
       if (input.mockAssertion === "MOCK_AADHAAR_FAIL") {
-        await transaction.mockAadhaarVerification.update({ where: { id: request.aadhaarVerification.id }, data: { completedAt: new Date(), reasonCode: "SYNTHETIC_ASSERTION_FAILED", status: "FAILED" } })
-        await transaction.mobileChangeRequest.update({ where: { id: request.id }, data: { status: "FAILED" } })
-        await transaction.auditEvent.create({ data: { action: "FAIL_MOCK_AADHAAR_VERIFICATION", actorId: applicant.applicantId, entityId: request.id, entityType: "MOBILE_CHANGE_REQUEST", reasonCode: "SYNTHETIC_ASSERTION_FAILED", requestId: randomUUID() } })
-        return { kind: "aadhaar-failed", message: "The mock Aadhaar verification did not pass." }
+        await transaction.mockAadhaarVerification.update({
+          where: { id: request.aadhaarVerification.id },
+          data: {
+            completedAt: new Date(),
+            reasonCode: "SYNTHETIC_ASSERTION_FAILED",
+            status: "FAILED",
+          },
+        })
+        await transaction.mobileChangeRequest.update({
+          where: { id: request.id },
+          data: { status: "FAILED" },
+        })
+        await transaction.auditEvent.create({
+          data: {
+            action: "FAIL_MOCK_AADHAAR_VERIFICATION",
+            actorId: applicant.applicantId,
+            entityId: request.id,
+            entityType: "MOBILE_CHANGE_REQUEST",
+            reasonCode: "SYNTHETIC_ASSERTION_FAILED",
+            requestId: randomUUID(),
+          },
+        })
+        return {
+          kind: "aadhaar-failed",
+          message: "The mock Aadhaar verification did not pass.",
+        }
       }
 
-      await transaction.mockAadhaarVerification.update({ where: { id: request.aadhaarVerification.id }, data: { completedAt: new Date(), reasonCode: "SYNTHETIC_ASSERTION_PASSED", status: "PASSED" } })
-      return completeMobileUpdate(transaction, request, input.idempotencyKey, applicant.applicantId)
+      await transaction.mockAadhaarVerification.update({
+        where: { id: request.aadhaarVerification.id },
+        data: {
+          completedAt: new Date(),
+          reasonCode: "SYNTHETIC_ASSERTION_PASSED",
+          status: "PASSED",
+        },
+      })
+      return completeMobileUpdate(
+        transaction,
+        request,
+        input.idempotencyKey,
+        applicant.applicantId
+      )
     })
   } catch (error) {
     const targets = getUniqueConstraintTargets(error)
-    if (targets.includes("applicantaccount_mobilehmac_key")) return { kind: "mobile-already-in-use", message: "This synthetic mobile number is already in use." }
-    recordDependencyFailure(error, { dependency: "postgres", operation: "mobile_update_aadhaar_verify" })
-    return { kind: "unavailable", message: "Mock Aadhaar verification is temporarily unavailable. Try again shortly." }
+    if (targets.includes("applicantaccount_mobilehmac_key"))
+      return {
+        kind: "mobile-already-in-use",
+        message: "This synthetic mobile number is already in use.",
+      }
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "mobile_update_aadhaar_verify",
+    })
+    return {
+      kind: "unavailable",
+      message:
+        "Mock Aadhaar verification is temporarily unavailable. Try again shortly.",
+    }
   }
 }
 

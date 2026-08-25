@@ -5,6 +5,7 @@ import { MockApplicantGate } from "../components/mock-applicant-gate"
 import { applicantNavigation } from "../lib/applicant-navigation"
 import { LearnerLicenceForm } from "../components/learner-licence-form"
 import { LearnerTestFlow } from "../components/learner-test-flow"
+import { MobileUpdateFlow } from "../components/mobile-update-flow"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
 import { getService } from "../lib/services"
 
@@ -27,6 +28,8 @@ function ServicePage() {
       <LearnerLicenceForm />
     ) : workflow === "learner-test" ? (
       <LearnerTestFlow />
+    ) : workflow === "mobile-update" ? (
+      <MobileUpdateFlow />
     ) : (
       <ServicePrototypeForm service={service} />
     )
@@ -34,7 +37,7 @@ function ServicePage() {
   return (
     <div className="min-h-svh text-foreground">
       <ApplicantHeader
-navigation={applicantNavigation}
+        navigation={applicantNavigation}
         returnTo={`/services/${service.id}`}
       />
 
@@ -91,7 +94,6 @@ navigation={applicantNavigation}
           </div>
         </div>
       </main>
-
     </div>
   )
 }
