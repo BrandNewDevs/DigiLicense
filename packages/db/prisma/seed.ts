@@ -71,30 +71,54 @@ const scenarios = [
   },
 ] as const
 
-function isKnownActiveApplicationConflict(error) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isKnownActiveApplicationConflict(error: unknown): boolean {
   // A previous demo run can leave an application whose (applicantId, service)
-  // pair collides with the partial unique guard even though the seeded
+  // pair collides with the partial unique guard named in
+  // 20260824120000_add_one_active_application_guard even though the seeded
   // application number differs. Re-seeding must skip such rows instead of
   // failing, because the live workflow data wins over synthetic seed data.
   //
-  // Depending on the driver adapter, P2002 reports either the constraint name
-  // in meta.target or only the field names in the message.
+  // Prisma 7 PostgreSQL adapters report this P2002 in several shapes: the
+  // constraint name under meta.index or meta.target, or only the involved
+  // field names in the message. All three forms are recognized.
   if (!error || typeof error !== "object") return false
-  if (error.code !== "P2002") return false
+  if (!("code" in error) || error.code !== "P2002") return false
 
-  const meta = error.meta
-  if (meta && typeof meta === "object" && "target" in meta) {
-    const target = Array.isArray(meta.target)
-      ? meta.target.join(",")
-      : String(meta.target ?? "")
-    if (/applicantid/i.test(target) && /service/i.test(target)) {
-      return true
+  const constraintName = "application_active_applicant_service_key"
+
+  if ("meta" in error) {
+    const meta: unknown = error.meta
+    if (isRecord(meta)) {
+      for (const key of ["index", "target"] as const) {
+        const value: unknown = meta[key]
+        const text = Array.isArray(value)
+          ? value.join(",")
+          : typeof value === "string"
+            ? value
+            : ""
+        if (text.toLowerCase().includes(constraintName)) {
+          return true
+        }
+        if (/applicantid/i.test(text) && /service/i.test(text)) {
+          return true
+        }
+      }
     }
   }
 
-  const message = typeof error.message === "string" ? error.message.toLowerCase() : ""
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : ""
 
-  return message.includes("applicantid") && message.includes("service")
+  return (
+    message.includes(constraintName) ||
+    (message.includes("applicantid") && message.includes("service"))
+  )
 }
 
 for (const scenario of scenarios) {
