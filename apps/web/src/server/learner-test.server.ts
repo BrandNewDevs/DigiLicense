@@ -274,30 +274,22 @@ async function submitLearnerTest(input: {
         SELECT pg_advisory_xact_lock(hashtextextended(${applicant.applicantId}, 0))
       `
 
-      const application = await transaction.application.findFirst({
+      // Resolve any owned attempt for this key BEFORE eligibility. A
+      // duplicate that blocked on the advisory lock re-runs here after the
+      // first submission committed; that submission may already have moved
+      // the application to TEST_PASSED or TEST_FAILED, so filtering by
+      // test-eligibility first would wrongly answer "no-application" for a
+      // result that was already graded.
+      const committed = await transaction.learnerTestAttempt.findFirst({
         where: {
-          applicantId: applicant.applicantId,
-          status: { in: TEST_ELIGIBLE_STATUSES },
+          idempotencyKey: input.idempotencyKey,
+          application: { applicantId: applicant.applicantId },
         },
-        orderBy: { submittedAt: "desc" },
-        select: { id: true, applicationNumber: true, status: true },
-      })
-
-      if (!application) {
-        return "no-application" as const
-      }
-
-      // Concurrent retries serialize on the advisory lock above; whichever
-      // commits first wins. The second sees the stored attempt through the
-      // same composite uniqueness and replays it instead of double-writing.
-      const committed = await transaction.learnerTestAttempt.findUnique({
-        where: {
-          applicationId_idempotencyKey: {
-            applicationId: application.id,
-            idempotencyKey: input.idempotencyKey,
-          },
+        select: {
+          score: true,
+          passed: true,
+          application: { select: { applicationNumber: true } },
         },
-        select: { score: true, passed: true },
       })
 
       if (committed) {
@@ -310,10 +302,24 @@ async function submitLearnerTest(input: {
           replayed: true,
           score: committed.score,
           passed: committed.passed,
-          applicationNumber: application.applicationNumber,
+          applicationNumber: committed.application.applicationNumber,
         }
 
         return graded
+      }
+
+      // Eligibility is required only to record a NEW attempt.
+      const application = await transaction.application.findFirst({
+        where: {
+          applicantId: applicant.applicantId,
+          status: { in: TEST_ELIGIBLE_STATUSES },
+        },
+        orderBy: { submittedAt: "desc" },
+        select: { id: true, applicationNumber: true, status: true },
+      })
+
+      if (!application) {
+        return "no-application" as const
       }
 
       await transaction.learnerTestAttempt.create({
