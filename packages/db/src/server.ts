@@ -3,8 +3,10 @@ import "@tanstack/react-start/server-only"
 export { prisma } from "./db.ts"
 export { Prisma } from "./generated/prisma/client.ts"
 export {
+  AddressChangeVerificationStatus,
   MobileChangeStatus,
   MobileChangeVerificationMethod,
+  MockAddressProofType,
   MockAadhaarVerificationStatus,
   WorkflowActor,
 } from "./generated/prisma/enums.ts"

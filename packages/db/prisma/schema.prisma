@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -82,6 +83,21 @@ enum MockAadhaarVerificationStatus {
   FAILED
 }
 
+enum MockAddressProofType {
+  MOCK_AADHAAR_ADDRESS_PROOF
+  MOCK_RENTAL_AGREEMENT
+  MOCK_UTILITY_BILL
+}
+
+enum AddressChangeVerificationStatus {
+  OTP_PENDING
+  OTP_VERIFIED
+  LOCKED
+  EXPIRED
+  CONSUMED
+  CANCELLED
+}
+
 model Application {
   id                String               @id @default(cuid())
   applicantId       String
@@ -99,6 +115,7 @@ model Application {
   payments          PaymentRecord[]
   notifications     NotificationRecord[]
   learnerTestAttempts LearnerTestAttempt[]
+  addressChangeDetail AddressChangeDetail?
 
   @@index([applicantId, applicationNumber])
   @@index([status, submittedAt])
@@ -235,8 +252,82 @@ model ApplicantAccount {
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   mobileChangeRequests    MobileChangeRequest[]
+  drivingLicenceRecords   DrivingLicenceRecord[]
+  addressChangeVerifications AddressChangeVerification[]
 
   @@index([updatedAt])
+}
+
+// Synthetic licence records establish server-side ownership for services that
+// act on an existing driving licence. They never represent a government record.
+model DrivingLicenceRecord {
+  id                    String                      @id @default(cuid())
+  applicantId           String
+  licenceNumber         String                      @unique
+  currentAddressSummary String
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  applicant             ApplicantAccount            @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  addressVerifications  AddressChangeVerification[]
+  addressChangeDetails  AddressChangeDetail[]
+
+  @@index([applicantId, licenceNumber])
+}
+
+// A short-lived step-up challenge authorizes a single address-change
+// submission. Address data is not placed in this verification record.
+model AddressChangeVerification {
+  id                         String                          @id @default(cuid())
+  applicantId                String
+  licenceRecordId            String
+  status                     AddressChangeVerificationStatus
+  startIdempotencyKey        String                          @unique
+  verificationIdempotencyKey String?                         @unique
+  expiresAt                  DateTime
+  verifiedAt                 DateTime?
+  createdAt                  DateTime                        @default(now())
+  updatedAt                  DateTime                        @updatedAt
+  applicant                  ApplicantAccount                @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  licenceRecord              DrivingLicenceRecord            @relation(fields: [licenceRecordId], references: [id], onDelete: Restrict)
+  otpChallenge               AddressChangeOtpChallenge?
+
+  @@index([applicantId, updatedAt])
+  @@index([expiresAt])
+  @@unique([applicantId], map: "AddressChangeVerification_one_active_per_applicant_key", where: raw("\"status\" IN ('OTP_PENDING'::\"AddressChangeVerificationStatus\", 'OTP_VERIFIED'::\"AddressChangeVerificationStatus\")"))
+}
+
+model AddressChangeOtpChallenge {
+  id              String                    @id @default(cuid())
+  verificationId  String                    @unique
+  codeHash        String
+  attemptCount    Int                       @default(0)
+  maxAttempts     Int                       @default(5)
+  expiresAt       DateTime
+  consumedAt      DateTime?
+  createdAt       DateTime                  @default(now())
+  verification    AddressChangeVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+// The submitted synthetic address is scoped to an application. Updating an
+// actual licence record remains an explicit future approval workflow.
+model AddressChangeDetail {
+  id                       String                @id @default(cuid())
+  applicationId            String                @unique
+  licenceRecordId          String
+  proofType                MockAddressProofType
+  addressLine1             String
+  addressLine2             String?
+  locality                 String
+  pincode                  String
+  submissionIdempotencyKey String                @unique
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  application              Application           @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  licenceRecord            DrivingLicenceRecord  @relation(fields: [licenceRecordId], references: [id], onDelete: Restrict)
+
+  @@index([licenceRecordId, createdAt])
 }
 
 model MobileChangeRequest {

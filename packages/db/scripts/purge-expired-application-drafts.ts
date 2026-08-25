@@ -8,15 +8,13 @@ config({
 
 const { purgeExpiredApplicationDrafts } =
   await import("../src/draft-retention.ts")
+const { runMaintenanceCleanup } =
+  await import("../src/maintenance-telemetry.ts")
 
 try {
-  const result = await purgeExpiredApplicationDrafts()
-
-  console.info(
-    JSON.stringify({
-      operation: "application_draft_retention_purge",
-      ...result,
-    })
+  await runMaintenanceCleanup(
+    "application_draft_retention_purge",
+    purgeExpiredApplicationDrafts
   )
 } finally {
   const { prisma } = await import("../src/db.ts")
