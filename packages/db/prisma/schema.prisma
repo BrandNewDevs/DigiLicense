@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -292,6 +293,7 @@ model AddressChangeVerification {
 
   @@index([applicantId, updatedAt])
   @@index([expiresAt])
+  @@unique([applicantId], map: "AddressChangeVerification_one_active_per_applicant_key", where: raw("\"status\" IN ('OTP_PENDING'::\"AddressChangeVerificationStatus\", 'OTP_VERIFIED'::\"AddressChangeVerificationStatus\")"))
 }
 
 model AddressChangeOtpChallenge {

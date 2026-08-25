@@ -2,17 +2,14 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
-import {
-  Prisma,
-  prisma,
-  WorkflowActor,
-} from "@digilicense/db/server"
+import { Prisma, prisma, WorkflowActor } from "@digilicense/db/server"
 import type {
   AddressChangeVerificationStatus,
   ApplicationStatus,
 } from "@digilicense/db/server"
 
 import { addressChangeServiceName } from "../lib/address-change"
+import { getAddressChangeVerificationTerminalResult } from "./address-change-verification.shared"
 import type {
   AddressChangeDraftPayload,
   AddressChangeSubmission,
@@ -90,6 +87,8 @@ type AddressChangeVerifyOtpResult =
   | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
   | { kind: "unavailable"; message: string }
   | { kind: "verification-expired"; message: string }
+  | { kind: "verification-cancelled"; message: string }
+  | { kind: "verification-consumed"; message: string }
   | { kind: "verification-not-found"; message: string }
   | { kind: "verified"; expiresAt: string; licenceRecordId: string }
 
@@ -498,6 +497,26 @@ async function verifyAddressChangeOtp(input: {
           message: "The address verification request was not found.",
         }
       }
+      if (
+        verification.status === "LOCKED" ||
+        verification.status === "EXPIRED" ||
+        verification.status === "CONSUMED" ||
+        verification.status === "CANCELLED"
+      ) {
+        return getAddressChangeVerificationTerminalResult(verification.status)
+      }
+      if (verification.expiresAt <= new Date()) {
+        if (verification.status === "OTP_PENDING") {
+          await transaction.addressChangeVerification.update({
+            where: { id: verification.id },
+            data: { status: "EXPIRED" },
+          })
+        }
+        return {
+          kind: "verification-expired",
+          message: "This verification request expired. Start a new request.",
+        }
+      }
       if (verification.status === "OTP_VERIFIED") {
         if (verification.verificationIdempotencyKey === input.idempotencyKey) {
           return {
@@ -512,17 +531,13 @@ async function verifyAddressChangeOtp(input: {
         }
       }
       if (
-        verification.status !== "OTP_PENDING" ||
-        verification.expiresAt <= new Date() ||
         !verification.otpChallenge ||
         verification.otpChallenge.expiresAt <= new Date()
       ) {
-        if (verification.status === "OTP_PENDING") {
-          await transaction.addressChangeVerification.update({
-            where: { id: verification.id },
-            data: { status: "EXPIRED" },
-          })
-        }
+        await transaction.addressChangeVerification.update({
+          where: { id: verification.id },
+          data: { status: "EXPIRED" },
+        })
         return {
           kind: "verification-expired",
           message: "This verification request expired. Start a new request.",
