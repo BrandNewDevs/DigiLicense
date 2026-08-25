@@ -116,24 +116,58 @@ console.log("Synced apps/web/.env with the local database credentials.")
 run("docker compose version", { quiet: true }) // fail fast with a clear error if Docker is missing
 run("docker compose up -d --build")
 
-// 4. Migrate and seed from inside the web container where DATABASE_URL points
-// at the Compose service host.
-console.log("\nWaiting briefly for PostgreSQL to accept connections...")
-run(
-  `docker compose exec -T db sh -c 'until pg_isready -U digilicense -d digilicense >/dev/null 2>&1; do sleep 1; done'`,
-  { quiet: true }
-)
+// 4. Wait for PostgreSQL with a hard deadline so a broken database fails the
+// script instead of hanging forever.
+const readinessTimeoutMs = 60_000
+
+console.log("\nWaiting for PostgreSQL to accept connections...")
+{
+  const deadline = Date.now() + readinessTimeoutMs
+  let ready = false
+
+  while (!ready) {
+    if (Date.now() > deadline) {
+      console.error(
+        `PostgreSQL was not ready within ${readinessTimeoutMs / 1000} seconds.`
+      )
+      // Surface the diagnostics a developer needs before exiting non-zero.
+      run("docker compose ps")
+      run("docker compose logs --tail 50 db")
+      console.error(
+        "Review the output above. After fixing the database, re-run `pnpm dev:setup`."
+      )
+      process.exit(1)
+    }
+
+    let result = ""
+
+    try {
+      result = execSync(
+        'docker compose exec -T db sh -c "pg_isready -U digilicense -d digilicense"',
+        { cwd: repoRoot, stdio: "pipe" }
+      )
+        .toString()
+        .trim()
+    } catch (error) {
+      // pg_isready exits non-zero while starting up; capture whatever it said.
+      result = error.stdout?.toString().trim() ?? "no response yet"
+    }
+
+    if (/accepting connections/.test(result)) {
+      ready = true
+    } else {
+      // Keep visible progress; pg_isready output doubles as the reason.
+      process.stdout.write(`  ${result || "no response yet"}\r`)
+      await new Promise((resolve) => setTimeout(resolve, 1_000))
+    }
+  }
+
+  process.stdout.write("\n")
+}
 
 run("docker compose exec web pnpm --filter @digilicense/db db:migrate:deploy")
-
-try {
-  run("docker compose exec web pnpm --filter @digilicense/db db:seed", { quiet: true })
-  console.log("Seed data applied.")
-} catch {
-  // Seeding is safe to retry but not required to keep working if it was
-  // already applied by a previous run of this script.
-  console.log("Seed step reported a problem; check the output above if pages look empty.")
-}
+run("docker compose exec web pnpm --filter @digilicense/db db:seed")
+console.log("Seed data applied.")
 
 console.log(`
 Setup complete.

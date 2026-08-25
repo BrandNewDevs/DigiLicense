@@ -71,28 +71,66 @@ const scenarios = [
   },
 ] as const
 
+function isKnownActiveApplicationConflict(error) {
+  // A previous demo run can leave an application whose (applicantId, service)
+  // pair collides with the partial unique guard even though the seeded
+  // application number differs. Re-seeding must skip such rows instead of
+  // failing, because the live workflow data wins over synthetic seed data.
+  //
+  // Depending on the driver adapter, P2002 reports either the constraint name
+  // in meta.target or only the field names in the message.
+  if (!error || typeof error !== "object") return false
+  if (error.code !== "P2002") return false
+
+  const meta = error.meta
+  if (meta && typeof meta === "object" && "target" in meta) {
+    const target = Array.isArray(meta.target)
+      ? meta.target.join(",")
+      : String(meta.target ?? "")
+    if (/applicantid/i.test(target) && /service/i.test(target)) {
+      return true
+    }
+  }
+
+  const message = typeof error.message === "string" ? error.message.toLowerCase() : ""
+
+  return message.includes("applicantid") && message.includes("service")
+}
+
 for (const scenario of scenarios) {
-  await prisma.application.upsert({
-    where: { applicationNumber: scenario.applicationNumber },
-    update: {},
-    create: {
-      applicantId: scenario.applicantId,
-      applicationNumber: scenario.applicationNumber,
-      service: scenario.service,
-      status: scenario.status,
-      nextAction: scenario.nextAction,
-      workflowEvents: {
-        create: {
-          actor: WorkflowActor.SYSTEM,
-          actorId: "synthetic-seed",
-          title: scenario.title,
-          description:
-            "Created as synthetic DigiLicense data. No government service was contacted.",
-          toStatus: scenario.status,
+  try {
+    await prisma.application.upsert({
+      where: { applicationNumber: scenario.applicationNumber },
+      update: {},
+      create: {
+        applicantId: scenario.applicantId,
+        applicationNumber: scenario.applicationNumber,
+        service: scenario.service,
+        status: scenario.status,
+        nextAction: scenario.nextAction,
+        workflowEvents: {
+          create: {
+            actor: WorkflowActor.SYSTEM,
+            actorId: "synthetic-seed",
+            title: scenario.title,
+            description:
+              "Created as synthetic DigiLicense data. No government service was contacted.",
+            toStatus: scenario.status,
+          },
         },
       },
-    },
-  })
+    })
+  } catch (error) {
+    if (isKnownActiveApplicationConflict(error)) {
+      console.log(
+        `Skipped seeding ${scenario.applicationNumber}: this applicant already holds an active application from a demo run.`
+      )
+      continue
+    }
+
+    // Unexpected failures propagate: seed.ts exits non-zero and setup fails.
+    throw error
+  }
 }
 
 await prisma.$disconnect()
