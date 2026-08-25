@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "setup": "node scripts/dev-setup.mjs",
+    "reset": "node scripts/dev-reset.mjs",
+    "stop": "node scripts/dev-stop.mjs",
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
