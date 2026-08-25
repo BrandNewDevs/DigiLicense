@@ -20,6 +20,7 @@ import {
 type ReadyState = Extract<LearnerTestReadResult, { kind: "ready" }>
 
 type Phase =
+  | "already-passed"
   | "authentication-required"
   | "graded"
   | "loading"
@@ -52,6 +53,10 @@ function LearnerTestFlow() {
     kind: string
     message: string
   }>()
+  // One key per started test: retries of the same submission reuse it so a
+  // lost response cannot record the attempt twice. Starting over generates
+  // a fresh key.
+  const [idempotencyKey, setIdempotencyKey] = useState("")
   const [announcement, setAnnouncement] = useState("")
   const headingRef = useRef<HTMLHeadingElement>(null)
 
@@ -72,7 +77,7 @@ function LearnerTestFlow() {
 
         if (result.kind === "already-passed") {
           setState(null)
-          setPhase("no-application")
+          setPhase("already-passed")
           return
         }
 
@@ -97,6 +102,11 @@ function LearnerTestFlow() {
 
   function beginTest() {
     setAnswers(new Array(state?.questionCount ?? 0).fill(-1))
+    setIdempotencyKey(
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `lt-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    )
     setSubmitError(undefined)
     setPhase("test")
     setAnnouncement(
@@ -120,7 +130,19 @@ function LearnerTestFlow() {
     setSubmitError(undefined)
 
     try {
-      const result = await submitTest({ data: { language, answers } })
+      if (!idempotencyKey) {
+        setSubmitError({
+          kind: "missing-key",
+          message:
+            "The test session was interrupted. Start the test again to submit.",
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      const result = await submitTest({
+        data: { language, answers, idempotencyKey },
+      })
 
       if (result.kind === "graded") {
         setOutcome({
@@ -239,10 +261,33 @@ function LearnerTestFlow() {
         </p>
         <Link
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
-          search={{ returnTo: "/services/learner-test" }}
-          to="/applicant/login"
+          params={{ serviceId: "learner-licence" }}
+          to="/services/$serviceId"
         >
-          Go to sign in
+          Go to the learner's-licence service
+        </Link>
+      </section>
+    )
+  }
+
+  if (phase === "already-passed") {
+    return (
+      <section className="rounded-3xl border border-border p-6 sm:p-8">
+        <Award className="size-8" aria-hidden="true" />
+        <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
+          Learner's test already passed
+        </h2>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          Your learner's test has already been passed and recorded on your
+          application. The next step is the permanent-licence application,
+          which opens after the waiting period.
+        </p>
+        <Link
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
+          params={{ serviceId: "permanent-licence" }}
+          to="/services/$serviceId"
+        >
+          Go to the permanent-licence service
         </Link>
       </section>
     )
@@ -413,7 +458,7 @@ function LearnerTestFlow() {
       </div>
 
       <p className="text-sm font-medium text-muted-foreground">
-        Question {state.questionCount}; pass mark {state.passMark}
+        Questions: {state.questionCount} · Pass mark: {state.passMark}
       </p>
       <h2
         className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
