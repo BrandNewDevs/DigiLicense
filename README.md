@@ -67,9 +67,12 @@ DigiLicense is being developed around four product goals:
 - Build payment and submission flows that are dependable and secure.
 - Treat accessibility, privacy, and citizen trust as product requirements.
 
-The current code demonstrates the navigation and interaction layer. It does
-not yet provide production authentication, backend storage, payment
-processing, or integration with Parivahan or another government system.
+The learner's-licence workflow persists to the project's own PostgreSQL
+instance: drafts, submissions, status transitions, documents, notifications,
+audit events, and test results are real DigiLicense records. Production
+authentication, payment processing, and any integration with Parivahan or
+another government system remain unimplemented; those external actions are
+clearly labelled as simulated inside the product.
 
 ## Tech stack
 
