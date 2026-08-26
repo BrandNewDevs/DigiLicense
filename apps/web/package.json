@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "@digilicense/db": "workspace:*",
     "@tailwindcss/vite": "^4",
     "@tanstack/react-devtools": "latest",
