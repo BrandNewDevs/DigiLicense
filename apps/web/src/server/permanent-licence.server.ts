@@ -12,6 +12,7 @@ import { consumeRateLimit } from "./rate-limit.server"
 const learnerLicenceService = "Learner's licence"
 const permanentLicenceService = "Permanent driving licence"
 const waitingPeriodDays = 30
+const learnerEligibilityValidityDays = 180
 
 type PermanentLicenceReadResult =
   | { kind: "authentication-required"; message: string }
@@ -44,6 +45,14 @@ type PermanentLicenceSubmitResult =
 function eligibilityDate(passedAt: Date) {
   const date = new Date(passedAt)
   date.setUTCDate(date.getUTCDate() + waitingPeriodDays)
+  return date
+}
+
+// This DigiLicense-only deadline is derived from the recorded learner-test
+// result. Applicants never provide it and it is not a government record.
+function learnerEligibilityDeadline(passedAt: Date) {
+  const date = new Date(passedAt)
+  date.setUTCDate(date.getUTCDate() + learnerEligibilityValidityDays)
   return date
 }
 
@@ -227,7 +236,11 @@ async function submitPermanentLicenceApplication(
           status: "TEST_PASSED",
         },
         orderBy: { updatedAt: "desc" },
-        select: { id: true, draft: { select: { formPayload: true } } },
+        select: {
+          id: true,
+          updatedAt: true,
+          draft: { select: { formPayload: true } },
+        },
       })
       const learnerVehicleClass = learner?.draft
         ? getLearnerVehicleClass(learner.draft.formPayload)
@@ -244,6 +257,9 @@ async function submitPermanentLicenceApplication(
         data: {
           applicantId: applicant.applicantId,
           learnerApplicationId: learner.id,
+          learnerEligibilityDeadlineAt: learnerEligibilityDeadline(
+            learner.updatedAt
+          ),
           vehicleClass: learnerVehicleClass,
           idempotencyKey: input.idempotencyKey,
         },
