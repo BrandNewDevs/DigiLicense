@@ -10,4 +10,11 @@ const applicationLookupSchema = z.object({
     .regex(/^[A-Z0-9-]+$/),
 })
 
-export { applicationLookupSchema }
+const markApplicationNotificationReadSchema = z
+  .object({
+    applicationNumber: applicationLookupSchema.shape.applicationNumber,
+    notificationId: z.string().cuid(),
+  })
+  .strict()
+
+export { applicationLookupSchema, markApplicationNotificationReadSchema }

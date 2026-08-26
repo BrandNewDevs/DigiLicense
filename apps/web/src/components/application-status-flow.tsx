@@ -6,13 +6,41 @@ import { ClipboardCheck, Search } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 
-import { lookupApplicationStatus } from "../server-functions/application-status"
+import {
+  lookupApplicationStatus,
+  markApplicationNotificationRead,
+} from "../server-functions/application-status"
 import { applicationLookupSchema } from "../validation/application-status"
 
 type StatusResult = {
-  nextAction: string
-  service: string
-  status: string
+  application: {
+    applicationNumber: string
+    nextAction: string
+    service: string
+    status: { code: string; label: string }
+  }
+  blockingReason: { code: string; message: string } | null
+  deadline: { kind: "EXPECTED_REVIEW_BY"; at: string; overdue: boolean } | null
+  documents: {
+    items: Array<{ id: string; status: string; type: string }>
+  }
+  history: {
+    items: Array<{
+      createdAt: string
+      description: string
+      id: string
+      title: string
+    }>
+  }
+  notifications: {
+    items: Array<{
+      createdAt: string
+      id: string
+      message: string
+      title: string
+    }>
+    unreadCount: number
+  }
 }
 
 const inputClassName =
@@ -20,6 +48,7 @@ const inputClassName =
 
 function ApplicationStatusFlow() {
   const lookupStatus = useServerFn(lookupApplicationStatus)
+  const markNotificationRead = useServerFn(markApplicationNotificationRead)
   const [applicationNumber, setApplicationNumber] = useState("")
   const [result, setResult] = useState<StatusResult>()
   const [message, setMessage] = useState("")
@@ -29,7 +58,6 @@ function ApplicationStatusFlow() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const parsed = applicationLookupSchema.safeParse({ applicationNumber })
-
     if (!parsed.success) {
       setResult(undefined)
       setAuthenticationRequired(false)
@@ -44,14 +72,9 @@ function ApplicationStatusFlow() {
     try {
       const response = await lookupStatus({ data: parsed.data })
       if (response.kind === "found") {
-        setResult({
-          nextAction: response.nextAction,
-          service: response.service,
-          status: response.status,
-        })
+        setResult(response)
         return
       }
-
       if (response.kind === "authentication-required") {
         setAuthenticationRequired(true)
       }
@@ -60,6 +83,44 @@ function ApplicationStatusFlow() {
       setMessage("Application tracking is temporarily unavailable.")
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleMarkNotificationRead(notificationId: string) {
+    if (!result) return
+
+    try {
+      const response = await markNotificationRead({
+        data: {
+          applicationNumber: result.application.applicationNumber,
+          notificationId,
+        },
+      })
+      if (response.kind !== "success") {
+        setMessage(
+          response.kind === "rate-limited"
+            ? response.message
+            : "The notification could not be updated."
+        )
+        return
+      }
+      setResult((current) =>
+        current
+          ? {
+              ...current,
+              notifications: {
+                ...current.notifications,
+                items: current.notifications.items.filter(
+                  (notification) => notification.id !== notificationId
+                ),
+                unreadCount: Math.max(0, current.notifications.unreadCount - 1),
+              },
+            }
+          : current
+      )
+      setMessage("Notification marked as read.")
+    } catch {
+      setMessage("The notification could not be updated.")
     }
   }
 
@@ -131,25 +192,44 @@ function ApplicationStatusFlow() {
               <dt className="text-sm font-medium text-muted-foreground">
                 Service
               </dt>
-              <dd className="mt-1">{result.service}</dd>
+              <dd className="mt-1">{result.application.service}</dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">
                 Status
               </dt>
-              <dd className="mt-1">{result.status}</dd>
+              <dd className="mt-1">{result.application.status.label}</dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">
                 Next action
               </dt>
-              <dd className="mt-1">{result.nextAction}</dd>
+              <dd className="mt-1">{result.application.nextAction}</dd>
             </div>
           </dl>
-          <p className="mt-5 text-sm leading-6 text-muted-foreground">
-            This view shows the current status only. Application history,
-            deadlines, and notifications are not available here yet.
-          </p>
+          {result.blockingReason ? (
+            <p className="mt-5 rounded-lg bg-muted p-3 text-sm leading-6">
+              {result.blockingReason.message}
+            </p>
+          ) : null}
+          {result.deadline ? (
+            <p className="mt-4 text-sm leading-6 text-muted-foreground">
+              Expected update by{" "}
+              <time dateTime={result.deadline.at}>
+                {new Date(result.deadline.at).toLocaleString()}
+              </time>
+              {result.deadline.overdue
+                ? ". This update is taking longer than expected."
+                : "."}
+            </p>
+          ) : null}
+          <StatusHistory items={result.history.items} />
+          <StatusDocuments items={result.documents.items} />
+          <StatusNotifications
+            items={result.notifications.items}
+            onMarkRead={handleMarkNotificationRead}
+            unreadCount={result.notifications.unreadCount}
+          />
         </section>
       ) : null}
 
@@ -162,6 +242,78 @@ function ApplicationStatusFlow() {
           Go to sign in
         </Link>
       ) : null}
+    </section>
+  )
+}
+
+function StatusHistory({ items }: { items: StatusResult["history"]["items"] }) {
+  return (
+    <section className="mt-6">
+      <h4 className="font-medium">Application history</h4>
+      <ol className="mt-3 space-y-3 text-sm">
+        {items.map((event) => (
+          <li key={event.id}>
+            <p className="font-medium">{event.title}</p>
+            <p className="text-muted-foreground">{event.description}</p>
+            <time className="text-muted-foreground" dateTime={event.createdAt}>
+              {new Date(event.createdAt).toLocaleString()}
+            </time>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function StatusDocuments({
+  items,
+}: {
+  items: StatusResult["documents"]["items"]
+}) {
+  return (
+    <section className="mt-6">
+      <h4 className="font-medium">Documents</h4>
+      <ul className="mt-3 space-y-2 text-sm">
+        {items.map((document) => (
+          <li key={document.id}>
+            {document.type.replaceAll("_", " ").toLowerCase()}:{" "}
+            {document.status.replaceAll("_", " ").toLowerCase()}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function StatusNotifications({
+  items,
+  onMarkRead,
+  unreadCount,
+}: {
+  items: StatusResult["notifications"]["items"]
+  onMarkRead: (notificationId: string) => void
+  unreadCount: number
+}) {
+  return (
+    <section className="mt-6">
+      <h4 className="font-medium">Unread notifications ({unreadCount})</h4>
+      <ul className="mt-3 space-y-3 text-sm">
+        {items.map((notification) => (
+          <li key={notification.id}>
+            <p className="font-medium">{notification.title}</p>
+            <p className="text-muted-foreground">{notification.message}</p>
+            <Button
+              className="mt-2"
+              onClick={() => onMarkRead(notification.id)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              Mark as read
+            </Button>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }

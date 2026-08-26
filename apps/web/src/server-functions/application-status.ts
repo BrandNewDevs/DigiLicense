@@ -1,6 +1,9 @@
 import { createServerFn } from "@tanstack/react-start"
 
-import { applicationLookupSchema } from "../validation/application-status"
+import {
+  applicationLookupSchema,
+  markApplicationNotificationReadSchema,
+} from "../validation/application-status"
 
 const lookupApplicationStatus = createServerFn({ method: "POST" })
   .validator((input: unknown) => applicationLookupSchema.parse(input))
@@ -11,4 +14,15 @@ const lookupApplicationStatus = createServerFn({ method: "POST" })
     return lookupAuthorizedApplicationStatus(data.applicationNumber)
   })
 
-export { lookupApplicationStatus }
+const markApplicationNotificationRead = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    markApplicationNotificationReadSchema.parse(input)
+  )
+  .handler(async ({ data }) => {
+    const { markApplicationNotificationRead: markRead } =
+      await import("../server/application-status.server")
+
+    return markRead(data)
+  })
+
+export { lookupApplicationStatus, markApplicationNotificationRead }
