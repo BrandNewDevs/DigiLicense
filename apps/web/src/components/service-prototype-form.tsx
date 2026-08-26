@@ -1,3 +1,4 @@
+import { useForm } from "@tanstack/react-form"
 import { useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -10,6 +11,12 @@ type ServicePrototypeFormProps = {
 
 function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
   const [submitted, setSubmitted] = useState(false)
+  const form = useForm({
+    defaultValues: Object.fromEntries(
+      service.fields.map((field) => [field.name, field.defaultValue ?? ""])
+    ) as Record<string, string>,
+    onSubmit: () => setSubmitted(true),
+  })
 
   if (submitted) {
     return (
@@ -44,7 +51,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
       className="rounded-3xl border border-border p-6 sm:p-8"
       onSubmit={(event) => {
         event.preventDefault()
-        setSubmitted(true)
+        void form.handleSubmit()
       }}
     >
       <p className="text-sm font-medium text-muted-foreground">Service form</p>
@@ -58,39 +65,48 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
 
       <div className="mt-7 space-y-5">
         {service.fields.map((field) => (
-          <div key={field.name}>
-            <label
-              className="mb-2 block text-sm font-medium"
-              htmlFor={field.name}
-            >
-              {field.label}
-            </label>
-            {field.type === "select" ? (
-              <select
-                className="h-11 w-full rounded-lg border border-input px-3 text-base"
-                id={field.name}
-                name={field.name}
-                required
-              >
-                <option value="">Select an option</option>
-                {field.options?.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="h-11 w-full rounded-lg border border-input px-3 text-base"
-                defaultValue={field.defaultValue}
-                id={field.name}
-                name={field.name}
-                placeholder={field.placeholder}
-                type={field.type}
-                required
-              />
+          <form.Field key={field.name} name={field.name}>
+            {(formField) => (
+              <div>
+                <label
+                  className="mb-2 block text-sm font-medium"
+                  htmlFor={field.name}
+                >
+                  {field.label}
+                </label>
+                {field.type === "select" ? (
+                  <select
+                    className="h-11 w-full rounded-lg border border-input px-3 text-base"
+                    id={field.name}
+                    onChange={(event) =>
+                      formField.handleChange(event.target.value)
+                    }
+                    required
+                    value={formField.state.value}
+                  >
+                    <option value="">Select an option</option>
+                    {field.options?.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className="h-11 w-full rounded-lg border border-input px-3 text-base"
+                    id={field.name}
+                    onChange={(event) =>
+                      formField.handleChange(event.target.value)
+                    }
+                    placeholder={field.placeholder}
+                    required
+                    type={field.type}
+                    value={formField.state.value}
+                  />
+                )}
+              </div>
             )}
-          </div>
+          </form.Field>
         ))}
       </div>
 
