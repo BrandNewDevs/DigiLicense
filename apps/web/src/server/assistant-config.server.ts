@@ -48,8 +48,7 @@ function readPrivateAiConfiguration(
     parsed.password !== "" ||
     parsed.pathname !== "/" ||
     parsed.search !== "" ||
-    parsed.hash !== "" ||
-    baseUrl !== parsed.origin
+    parsed.hash !== ""
   ) {
     throw new Error(
       "DIGILICENSE_AI_BASE_URL must contain only an HTTP(S) scheme, host, and optional port."
