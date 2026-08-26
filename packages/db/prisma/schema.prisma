@@ -427,6 +427,8 @@ model AppointmentWaitlistEntry {
   originalJoinedAt   DateTime                  @default(now())
   availableAfter     DateTime?
   joinIdempotencyKey String                    @unique
+  preferenceIdempotencyKey String?              @unique
+  leaveIdempotencyKey String?                   @unique
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
   application        Application               @relation(fields: [applicationId], references: [id], onDelete: Restrict)
@@ -480,6 +482,7 @@ model AppointmentOffer {
   rankingBreakdown     Json
   expiresAt            DateTime
   responseAt           DateTime?
+  responseIdempotencyKey String?                @unique
   allocationKey        String                  @unique
   createdAt            DateTime                @default(now())
   slot                 AppointmentSlot         @relation(fields: [slotId], references: [id], onDelete: Restrict)
