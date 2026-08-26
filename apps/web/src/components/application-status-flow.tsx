@@ -52,6 +52,7 @@ function ApplicationStatusFlow() {
   const [applicationNumber, setApplicationNumber] = useState("")
   const [result, setResult] = useState<StatusResult>()
   const [message, setMessage] = useState("")
+  const [notificationMessage, setNotificationMessage] = useState("")
   const [authenticationRequired, setAuthenticationRequired] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -69,6 +70,7 @@ function ApplicationStatusFlow() {
     setResult(undefined)
     setAuthenticationRequired(false)
     setMessage("")
+    setNotificationMessage("")
     try {
       const response = await lookupStatus({ data: parsed.data })
       if (response.kind === "found") {
@@ -89,6 +91,8 @@ function ApplicationStatusFlow() {
   async function handleMarkNotificationRead(notificationId: string) {
     if (!result) return
 
+    setNotificationMessage("")
+
     try {
       const response = await markNotificationRead({
         data: {
@@ -97,7 +101,7 @@ function ApplicationStatusFlow() {
         },
       })
       if (response.kind !== "success") {
-        setMessage(
+        setNotificationMessage(
           response.kind === "rate-limited"
             ? response.message
             : "The notification could not be updated."
@@ -118,9 +122,9 @@ function ApplicationStatusFlow() {
             }
           : current
       )
-      setMessage("Notification marked as read.")
+      setNotificationMessage("Notification marked as read.")
     } catch {
-      setMessage("The notification could not be updated.")
+      setNotificationMessage("The notification could not be updated.")
     }
   }
 
@@ -228,6 +232,7 @@ function ApplicationStatusFlow() {
           <StatusNotifications
             items={result.notifications.items}
             onMarkRead={handleMarkNotificationRead}
+            statusMessage={notificationMessage}
             unreadCount={result.notifications.unreadCount}
           />
         </section>
@@ -288,15 +293,20 @@ function StatusDocuments({
 function StatusNotifications({
   items,
   onMarkRead,
+  statusMessage,
   unreadCount,
 }: {
   items: StatusResult["notifications"]["items"]
   onMarkRead: (notificationId: string) => void
+  statusMessage: string
   unreadCount: number
 }) {
   return (
     <section className="mt-6">
       <h4 className="font-medium">Unread notifications ({unreadCount})</h4>
+      <p aria-live="polite" className="mt-3 text-sm text-muted-foreground">
+        {statusMessage}
+      </p>
       <ul className="mt-3 space-y-3 text-sm">
         {items.map((notification) => (
           <li key={notification.id}>
