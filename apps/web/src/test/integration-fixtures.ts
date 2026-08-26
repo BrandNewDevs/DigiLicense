@@ -42,6 +42,7 @@ async function resetIntegrationDatabase(): Promise<void> {
   await prisma.workflowEvent.deleteMany()
   await prisma.auditEvent.deleteMany()
   await prisma.applicationDraft.deleteMany()
+  await prisma.permanentLicenceDetail.deleteMany()
   await prisma.application.deleteMany()
   await prisma.mobileChangeRequest.deleteMany()
   await prisma.addressChangeVerification.deleteMany()
