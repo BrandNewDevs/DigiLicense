@@ -108,20 +108,25 @@ function ApplicationStatusFlow() {
         )
         return
       }
-      setResult((current) =>
-        current
-          ? {
-              ...current,
-              notifications: {
-                ...current.notifications,
-                items: current.notifications.items.filter(
-                  (notification) => notification.id !== notificationId
-                ),
-                unreadCount: Math.max(0, current.notifications.unreadCount - 1),
-              },
-            }
-          : current
-      )
+      setResult((current) => {
+        if (!current) return current
+
+        const itemWasUnread = current.notifications.items.some(
+          (notification) => notification.id === notificationId
+        )
+        if (!itemWasUnread) return current
+
+        return {
+          ...current,
+          notifications: {
+            ...current.notifications,
+            items: current.notifications.items.filter(
+              (notification) => notification.id !== notificationId
+            ),
+            unreadCount: Math.max(0, current.notifications.unreadCount - 1),
+          },
+        }
+      })
       setNotificationMessage("Notification marked as read.")
     } catch {
       setNotificationMessage("The notification could not be updated.")
