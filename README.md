@@ -48,8 +48,13 @@ payment, identity, and government-action adapters.
 - Automatic simulated checks after learner-licence submission. The workflow
   records both the applicant submission and the system action, without an
   operator stage or a government-system call.
-- An applicant-scoped application-status server function. Its dedicated
-  applicant interface remains to be built.
+- An applicant-scoped application-status flow showing owned workflow history,
+  document states, unread application notifications, blockers, and expected
+  review timing. Notification reads are ownership-scoped and idempotent.
+- Address-change submissions receive a one-minute expected review time. A
+  scheduled database worker accepts the permitted proof choices atomically,
+  updates the DigiLicense-only licence summary, and records system workflow,
+  notification, and audit history. No operator review route exists yet.
 - A shared dynamic service route at `/services/$serviceId`. The learner's
   licence uses the persisted workflow. The remaining services are clearly
   labelled forms that save nothing.
@@ -118,6 +123,21 @@ The current CSP permits inline scripts and styles only because TanStack's
 streamed hydration and the component styling model require them; it permits no
 third-party script or style origins. Moving those inline allowances to
 per-request nonces remains a deployment-hardening task.
+
+### PostgreSQL integration tests
+
+`pnpm test` remains the fast unit suite. `pnpm test:integration` runs the
+serial PostgreSQL workflow tests only after `prisma migrate deploy` has been
+applied to a dedicated `digilicense_integration` database. The test setup
+refuses to run unless both that database name and
+`DIGILICENSE_INTEGRATION_TEST=true` are present, so it cannot clean a normal
+development or production database. CI starts only the TLS-enabled Compose
+database, uses fixed synthetic credentials, and removes the container volume
+even after failures.
+
+The once-per-minute `deploy/cron/digilicense-address-review.cron` command runs
+the automatic address-review worker. It uses `FOR UPDATE SKIP LOCKED`, so
+multiple worker instances cannot complete the same application twice.
 
 ### Local security configuration
 
