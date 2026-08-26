@@ -47,14 +47,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.4
+      - name: Prepare Compose web environment
+        # Compose validates declared env_file paths even when only the db
+        # service is started. This file is created only in the CI workspace;
+        # the job-level fixed integration values override its placeholders.
+        run: cp apps/web/.env.example apps/web/.env
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
