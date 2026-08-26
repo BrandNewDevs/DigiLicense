@@ -20,9 +20,9 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] 3. New permanent driving-licence application with waiting-period eligibility
 - [ ] 4. Driving-licence renewal application
 - [ ] 5. Duplicate or replacement driving-licence application
-- [ ] 6. Driving-licence address-change application
-- [ ] 7. Mobile-number update with simulated OTP and optional mock Aadhaar authentication
-- [ ] 8. Application status, deadlines, blocking reasons, and history (basic applicant-scoped status lookup from PostgreSQL works; deadlines, blocking reasons, and applicant-visible history remain)
+- [x] 6. Driving-licence address-change application (owned licence verification, short-lived OTP challenge, persisted submission, and automatic DigiLicense-only proof review)
+- [x] 7. Mobile-number update with simulated OTP and optional mock Aadhaar authentication
+- [x] 8. Application status, deadlines, blocking reasons, history, document states, and application-scoped unread notifications
 - [ ] 9. Fee schedule, calculated fees, simulated payment, and payment status
 - [ ] 10. Appointment booking for applicable services, including the driving-test waitlist
 
@@ -54,12 +54,12 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [x] Add TanStack Start server functions or server routes for all privileged reads and mutations
 - [x] Keep Prisma, session secrets, and external-service credentials in server-only modules
 - [ ] Implement reusable server-validated workflow definitions for all ten capabilities (the learner's-licence submission flow currently records automatic simulated checks)
-- [ ] Persist drafts, validation results, submissions, status changes, and immutable workflow events (submissions, status changes, learner's-licence drafts, and workflow events persist; validation results do not yet)
-- [ ] Add mock document checks, payments, notifications, and government-action markers
+- [x] Persist drafts, submissions, status changes, application blockers/deadlines, and immutable workflow events (validation-result persistence remains service-specific)
+- [ ] Add document checks, payments, notifications, and government-action markers across every remaining service (learner, mobile, address, and status records cover the implemented workflows)
 - [ ] Implement transactional appointment allocation, offer expiry, and confirmation
 - [x] Add append-only workflow and application-submission audit events
 - [x] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (CSRF/origin enforcement, input validation, secure cookies, secret isolation, TLS-required database URLs, security headers, and structured dependency/security-failure logging done)
-- [ ] Add broader metrics and alerts
+- [ ] Add broader metrics and alerts (the address-review worker currently emits sanitized completion/failure telemetry and exits non-zero on failure)
 - [x] Keep applicant authorization checks at every server boundary
 
 ## AI engineering service
@@ -114,7 +114,7 @@ keys, and is not published to browser clients.
 
 ## Testing and quality
 
-- [ ] Test valid, invalid, and unauthorized workflow transitions (workflow state rules, validation schemas, learner's-licence schemas, and age-eligibility boundaries have unit tests; unauthorized-transition and server-boundary tests remain)
+- [ ] Test valid, invalid, and unauthorized workflow transitions (serial PostgreSQL integration coverage now exercises learner persistence, applicant isolation, mobile OTP locking, and concurrent address-review completion; remaining service and failure-path coverage is outstanding)
 - [ ] Test learner-licence waiting-period and expiry boundaries
 - [ ] Test drafts, validation, payments, notifications, and audit-event creation
 - [ ] Test waitlist matching, priority ordering, offer lifecycle, and concurrent booking attempts
