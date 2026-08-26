@@ -19,8 +19,8 @@ type SiteHeaderProps = {
   account?: ReactNode
   actions?: readonly NavigationItem[]
   brand: ReactNode
-  brandHref: string
   brandLabel?: string
+  initialPathname?: string
   linkComponent?: ElementType
   navigation: readonly NavigationItem[]
   utility?: ReactNode
@@ -59,8 +59,7 @@ function getActiveNavigationHref(
   return (
     navigation.find(
       (item) =>
-        getHashTarget(item.href) === null &&
-        getPathname(item.href) === pathname
+        getHashTarget(item.href) === null && getPathname(item.href) === pathname
     )?.href ?? ""
   )
 }
@@ -69,17 +68,20 @@ function SiteHeader({
   account,
   actions = [],
   brand,
-  brandHref,
   brandLabel,
+  initialPathname,
   linkComponent,
   navigation,
   utility,
 }: SiteHeaderProps) {
   const LinkElement = linkComponent ?? "a"
   const linkTarget = (href: string) => (linkComponent ? { to: href } : { href })
-  const [currentPath, setCurrentPath] = useState("")
-  const [activeHash, setActiveHash] = useState("")
-  const [activeHref, setActiveHref] = useState("")
+  const showNavigationIndicator = navigation.length > 1
+  const [activeHref, setActiveHref] = useState(() =>
+    initialPathname
+      ? getActiveNavigationHref(navigation, initialPathname, "")
+      : ""
+  )
   const [indicatorPosition, setIndicatorPosition] =
     useState<IndicatorPosition | null>(null)
   const [isIndicatorVisible, setIsIndicatorVisible] = useState(false)
@@ -154,8 +156,6 @@ function SiteHeader({
       const pathname = window.location.pathname
       const hash = window.location.hash
 
-      setCurrentPath(pathname)
-      setActiveHash(hash.startsWith("#") ? hash.slice(1) : "")
       setActiveHref(
         getActiveNavigationHref(navigationItemsRef.current, pathname, hash)
       )
@@ -189,7 +189,6 @@ function SiteHeader({
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
           .slice(0, 1)
           .forEach((entry) => {
-            setActiveHash(entry.target.id)
             setActiveHref(
               navigationItemsRef.current.find(
                 (item) => getHashTarget(item.href) === entry.target.id
@@ -245,104 +244,111 @@ function SiteHeader({
   useEffect(() => () => clearIndicatorTimer(), [])
 
   return (
-    <header className="sticky top-0 z-40 px-4 pt-4 pb-4 sm:pt-5">
-      <div className="relative mx-auto flex h-12 max-w-[calc(100vw-2rem)] items-center gap-0.5 rounded-full border border-border/70 bg-gradient-to-r from-background/75 via-background/40 to-background/75 px-1 shadow-md shadow-black/10 backdrop-blur-xl sm:max-w-[720px] sm:gap-1 sm:px-1.5">
-        <LinkElement
-          {...linkTarget(brandHref)}
-          className="inline-flex h-9 shrink-0 items-center rounded-full px-3 font-heading text-sm font-semibold tracking-[-0.04em] text-black transition-colors hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-md:hidden sm:px-4"
-          aria-label={brandLabel}
-        >
-          {brand}
-        </LinkElement>
-
-        <nav
-          ref={navigationRef}
-          className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1 text-xs font-medium text-black max-md:static max-md:flex-1 max-md:translate-x-0 max-md:justify-center sm:text-sm"
-          aria-label="Main navigation"
-          onPointerLeave={restoreActiveIndicator}
+    <header className="sticky top-0 z-40">
+      <div className="relative w-full">
+        <div
+          className={cn(
+            "relative mx-auto flex h-12 w-full max-w-[560px] items-center gap-0.5 px-4 sm:gap-1 sm:px-6",
+            utility && "lg:pr-14"
+          )}
         >
           <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0.5 rounded-full bg-background max-lg:hidden"
-            style={{
-              left: indicatorPosition?.left ?? 0,
-              width: indicatorPosition?.width ?? 0,
-              opacity: isIndicatorVisible ? 1 : 0,
-              transition: isIndicatorVisible && shouldAnimateIndicator
-                ? "left 200ms ease-out, width 200ms ease-out, opacity 200ms ease-out"
-                : "none",
-            }}
-          />
-          {navigation.map((item) => (
-            <LinkElement
-              {...linkTarget(item.href)}
-              className={cn(
-                "relative z-10 inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-full px-1.5 text-xs text-black transition-colors hover:text-black focus-visible:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-3 sm:text-sm",
-                getHashTarget(item.href) === null &&
-                currentPath === getPathname(item.href)
-                  ? "after:absolute after:right-2 after:bottom-0.5 after:left-2 after:h-0.5 after:rounded-full after:bg-current lg:after:hidden"
-                  : activeHash === getHashTarget(item.href)
-                  ? "after:absolute after:right-2 after:bottom-0.5 after:left-2 after:h-0.5 after:rounded-full after:bg-current lg:after:hidden"
-                  : ""
-              )}
-              key={item.href}
-              onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                setActiveHref(item.href)
-                showIndicator(event.currentTarget)
-              }}
-              onFocus={(event: FocusEvent<HTMLAnchorElement>) =>
-                showIndicator(event.currentTarget)
-              }
-              onPointerEnter={(event: PointerEvent<HTMLAnchorElement>) =>
-                showIndicator(event.currentTarget)
-              }
-            >
-              {item.label}
-            </LinkElement>
-          ))}
-        </nav>
+            className="inline-flex h-9 shrink-0 items-center px-3 font-heading text-lg font-semibold tracking-[-0.04em] text-black max-md:hidden sm:px-4"
+            aria-label={brandLabel}
+          >
+            {brand}
+          </span>
 
-        {account || actions.length > 0 ? (
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            {account ? (
-              account
-            ) : actions.length > 0 ? (
-              <nav className="flex items-center gap-1 text-sm font-medium" aria-label="Account">
-                {actions.map((item) => (
-                  <LinkElement
-                    {...linkTarget(item.href)}
-                    className={cn(
-                      buttonVariants({
-                        variant: item.label === "Sign in" ? "solid" : "outline",
-                        size: "sm",
-                      }),
-                      "h-9 rounded-full px-4 text-sm max-[380px]:px-2",
-                      item.label === "Sign in" &&
-                        "bg-[#d96b16] text-white hover:bg-[#b9550d]"
-                    )}
-                    key={item.href}
-                  >
-                    {item.label}
-                  </LinkElement>
-                ))}
-              </nav>
+          <nav
+            ref={navigationRef}
+            className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1 text-base font-medium text-black max-md:static max-md:flex-1 max-md:translate-x-0 max-md:justify-start"
+            aria-label="Main navigation"
+            onPointerLeave={restoreActiveIndicator}
+          >
+            {showNavigationIndicator ? (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0.5 rounded-full bg-background max-lg:hidden"
+                style={{
+                  left: indicatorPosition?.left ?? 0,
+                  width: indicatorPosition?.width ?? 0,
+                  opacity: isIndicatorVisible ? 1 : 0,
+                  transition:
+                    isIndicatorVisible && shouldAnimateIndicator
+                      ? "left 200ms ease-out, width 200ms ease-out, opacity 200ms ease-out"
+                      : "none",
+                }}
+              />
             ) : null}
-          </div>
-        ) : (
-          <div aria-hidden="true" />
-        )}
-      </div>
-      {utility ? (
-        <>
-          <div className="absolute top-5 right-5 hidden md:block">
+            {navigation.map((item) => (
+              <LinkElement
+                {...linkTarget(item.href)}
+                className={cn(
+                  "relative z-10 inline-flex h-9 shrink-0 items-center rounded-full px-1.5 text-sm whitespace-nowrap text-black transition-colors hover:text-black focus-visible:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-3 sm:text-base",
+                  activeHref === item.href
+                    ? "after:absolute after:right-2 after:bottom-0.5 after:left-2 after:h-0.5 after:rounded-full after:bg-current lg:after:hidden"
+                    : "",
+                  activeHref === item.href && indicatorPosition === null
+                    ? "lg:bg-background"
+                    : ""
+                )}
+                key={item.href}
+                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                  setActiveHref(item.href)
+                  showIndicator(event.currentTarget)
+                }}
+                onFocus={(event: FocusEvent<HTMLAnchorElement>) =>
+                  showIndicator(event.currentTarget)
+                }
+                onPointerEnter={(event: PointerEvent<HTMLAnchorElement>) =>
+                  showIndicator(event.currentTarget)
+                }
+              >
+                {item.label}
+              </LinkElement>
+            ))}
+          </nav>
+
+          {account || actions.length > 0 ? (
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {account ? (
+                account
+              ) : actions.length > 0 ? (
+                <nav
+                  className="flex items-center gap-1 text-sm font-medium"
+                  aria-label="Account"
+                >
+                  {actions.map((item) => (
+                    <LinkElement
+                      {...linkTarget(item.href)}
+                      className={cn(
+                        buttonVariants({
+                          variant:
+                            item.label === "Sign in" ? "solid" : "outline",
+                          size: "sm",
+                        }),
+                        "h-9 rounded-full px-4 text-base max-[380px]:px-2",
+                        item.label === "Sign in" &&
+                          "bg-black text-white hover:bg-black/80"
+                      )}
+                      key={item.href}
+                    >
+                      {item.label}
+                    </LinkElement>
+                  ))}
+                </nav>
+              ) : null}
+            </div>
+          ) : (
+            <div aria-hidden="true" />
+          )}
+        </div>
+        {utility ? (
+          <div className="absolute top-1/2 right-4 hidden -translate-y-1/2 sm:right-5 lg:block">
             {utility}
           </div>
-          {/* Small screens have no room beside the navigation pill. Render
-              the utility (accessibility controls) in flow under the header
-              row so it stays reachable instead of being display:none. */}
-          <div className="flex justify-end px-4 pb-1 md:hidden">{utility}</div>
-        </>
-      ) : null}
+        ) : null}
+      </div>
     </header>
   )
 }

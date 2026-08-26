@@ -1,5 +1,6 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
+import { LogOut } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -17,6 +18,9 @@ type ApplicantHeaderProps = {
 
 function ApplicantHeader({ navigation, returnTo }: ApplicantHeaderProps) {
   const isSignedIn = useMockSession("applicant")
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const logout = useServerFn(logoutDemoSession)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
@@ -40,9 +44,10 @@ function ApplicantHeader({ navigation, returnTo }: ApplicantHeaderProps) {
               }}
               size="sm"
               type="button"
-              variant="outline"
+              variant="solid"
             >
               {isSigningOut ? "Logging out..." : "Logout"}
+              <LogOut aria-hidden="true" className="size-4" />
             </Button>
           </>
         ) : undefined
@@ -58,8 +63,8 @@ function ApplicantHeader({ navigation, returnTo }: ApplicantHeaderProps) {
             ]
       }
       brand="DigiLicense"
-      brandHref="/"
-      brandLabel="DigiLicense home"
+      brandLabel="DigiLicense"
+      initialPathname={pathname}
       linkComponent={Link}
       navigation={navigation}
       utility={<DisplayPreferencesControl />}

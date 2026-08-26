@@ -1,39 +1,7 @@
+@import "@fontsource/noto-serif/400.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
-
-@font-face {
-  font-family: Satoshi;
-  src: url("/fonts/satoshi-400.woff2") format("woff2");
-  font-display: swap;
-  font-style: normal;
-  font-weight: 400;
-}
-
-@font-face {
-  font-family: Satoshi;
-  src: url("/fonts/satoshi-700.woff2") format("woff2");
-  font-display: swap;
-  font-style: normal;
-  font-weight: 700;
-}
-
-@font-face {
-  font-family: Satoshi;
-  src: url("/fonts/satoshi-400-italic.woff2") format("woff2");
-  font-display: swap;
-  font-style: italic;
-  font-weight: 400;
-}
-
-@font-face {
-  font-family: Satoshi;
-  src: url("/fonts/satoshi-700-italic.woff2") format("woff2");
-  font-display: swap;
-  font-style: italic;
-  font-weight: 700;
-}
 
 @custom-variant dark (&:is(.dark *));
 @source "../../../apps/**/*.{ts,tsx}";
@@ -80,7 +48,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --font-sans: "Geist Variable", sans-serif;
+  --font-sans: "Oranienbaum", "Noto Serif", Georgia, serif;
 }
 
 :root {
@@ -169,7 +137,7 @@ html[data-digilicense-content-width="wide"] {
 
 @layer base {
   html {
-    background-color: #ff9933;
+    overflow-y: scroll;
     overscroll-behavior-y: none;
   }
 
@@ -182,6 +150,10 @@ html[data-digilicense-content-width="wide"] {
     margin: 0;
   }
 
+  p {
+    font-family: "Inter", sans-serif;
+  }
+
   :where(a, button, input, textarea, select):focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 3px;
@@ -189,8 +161,50 @@ html[data-digilicense-content-width="wide"] {
 }
 
 @layer utilities {
-  .font-satoshi {
-    font-family: Satoshi, var(--font-geist), sans-serif;
+  .oranienbaum-regular {
+    font-family: "Oranienbaum", serif;
+    font-style: normal;
+    font-weight: 400;
+  }
+
+  .font-description {
+    font-family: "Inter", sans-serif;
+  }
+
+  .journey-step-card {
+    background-color: #f1f1f1;
+    isolation: isolate;
+  }
+
+  .journey-step-card::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background: linear-gradient(
+      346deg,
+      rgb(255 119 0) 0%,
+      rgb(255 211 89) 54%,
+      rgb(255 255 255 / 0) 100%
+    );
+    content: "";
+    opacity: 0;
+    transition: opacity 300ms ease-out;
+  }
+
+  .journey-step-card:hover::before {
+    opacity: 1;
+  }
+
+  @media (max-width: 1023px) {
+    .journey-step-card::before {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .journey-step-card::before {
+      transition: none;
+    }
   }
 
   .sky-glow-background {
