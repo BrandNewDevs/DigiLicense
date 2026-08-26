@@ -126,9 +126,9 @@ async function allocateAppointmentSlot(
         ORDER BY
           (
             CASE
-              WHEN permanent_detail."learnerEligibilityDeadlineAt" >= ${now} + INTERVAL '30 days' THEN 0
+              WHEN permanent_detail."learnerEligibilityDeadlineAt" >= CAST(${now} AS TIMESTAMP) + INTERVAL '30 days' THEN 0
               ELSE CEIL(
-                EXTRACT(EPOCH FROM (${now} + INTERVAL '30 days' - permanent_detail."learnerEligibilityDeadlineAt"))
+                EXTRACT(EPOCH FROM (CAST(${now} AS TIMESTAMP) + INTERVAL '30 days' - permanent_detail."learnerEligibilityDeadlineAt"))
                 / EXTRACT(EPOCH FROM INTERVAL '30 days') * 60
               )::INTEGER
             END
