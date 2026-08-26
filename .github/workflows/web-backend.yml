@@ -1,0 +1,106 @@
+name: Web backend
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/db/**"
+      - "compose.yaml"
+      - "docker/postgres/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/web-backend.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/db/**"
+      - "compose.yaml"
+      - "docker/postgres/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/web-backend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://digilicense:integration-only-password@localhost:5432/digilicense_integration?sslmode=require&uselibpqcompat=true
+      DIGILICENSE_IDENTIFIER_HMAC_KEY_VERSION: v1
+      DIGILICENSE_IDENTIFIER_HMAC_SECRET: integration-only-hmac-secret-at-least-32-characters
+      DIGILICENSE_INTEGRATION_TEST: "true"
+      DIGILICENSE_LOCAL_DB_PASSWORD: integration-only-password
+      DIGILICENSE_MOCK_WORKFLOW_OTP: "123456"
+      DIGILICENSE_POSTGRES_DB: digilicense_integration
+      DIGILICENSE_PUBLIC_ORIGIN: https://digilicense.example
+      DIGILICENSE_SESSION_SECRET: integration-only-session-secret-at-least-32-characters
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @digilicense/db db:generate
+
+      - name: Run unit tests
+        run: pnpm --filter web test
+
+      - name: Lint web application
+        run: pnpm --filter web lint
+
+      - name: Typecheck web application
+        run: pnpm --filter web typecheck
+
+      - name: Build production web application
+        env:
+          NODE_ENV: production
+        run: pnpm --filter web build
+
+      - name: Start TLS PostgreSQL integration database
+        run: docker compose up --detach db
+
+      - name: Wait for PostgreSQL health
+        run: |
+          for attempt in $(seq 1 30); do
+            container_id="$(docker compose ps --quiet db)"
+            if [ -n "$container_id" ] && [ "$(docker inspect --format '{{.State.Health.Status}}' "$container_id")" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become healthy within 60 seconds." >&2
+          exit 1
+
+      - name: Deploy checked-in Prisma migrations
+        run: pnpm --filter @digilicense/db db:migrate:deploy
+
+      - name: Run PostgreSQL integration tests
+        run: pnpm test:integration
+
+      - name: Show PostgreSQL logs after failure
+        if: failure()
+        run: docker compose logs db
+
+      - name: Tear down integration database
+        if: always()
+        run: docker compose down --volumes --remove-orphans
