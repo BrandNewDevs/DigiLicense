@@ -1,4 +1,5 @@
 import { processDueAddressChangeReviews } from "../src/address-change-review.ts"
+import { prisma } from "../src/db.ts"
 
 try {
   const result = await processDueAddressChangeReviews()
@@ -20,4 +21,6 @@ try {
     })
   )
   process.exitCode = 1
+} finally {
+  await prisma.$disconnect()
 }
