@@ -13,6 +13,8 @@
     "db:purge-expired-workflow-records": "tsx scripts/purge-expired-workflow-records.ts",
     "db:purge-expired-drafts": "tsx scripts/purge-expired-application-drafts.ts",
     "db:process-address-reviews": "tsx scripts/process-address-change-reviews.ts",
+    "db:process-appointment-offers": "tsx scripts/process-appointment-offers.ts",
+    "db:create-appointment-slot": "tsx scripts/create-appointment-slot.ts",
     "db:seed": "prisma db seed",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
