@@ -104,6 +104,21 @@ the TanStack Start server may call it. The browser will not call it directly,
 and the AI service will not have database credentials or access to applicant
 records.
 
+### Browser request security
+
+TanStack Start applies a global same-origin policy to every request. Unsafe
+methods require browser-controlled same-origin metadata, and requests carrying
+an `Origin` header must match `DIGILICENSE_PUBLIC_ORIGIN` exactly. Cross-origin
+requests and preflights are rejected without CORS allow headers. Production
+must configure this value as an HTTPS origin with no trailing slash or path.
+
+All application responses carry CSP, clickjacking, MIME-sniffing, referrer,
+permissions, and cross-origin isolation headers. Production also enables HSTS.
+The current CSP permits inline scripts and styles only because TanStack's
+streamed hydration and the component styling model require them; it permits no
+third-party script or style origins. Moving those inline allowances to
+per-request nonces remains a deployment-hardening task.
+
 ## Repository structure
 
 ```text
