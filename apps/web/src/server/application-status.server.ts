@@ -1,69 +1,332 @@
 import "@tanstack/react-start/server-only"
 
 import { prisma } from "@digilicense/db/server"
+import type {
+  ApplicationBlockingReason,
+  ApplicationStatus,
+  DocumentStatus,
+  DocumentType,
+} from "@digilicense/db/server"
 
-import { getApplicationStatusLabel } from "../lib/application-status"
+import {
+  getApplicationStatusLabel,
+  getBlockingReasonMessage,
+} from "../lib/application-status"
 import { requireApplicant } from "./demo-session.server"
 import { recordDependencyFailure } from "./logger.server"
+import { consumeRateLimit } from "./rate-limit.server"
 
-async function lookupAuthorizedApplicationStatus(applicationNumber: string) {
-  let applicant
+const historyLimit = 50
+const documentLimit = 20
+const notificationLimit = 20
+const unavailableMessage = "Application tracking is temporarily unavailable."
+const notFoundMessage =
+  "No application was found for this account and reference."
 
+type ApplicationStatusProjection = {
+  kind: "found"
+  application: {
+    applicationNumber: string
+    service: string
+    status: { code: ApplicationStatus; label: string }
+    nextAction: string
+    submittedAt: string
+    updatedAt: string
+    version: number
+  }
+  deadline: { kind: "EXPECTED_REVIEW_BY"; at: string; overdue: boolean } | null
+  blockingReason: { code: ApplicationBlockingReason; message: string } | null
+  history: {
+    items: Array<{
+      id: string
+      actor: "APPLICANT" | "OPERATOR" | "SYSTEM"
+      title: string
+      description: string
+      fromStatus: ApplicationStatus | null
+      toStatus: ApplicationStatus
+      createdAt: string
+    }>
+    hasMore: boolean
+  }
+  documents: {
+    items: Array<{
+      id: string
+      type: DocumentType
+      status: DocumentStatus
+      recordedAt: string
+      updatedAt: string
+    }>
+    hasMore: boolean
+  }
+  notifications: {
+    items: Array<{
+      id: string
+      title: string
+      message: string
+      createdAt: string
+    }>
+    unreadCount: number
+    hasMore: boolean
+  }
+}
+
+type ApplicationStatusResult =
+  | ApplicationStatusProjection
+  | { kind: "authentication-required"; message: string }
+  | { kind: "not-found"; message: string }
+  | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
+  | { kind: "unavailable"; message: string }
+
+type MarkNotificationReadResult =
+  | { kind: "authentication-required"; message: string }
+  | { kind: "not-found"; message: string }
+  | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
+  | { kind: "success" }
+  | { kind: "unavailable"; message: string }
+
+type AuthenticatedApplicant = { kind: "authenticated"; applicantId: string }
+type AuthorizationFailure = Exclude<
+  ApplicationStatusResult,
+  ApplicationStatusProjection
+>
+type RateLimitFailure = Extract<
+  ApplicationStatusResult,
+  { kind: "rate-limited" | "unavailable" }
+>
+
+async function requireStatusApplicant(): Promise<
+  AuthenticatedApplicant | AuthorizationFailure
+> {
   try {
-    applicant = await requireApplicant()
+    const applicant = await requireApplicant()
+    if (!applicant) {
+      return {
+        kind: "authentication-required",
+        message: "Sign in as an applicant to track an application.",
+      }
+    }
+    return { kind: "authenticated", applicantId: applicant.applicantId }
   } catch {
-    return {
-      kind: "unavailable" as const,
-      message: "Application tracking is temporarily unavailable.",
-    }
+    return { kind: "unavailable", message: unavailableMessage }
   }
+}
 
-  if (!applicant) {
-    return {
-      kind: "authentication-required" as const,
-      message: "Sign in as an applicant to track an application.",
+async function consumeStatusRateLimit(
+  rule: "application-notification-read" | "application-status-lookup",
+  applicantId: string
+): Promise<{ kind: "allowed" } | RateLimitFailure> {
+  try {
+    const result = await consumeRateLimit(rule, applicantId)
+    if (!result.allowed) {
+      return {
+        kind: "rate-limited",
+        message: "Too many application tracking requests. Try again shortly.",
+        retryAfterSeconds: result.retryAfterSeconds,
+      }
     }
+    return { kind: "allowed" }
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "rate_limit_application_status",
+    })
+    return { kind: "unavailable", message: unavailableMessage }
   }
+}
 
-  let record
+async function lookupAuthorizedApplicationStatus(
+  applicationNumber: string
+): Promise<ApplicationStatusResult> {
+  const authorization = await requireStatusApplicant()
+  if (authorization.kind !== "authenticated") return authorization
+
+  const rateLimit = await consumeStatusRateLimit(
+    "application-status-lookup",
+    authorization.applicantId
+  )
+  if (rateLimit.kind !== "allowed") return rateLimit
 
   try {
-    record = await prisma.application.findFirst({
+    const record = await prisma.application.findFirst({
       where: {
-        applicantId: applicant.applicantId,
+        applicantId: authorization.applicantId,
         applicationNumber,
       },
       select: {
+        applicationNumber: true,
+        blockingReasonCode: true,
+        documents: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            createdAt: true,
+            id: true,
+            status: true,
+            type: true,
+            updatedAt: true,
+          },
+          take: documentLimit + 1,
+        },
+        id: true,
+        nextAction: true,
+        notifications: {
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true, id: true, message: true, title: true },
+          take: notificationLimit + 1,
+          where: { applicantId: authorization.applicantId, status: "UNREAD" },
+        },
         service: true,
         status: true,
-        nextAction: true,
+        statusDeadlineAt: true,
+        submittedAt: true,
+        updatedAt: true,
+        version: true,
+        workflowEvents: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            actor: true,
+            createdAt: true,
+            description: true,
+            fromStatus: true,
+            id: true,
+            title: true,
+            toStatus: true,
+          },
+          take: historyLimit + 1,
+        },
       },
     })
+
+    if (!record) return { kind: "not-found", message: notFoundMessage }
+
+    const unreadCount = await prisma.notificationRecord.count({
+      where: {
+        applicantId: authorization.applicantId,
+        applicationId: record.id,
+        status: "UNREAD",
+      },
+    })
+    const historyHasMore = record.workflowEvents.length > historyLimit
+    const documentsHasMore = record.documents.length > documentLimit
+    const notificationsHasMore = record.notifications.length > notificationLimit
+    const deadline = record.statusDeadlineAt
+
+    return {
+      kind: "found",
+      application: {
+        applicationNumber: record.applicationNumber,
+        service: record.service,
+        status: {
+          code: record.status,
+          label: getApplicationStatusLabel(record.status),
+        },
+        nextAction: record.nextAction,
+        submittedAt: record.submittedAt.toISOString(),
+        updatedAt: record.updatedAt.toISOString(),
+        version: record.version,
+      },
+      blockingReason: record.blockingReasonCode
+        ? {
+            code: record.blockingReasonCode,
+            message: getBlockingReasonMessage(record.blockingReasonCode),
+          }
+        : null,
+      deadline: deadline
+        ? {
+            kind: "EXPECTED_REVIEW_BY",
+            at: deadline.toISOString(),
+            overdue: deadline.getTime() < Date.now(),
+          }
+        : null,
+      documents: {
+        items: record.documents.slice(0, documentLimit).map((document) => ({
+          id: document.id,
+          recordedAt: document.createdAt.toISOString(),
+          status: document.status,
+          type: document.type,
+          updatedAt: document.updatedAt.toISOString(),
+        })),
+        hasMore: documentsHasMore,
+      },
+      history: {
+        items: record.workflowEvents
+          .slice(0, historyLimit)
+          .reverse()
+          .map((event) => ({
+            actor: event.actor,
+            createdAt: event.createdAt.toISOString(),
+            description: event.description,
+            fromStatus: event.fromStatus,
+            id: event.id,
+            title: event.title,
+            toStatus: event.toStatus,
+          })),
+        hasMore: historyHasMore,
+      },
+      notifications: {
+        items: record.notifications
+          .slice(0, notificationLimit)
+          .map((notification) => ({
+            createdAt: notification.createdAt.toISOString(),
+            id: notification.id,
+            message: notification.message,
+            title: notification.title,
+          })),
+        unreadCount,
+        hasMore: notificationsHasMore,
+      },
+    }
   } catch (error) {
     recordDependencyFailure(error, {
       dependency: "postgres",
       operation: "application_status_lookup",
     })
-
-    return {
-      kind: "unavailable" as const,
-      message: "Application tracking is temporarily unavailable.",
-    }
-  }
-
-  if (!record) {
-    return {
-      kind: "not-found" as const,
-      message: "No application was found for this account and reference.",
-    }
-  }
-
-  return {
-    kind: "found" as const,
-    service: record.service,
-    status: getApplicationStatusLabel(record.status),
-    nextAction: record.nextAction,
+    return { kind: "unavailable", message: unavailableMessage }
   }
 }
 
-export { lookupAuthorizedApplicationStatus }
+async function markApplicationNotificationRead(input: {
+  applicationNumber: string
+  notificationId: string
+}): Promise<MarkNotificationReadResult> {
+  const authorization = await requireStatusApplicant()
+  if (authorization.kind !== "authenticated") return authorization
+
+  const rateLimit = await consumeStatusRateLimit(
+    "application-notification-read",
+    authorization.applicantId
+  )
+  if (rateLimit.kind !== "allowed") return rateLimit
+
+  try {
+    const where = {
+      applicantId: authorization.applicantId,
+      application: {
+        applicantId: authorization.applicantId,
+        applicationNumber: input.applicationNumber,
+      },
+      id: input.notificationId,
+    }
+    const updated = await prisma.notificationRecord.updateMany({
+      data: { readAt: new Date(), status: "READ" },
+      where: { ...where, status: "UNREAD" },
+    })
+    if (updated.count === 1) return { kind: "success" }
+
+    const alreadyRead = await prisma.notificationRecord.findFirst({
+      where: { ...where, status: "READ" },
+      select: { id: true },
+    })
+    return alreadyRead
+      ? { kind: "success" }
+      : { kind: "not-found", message: notFoundMessage }
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "application_notification_read",
+    })
+    return { kind: "unavailable", message: unavailableMessage }
+  }
+}
+
+export { lookupAuthorizedApplicationStatus, markApplicationNotificationRead }
+export type { ApplicationStatusProjection }

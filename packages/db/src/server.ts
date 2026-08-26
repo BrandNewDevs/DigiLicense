@@ -13,6 +13,8 @@ export {
 } from "./generated/prisma/enums.ts"
 export type {
   ApplicationStatus,
+  DocumentStatus,
+  DocumentType,
   TestLanguage,
 } from "./generated/prisma/enums.ts"
 export {
