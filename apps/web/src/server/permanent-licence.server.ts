@@ -272,10 +272,11 @@ async function submitPermanentLicenceApplication(
         data: {
           applicantId: applicant.applicantId,
           applicationNumber: number,
+          blockingReasonCode: "APPOINTMENT_PREFERENCES_REQUIRED",
           service: permanentLicenceService,
           status: "WAITLISTED",
           nextAction:
-            "Join the driving-test appointment waitlist when it becomes available.",
+            "Choose driving-test appointment preferences to join the waitlist.",
         },
         select: { id: true, applicationNumber: true },
       })

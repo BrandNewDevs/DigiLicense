@@ -13,6 +13,10 @@ const rateLimitRules = {
   "application-submit": { limit: 5, windowMs: 15 * 60_000 },
   "application-status-lookup": { limit: 30, windowMs: 15 * 60_000 },
   "application-notification-read": { limit: 30, windowMs: 15 * 60_000 },
+  "appointment-journey-read": { limit: 30, windowMs: 15 * 60_000 },
+  "appointment-offer-response": { limit: 5, windowMs: 10 * 60_000 },
+  "appointment-preferences": { limit: 10, windowMs: 15 * 60_000 },
+  "appointment-waitlist-leave": { limit: 5, windowMs: 15 * 60_000 },
   "address-change-otp-start": { limit: 3, windowMs: 15 * 60_000 },
   "address-change-otp-verify": { limit: 5, windowMs: 10 * 60_000 },
   // Test submissions grade a full attempt each time, so the budget stays
