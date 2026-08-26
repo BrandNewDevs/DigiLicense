@@ -27,7 +27,9 @@ services:
     build:
       context: ./docker/postgres
     environment:
-      POSTGRES_DB: digilicense
+      # CI overrides this with digilicense_integration. The web service still
+      # uses the normal local-development database name by default.
+      POSTGRES_DB: "${DIGILICENSE_POSTGRES_DB:-digilicense}"
       POSTGRES_USER: digilicense
       POSTGRES_PASSWORD: "${DIGILICENSE_LOCAL_DB_PASSWORD:?Set DIGILICENSE_LOCAL_DB_PASSWORD in .env}"
     ports:
