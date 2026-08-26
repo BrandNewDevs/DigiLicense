@@ -37,9 +37,8 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
   })
 
   it("persists an owned learner application with all workflow records", async () => {
-    const { submitLearnerLicenceApplication } = await import(
-      "./learner-licence.server"
-    )
+    const { submitLearnerLicenceApplication } =
+      await import("./learner-licence.server")
     const { prisma } = await import("@digilicense/db/server")
 
     const result = await submitLearnerLicenceApplication(validLearnerSubmission)
@@ -65,9 +64,8 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
   })
 
   it("enforces the active-application guard when submits race", async () => {
-    const { submitLearnerLicenceApplication } = await import(
-      "./learner-licence.server"
-    )
+    const { submitLearnerLicenceApplication } =
+      await import("./learner-licence.server")
     const { prisma } = await import("@digilicense/db/server")
 
     const outcomes = await Promise.all([
@@ -75,8 +73,12 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
       submitLearnerLicenceApplication(validLearnerSubmission),
     ])
 
-    expect(outcomes.filter((outcome) => outcome.kind === "submitted")).toHaveLength(1)
-    expect(outcomes.filter((outcome) => outcome.kind === "duplicate-active")).toHaveLength(1)
+    expect(
+      outcomes.filter((outcome) => outcome.kind === "submitted")
+    ).toHaveLength(1)
+    expect(
+      outcomes.filter((outcome) => outcome.kind === "duplicate-active")
+    ).toHaveLength(1)
     await expect(
       prisma.application.count({
         where: {
@@ -88,12 +90,10 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
   })
 
   it("does not disclose another applicant's status projection", async () => {
-    const { submitLearnerLicenceApplication } = await import(
-      "./learner-licence.server"
-    )
-    const { lookupAuthorizedApplicationStatus } = await import(
-      "./application-status.server"
-    )
+    const { submitLearnerLicenceApplication } =
+      await import("./learner-licence.server")
+    const { lookupAuthorizedApplicationStatus } =
+      await import("./application-status.server")
 
     authenticatedApplicant = getIntegrationApplicantId("a")
     const result = await submitLearnerLicenceApplication(validLearnerSubmission)
@@ -104,5 +104,109 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     await expect(
       lookupAuthorizedApplicationStatus(result.applicationNumber)
     ).resolves.toMatchObject({ kind: "not-found" })
+  })
+
+  it("locks a mobile OTP challenge durably without recording raw secrets", async () => {
+    const { prisma } = await import("@digilicense/db/server")
+    const { startMobileUpdate, verifyMobileUpdateOtp } =
+      await import("./mobile-update.server")
+    const start = await startMobileUpdate({
+      idempotencyKey: "00000000-0000-4000-8000-000000000001",
+      method: "OTP",
+      targetMobileNumber: "9000000009",
+    })
+    expect(start.kind).toBe("started")
+    if (start.kind !== "started") return
+
+    const attempts = await Promise.all(
+      Array.from({ length: 5 }, (_, index) =>
+        verifyMobileUpdateOtp({
+          idempotencyKey: `00000000-0000-4000-8000-0000000001${index}`,
+          otp: "000000",
+          requestId: start.requestId,
+        })
+      )
+    )
+    expect(attempts.at(-1)?.kind).toBe("otp-locked")
+
+    const request = await prisma.mobileChangeRequest.findUniqueOrThrow({
+      where: { id: start.requestId },
+      include: { otpChallenge: true },
+    })
+    expect(request.status).toBe("LOCKED")
+    expect(request.otpChallenge?.attemptCount).toBe(5)
+    expect(JSON.stringify(request)).not.toContain("9000000009")
+    expect(JSON.stringify(request)).not.toContain("000000")
+  })
+
+  it("automatically completes a due address review exactly once", async () => {
+    const { prisma, processDueAddressChangeReviews } =
+      await import("@digilicense/db/server")
+    const {
+      startAddressChangeOtp,
+      submitAddressChangeApplication,
+      verifyAddressChangeOtp,
+    } = await import("./address-change.server")
+    const licence = await prisma.drivingLicenceRecord.findUniqueOrThrow({
+      where: { licenceNumber: integrationApplicants.a.licenceNumber },
+    })
+    const started = await startAddressChangeOtp({
+      idempotencyKey: "00000000-0000-4000-8000-000000000201",
+      licenceRecordId: licence.id,
+    })
+    expect(started.kind).toBe("started")
+    if (started.kind !== "started") return
+
+    const verified = await verifyAddressChangeOtp({
+      idempotencyKey: "00000000-0000-4000-8000-000000000202",
+      otp: "123456",
+      verificationId: started.verificationId,
+    })
+    expect(verified.kind).toBe("verified")
+    if (verified.kind !== "verified") return
+
+    const submission = await submitAddressChangeApplication({
+      addressLine1: "42 Test Street",
+      declarationAccepted: true,
+      idempotencyKey: "00000000-0000-4000-8000-000000000203",
+      locality: "DWARKA",
+      pincode: "110075",
+      proofType: "MOCK_UTILITY_BILL",
+      verificationId: started.verificationId,
+    })
+    expect(submission.kind).toBe("submitted")
+    if (submission.kind !== "submitted") return
+
+    await prisma.application.update({
+      where: { applicationNumber: submission.applicationNumber },
+      data: { statusDeadlineAt: new Date(Date.now() - 1_000) },
+    })
+    await Promise.all([
+      processDueAddressChangeReviews(),
+      processDueAddressChangeReviews(),
+    ])
+
+    const application = await prisma.application.findUniqueOrThrow({
+      where: { applicationNumber: submission.applicationNumber },
+      include: {
+        auditEvents: true,
+        documents: true,
+        notifications: true,
+        workflowEvents: true,
+      },
+    })
+    const refreshedLicence =
+      await prisma.drivingLicenceRecord.findUniqueOrThrow({
+        where: { id: licence.id },
+      })
+    expect(application.status).toBe("APPROVED")
+    expect(application.blockingReasonCode).toBeNull()
+    expect(application.statusDeadlineAt).toBeNull()
+    expect(application.documents).toHaveLength(1)
+    expect(application.documents[0]?.status).toBe("ACCEPTED")
+    expect(application.workflowEvents).toHaveLength(3)
+    expect(application.notifications).toHaveLength(2)
+    expect(application.auditEvents).toHaveLength(2)
+    expect(refreshedLicence.currentAddressSummary).toBe("DWARKA, Delhi 110075")
   })
 })
