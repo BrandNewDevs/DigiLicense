@@ -21,6 +21,8 @@ enum ApplicationStatus {
   APPROVED
   REJECTED
   WAITLISTED
+  APPOINTMENT_OFFERED
+  APPOINTMENT_CONFIRMED
 }
 
 enum ApplicationBlockingReason {
@@ -30,7 +32,40 @@ enum ApplicationBlockingReason {
   TEST_RESULT_PENDING
   APPROVAL_REVIEW_PENDING
   APPOINTMENT_SLOT_UNAVAILABLE
+  APPOINTMENT_PREFERENCES_REQUIRED
+  APPOINTMENT_OFFER_ACTION_REQUIRED
   WAITING_PERIOD_NOT_MET
+}
+
+enum AppointmentSlotStatus {
+  OPEN
+  OFFERED
+  CONFIRMED
+  RETIRED
+}
+
+enum AppointmentWaitlistStatus {
+  ACTIVE
+  COOLDOWN
+  LEFT
+  CONFIRMED
+}
+
+enum AppointmentOfferStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum AppointmentNotificationChannel {
+  SMS
+  EMAIL
+}
+
+enum AppointmentNotificationDeliveryStatus {
+  RECORDED
+  FAILED
 }
 
 enum TestLanguage {
@@ -129,6 +164,8 @@ model Application {
   learnerTestAttempts LearnerTestAttempt[]
   addressChangeDetail AddressChangeDetail?
   permanentLicenceDetail PermanentLicenceDetail?
+  appointmentWaitlistEntries AppointmentWaitlistEntry[]
+  confirmedAppointment ConfirmedAppointment?
 
   @@index([applicantId, applicationNumber])
   @@index([status, submittedAt])
@@ -268,6 +305,7 @@ model ApplicantAccount {
   mobileChangeRequests    MobileChangeRequest[]
   drivingLicenceRecords   DrivingLicenceRecord[]
   addressChangeVerifications AddressChangeVerification[]
+  appointmentWaitlistEntries AppointmentWaitlistEntry[]
 
   @@index([updatedAt])
 }
@@ -350,12 +388,138 @@ model PermanentLicenceDetail {
   applicantId           String
   learnerApplicationId  String
   vehicleClass          String
+  learnerEligibilityDeadlineAt DateTime
   idempotencyKey        String
   createdAt             DateTime    @default(now())
   application           Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
 
   @@unique([applicantId, idempotencyKey])
   @@index([learnerApplicationId])
+}
+
+// Appointment inventory is controlled by system-only commands. Every row is
+// one bookable seat, which keeps capacity and double-booking rules explicit.
+model AppointmentSlot {
+  id           String                @id @default(cuid())
+  inventoryKey String                @unique
+  zone         String
+  vehicleClass String
+  startsAt     DateTime
+  endsAt       DateTime
+  status       AppointmentSlotStatus @default(OPEN)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  offers       AppointmentOffer[]
+  confirmation ConfirmedAppointment?
+
+  @@index([status, vehicleClass, zone, startsAt])
+  @@index([startsAt])
+}
+
+// A permanent-licence application can have historic entries, but only one
+// entry may be eligible for allocation at a time. `originalJoinedAt` is
+// deliberately retained through cooldowns so expiry does not erase fairness.
+model AppointmentWaitlistEntry {
+  id                 String                    @id @default(cuid())
+  applicationId      String
+  applicantId        String
+  status             AppointmentWaitlistStatus @default(ACTIVE)
+  originalJoinedAt   DateTime                  @default(now())
+  availableAfter     DateTime?
+  joinIdempotencyKey String                    @unique
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  application        Application               @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  applicant          ApplicantAccount          @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  preferences        AppointmentPreference[]
+  notificationPreferences AppointmentNotificationPreference[]
+  offers             AppointmentOffer[]
+
+  @@index([status, availableAfter, originalJoinedAt])
+  @@index([applicantId, status])
+  @@unique([applicationId], map: "appointment_waitlist_one_active_per_application_key", where: raw("\"status\" IN ('ACTIVE'::\"AppointmentWaitlistStatus\", 'COOLDOWN'::\"AppointmentWaitlistStatus\")"))
+}
+
+model AppointmentPreference {
+  id                String                   @id @default(cuid())
+  waitlistEntryId   String
+  rank              Int
+  zone              String
+  createdAt         DateTime                 @default(now())
+  waitlistEntry     AppointmentWaitlistEntry @relation(fields: [waitlistEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([waitlistEntryId, rank])
+  @@unique([waitlistEntryId, zone])
+  @@index([zone, rank])
+}
+
+// The selected delivery channels are retained independently from offer
+// history. The alias is synthetic and opaque so this prototype never stores a
+// raw mobile number or email address for notification delivery.
+model AppointmentNotificationPreference {
+  id                String                          @id @default(cuid())
+  waitlistEntryId   String
+  channel           AppointmentNotificationChannel
+  recipientAlias    String
+  createdAt         DateTime                        @default(now())
+  updatedAt         DateTime                        @updatedAt
+  waitlistEntry     AppointmentWaitlistEntry       @relation(fields: [waitlistEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([waitlistEntryId, channel])
+}
+
+// An offer is append-only. The score snapshot explains the allocation that
+// occurred at that instant even as other candidates age in the queue later.
+model AppointmentOffer {
+  id                   String                  @id @default(cuid())
+  slotId               String
+  waitlistEntryId      String
+  status               AppointmentOfferStatus  @default(ACTIVE)
+  rankingPolicyVersion String
+  rankingScore         Int
+  rankingBreakdown     Json
+  expiresAt            DateTime
+  responseAt           DateTime?
+  allocationKey        String                  @unique
+  createdAt            DateTime                @default(now())
+  slot                 AppointmentSlot         @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  waitlistEntry        AppointmentWaitlistEntry @relation(fields: [waitlistEntryId], references: [id], onDelete: Restrict)
+  confirmation         ConfirmedAppointment?
+  deliveries           AppointmentNotificationDelivery[]
+
+  @@index([status, expiresAt])
+  @@index([waitlistEntryId, createdAt])
+  @@unique([slotId], map: "appointment_offer_one_active_per_slot_key", where: raw("\"status\" = 'ACTIVE'::\"AppointmentOfferStatus\""))
+  @@unique([waitlistEntryId], map: "appointment_offer_one_active_per_entry_key", where: raw("\"status\" = 'ACTIVE'::\"AppointmentOfferStatus\""))
+}
+
+model ConfirmedAppointment {
+  id                         String             @id @default(cuid())
+  applicationId              String             @unique
+  slotId                     String             @unique
+  offerId                    String             @unique
+  confirmationIdempotencyKey String             @unique
+  confirmedAt                DateTime           @default(now())
+  application                Application        @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  slot                       AppointmentSlot    @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  offer                      AppointmentOffer   @relation(fields: [offerId], references: [id], onDelete: Restrict)
+}
+
+// This is a provider-ready outbox, not a contact store. Recipient aliases are
+// opaque synthetic fixture identifiers and no SMS or email is sent by this app.
+model AppointmentNotificationDelivery {
+  id             String                                @id @default(cuid())
+  offerId        String
+  channel        AppointmentNotificationChannel
+  recipientAlias String
+  status         AppointmentNotificationDeliveryStatus @default(RECORDED)
+  idempotencyKey String                                @unique
+  createdAt      DateTime                              @default(now())
+  updatedAt      DateTime                              @updatedAt
+  offer          AppointmentOffer                      @relation(fields: [offerId], references: [id], onDelete: Restrict)
+
+  @@unique([offerId, channel])
+  @@index([status, createdAt])
 }
 
 model MobileChangeRequest {
