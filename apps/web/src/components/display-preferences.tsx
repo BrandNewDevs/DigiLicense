@@ -146,10 +146,7 @@ function DisplayPreferencesControl() {
       >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-heading text-base font-semibold">Display</h2>
-              <p className="mt-0.5 text-xs leading-4 text-muted-foreground">
-                Adjust the page for easier reading.
-              </p>
+              <h2 className="font-heading text-base font-semibold">Appearance</h2>
             </div>
           </div>
 
