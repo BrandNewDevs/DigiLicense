@@ -11,11 +11,17 @@ const applicationStatusLabels: Partial<Record<string, string>> = {
   APPROVED: "Approved",
   REJECTED: "Rejected",
   WAITLISTED: "On appointment waitlist",
+  APPOINTMENT_OFFERED: "Appointment offer available",
+  APPOINTMENT_CONFIRMED: "Appointment confirmed",
 }
 
 const blockingReasonMessages: Record<string, string> = {
   APPOINTMENT_SLOT_UNAVAILABLE:
     "A suitable appointment slot is not available yet.",
+  APPOINTMENT_PREFERENCES_REQUIRED:
+    "Choose appointment preferences before joining the waitlist.",
+  APPOINTMENT_OFFER_ACTION_REQUIRED:
+    "Respond to the appointment offer before its deadline.",
   APPROVAL_REVIEW_PENDING: "DigiLicense is completing the final review.",
   CORRECTION_REQUIRED:
     "DigiLicense needs corrected information before continuing.",
