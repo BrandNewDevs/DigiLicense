@@ -109,6 +109,27 @@ the TanStack Start server may call it. The browser will not call it directly,
 and the AI service will not have database credentials or access to applicant
 records.
 
+### Private assistant integration
+
+`askAssistant` is an authenticated POST-only TanStack Start server function.
+It accepts only a question plus public `locale`, `service`, `page`, `reasonCode`,
+and an optional opaque signed context token. Applicant, session, licence,
+application, address, contact, document, payment, and chat-history data are
+not forwarded. The web server sends only this allowlisted payload and a fresh
+correlation ID to the private FastAPI endpoint, with an eight-second deadline,
+no-store fetch policy, strict response validation, and sanitized dependency
+telemetry.
+
+Set `DIGILICENSE_AI_BASE_URL` and
+`DIGILICENSE_AI_SERVICE_BEARER_TOKEN` only in the web server environment; do
+not use `VITE_` variables. They are optional for local development, where the
+server returns local bilingual guidance when the service is absent. Production
+requires both values, an HTTPS origin, and a 32+ character rotated credential
+that matches the private AI service. Timeout, service unavailability, malformed
+responses, and rate limits return deterministic bilingual guidance without
+exposing error details. The assistant interface remains frontend work; see
+[the frontend handoff](docs/frontend-assistant-handoff.md).
+
 ### Browser request security
 
 TanStack Start applies a global same-origin policy to every request. Unsafe
