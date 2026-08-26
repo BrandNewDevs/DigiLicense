@@ -181,7 +181,7 @@ html[data-digilicense-content-width="wide"] {
   .journey-step-card::before {
     position: absolute;
     z-index: 0;
-    inset: 0;
+    inset: -8%;
     background: linear-gradient(
       346deg,
       rgb(255 119 0) 0%,
@@ -190,7 +190,14 @@ html[data-digilicense-content-width="wide"] {
     );
     content: "";
     opacity: 0;
-    transition: opacity 300ms ease-out;
+    transform: translate(
+        var(--card-gradient-x, 0px),
+        var(--card-gradient-y, 0px)
+      )
+      scale(1.08);
+    transition:
+      opacity 300ms ease-out,
+      transform 220ms ease-out;
   }
 
   .journey-step-card:hover::before {

@@ -1,3 +1,4 @@
+import { useCardGradient } from "@workspace/ui/hooks/use-card-gradient"
 import {
   Carousel,
   CarouselContent,
@@ -42,9 +43,13 @@ const journeySteps = [
 
 function JourneyCard({ step }: { step: JourneyStep }) {
   const [headingStart, headingEnd] = step.label.split(step.keyword)
+  const cardGradient = useCardGradient()
 
   return (
-    <article className="journey-step-card relative flex aspect-square h-full w-full flex-col overflow-hidden rounded-3xl px-3 pt-11 pb-3 text-left text-foreground/75 transition-shadow duration-300 ease-out hover:text-foreground hover:shadow-lg hover:shadow-[#d96b16]/20 sm:aspect-auto sm:min-h-[20rem] sm:p-5 lg:min-h-0">
+    <article
+      {...cardGradient}
+      className="journey-step-card relative flex aspect-square h-full w-full flex-col overflow-hidden rounded-3xl px-3 pt-11 pb-3 text-left text-foreground/75 transition-shadow duration-300 ease-out hover:text-foreground hover:shadow-lg hover:shadow-[#d96b16]/20 sm:aspect-auto sm:min-h-[20rem] sm:p-5 lg:min-h-0"
+    >
       <div className="relative z-10">
         <p className="font-heading text-2xl leading-7 font-semibold tracking-[-0.03em] lg:text-4xl lg:leading-10">
           {headingStart}
