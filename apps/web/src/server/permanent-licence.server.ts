@@ -165,6 +165,22 @@ async function submitPermanentLicenceApplication(
       message: "Sign in to submit a permanent-licence application.",
     }
 
+  const replayBeforeRateLimit = await prisma.permanentLicenceDetail.findUnique({
+    where: {
+      applicantId_idempotencyKey: {
+        applicantId: applicant.applicantId,
+        idempotencyKey: input.idempotencyKey,
+      },
+    },
+    select: { application: { select: { applicationNumber: true } } },
+  })
+  if (replayBeforeRateLimit?.application) {
+    return {
+      kind: "submitted",
+      applicationNumber: replayBeforeRateLimit.application.applicationNumber,
+    }
+  }
+
   const limit = await consumeRateLimit(
     "application-submit",
     applicant.applicantId
@@ -198,7 +214,10 @@ async function submitPermanentLicenceApplication(
         select: { application: { select: { applicationNumber: true } } },
       })
       if (replay?.application) {
-        return { applicationNumber: replay.application.applicationNumber }
+        return {
+          kind: "submitted" as const,
+          applicationNumber: replay.application.applicationNumber,
+        }
       }
 
       const learner = await transaction.application.findFirst({
@@ -214,9 +233,11 @@ async function submitPermanentLicenceApplication(
         ? getLearnerVehicleClass(learner.draft.formPayload)
         : null
       if (!learner || learnerVehicleClass !== input.vehicleClass) {
-        throw new Error(
-          "Permanent licence vehicle class must match the learner application."
-        )
+        return {
+          kind: "vehicle-class-mismatch" as const,
+          message: "Choose the same vehicle class as your learner's licence.",
+          vehicleClass: state.vehicleClass,
+        }
       }
 
       const detail = await transaction.permanentLicenceDetail.create({
@@ -276,9 +297,12 @@ async function submitPermanentLicenceApplication(
           requestId: randomUUID(),
         },
       })
-      return application
+      return {
+        kind: "submitted" as const,
+        applicationNumber: application.applicationNumber,
+      }
     })
-    return { kind: "submitted", applicationNumber: created.applicationNumber }
+    return created
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
