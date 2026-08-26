@@ -9,6 +9,7 @@
     "build": "vite build && node scripts/verify-client-db-boundary.mjs",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
