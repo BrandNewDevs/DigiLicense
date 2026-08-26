@@ -10,12 +10,13 @@ import type { DependencyFailureContext } from "./logger.shared"
 // numbers or applicant data anywhere in the context.
 function recordDependencyFailure(
   error: unknown,
-  context: DependencyFailureContext
+  context: DependencyFailureContext,
+  requestId = randomUUID()
 ): void {
   const event = buildDependencyFailureEvent(
     error,
     context,
-    randomUUID(),
+    requestId,
     new Date()
   )
 
