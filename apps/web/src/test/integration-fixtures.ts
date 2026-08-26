@@ -27,6 +27,13 @@ async function resetIntegrationDatabase(): Promise<void> {
   // This intentionally uses a fixed allowlist of Prisma models. The setup
   // module rejects every database except the ephemeral integration database
   // before any test imports this fixture.
+  await prisma.appointmentNotificationDelivery.deleteMany()
+  await prisma.confirmedAppointment.deleteMany()
+  await prisma.appointmentOffer.deleteMany()
+  await prisma.appointmentNotificationPreference.deleteMany()
+  await prisma.appointmentPreference.deleteMany()
+  await prisma.appointmentWaitlistEntry.deleteMany()
+  await prisma.appointmentSlot.deleteMany()
   await prisma.learnerTestAttempt.deleteMany()
   await prisma.addressChangeDetail.deleteMany()
   await prisma.documentRecord.deleteMany()
