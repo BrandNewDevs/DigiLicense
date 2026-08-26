@@ -36,6 +36,34 @@ type ApplicationStatusProjection = {
   }
   deadline: { kind: "EXPECTED_REVIEW_BY"; at: string; overdue: boolean } | null
   blockingReason: { code: ApplicationBlockingReason; message: string } | null
+  appointment: {
+    confirmed: {
+      confirmedAt: string
+      endsAt: string
+      startsAt: string
+      zone: string
+    } | null
+    offer: {
+      expiresAt: string
+      ranking: {
+        breakdown: {
+          preferencePoints: number
+          urgencyPoints: number
+          waitTimePoints: number
+        } | null
+        policyVersion: string
+        score: number
+      }
+      slot: { endsAt: string; startsAt: string; zone: string }
+    } | null
+    state:
+      | "CONFIRMED"
+      | "COOLDOWN"
+      | "OFFERED"
+      | "PREFERENCES_REQUIRED"
+      | "WAITLISTED"
+      | "LEFT"
+  } | null
   history: {
     items: Array<{
       id: string
@@ -154,7 +182,31 @@ async function lookupAuthorizedApplicationStatus(
       },
       select: {
         applicationNumber: true,
+        appointmentWaitlistEntries: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            offers: {
+              select: {
+                expiresAt: true,
+                rankingBreakdown: true,
+                rankingPolicyVersion: true,
+                rankingScore: true,
+                slot: { select: { endsAt: true, startsAt: true, zone: true } },
+              },
+              take: 1,
+              where: { status: "ACTIVE" },
+            },
+            status: true,
+          },
+          take: 1,
+        },
         blockingReasonCode: true,
+        confirmedAppointment: {
+          select: {
+            confirmedAt: true,
+            slot: { select: { endsAt: true, startsAt: true, zone: true } },
+          },
+        },
         documents: {
           orderBy: { createdAt: "desc" },
           select: {
@@ -209,6 +261,9 @@ async function lookupAuthorizedApplicationStatus(
     const documentsHasMore = record.documents.length > documentLimit
     const notificationsHasMore = record.notifications.length > notificationLimit
     const deadline = record.statusDeadlineAt
+    const waitlistEntry = record.appointmentWaitlistEntries[0]
+    const activeOffer = waitlistEntry?.offers[0]
+    const confirmedAppointment = record.confirmedAppointment
 
     return {
       kind: "found",
@@ -230,6 +285,63 @@ async function lookupAuthorizedApplicationStatus(
             message: getBlockingReasonMessage(record.blockingReasonCode),
           }
         : null,
+      appointment:
+        record.service === "Permanent driving licence"
+          ? {
+              confirmed: confirmedAppointment
+                ? {
+                    confirmedAt: confirmedAppointment.confirmedAt.toISOString(),
+                    endsAt: confirmedAppointment.slot.endsAt.toISOString(),
+                    startsAt: confirmedAppointment.slot.startsAt.toISOString(),
+                    zone: confirmedAppointment.slot.zone,
+                  }
+                : null,
+              offer: activeOffer
+                ? {
+                    expiresAt: activeOffer.expiresAt.toISOString(),
+                    ranking: {
+                      breakdown:
+                        activeOffer.rankingBreakdown &&
+                        typeof activeOffer.rankingBreakdown === "object" &&
+                        !Array.isArray(activeOffer.rankingBreakdown) &&
+                        typeof activeOffer.rankingBreakdown.preferencePoints ===
+                          "number" &&
+                        typeof activeOffer.rankingBreakdown.urgencyPoints ===
+                          "number" &&
+                        typeof activeOffer.rankingBreakdown.waitTimePoints ===
+                          "number"
+                          ? {
+                              preferencePoints:
+                                activeOffer.rankingBreakdown.preferencePoints,
+                              urgencyPoints:
+                                activeOffer.rankingBreakdown.urgencyPoints,
+                              waitTimePoints:
+                                activeOffer.rankingBreakdown.waitTimePoints,
+                            }
+                          : null,
+                      policyVersion: activeOffer.rankingPolicyVersion,
+                      score: activeOffer.rankingScore,
+                    },
+                    slot: {
+                      endsAt: activeOffer.slot.endsAt.toISOString(),
+                      startsAt: activeOffer.slot.startsAt.toISOString(),
+                      zone: activeOffer.slot.zone,
+                    },
+                  }
+                : null,
+              state: confirmedAppointment
+                ? "CONFIRMED"
+                : activeOffer
+                  ? "OFFERED"
+                  : waitlistEntry?.status === "COOLDOWN"
+                    ? "COOLDOWN"
+                    : waitlistEntry?.status === "LEFT"
+                      ? "LEFT"
+                      : waitlistEntry
+                        ? "WAITLISTED"
+                        : "PREFERENCES_REQUIRED",
+            }
+          : null,
       deadline: deadline
         ? {
             kind: "EXPECTED_REVIEW_BY",

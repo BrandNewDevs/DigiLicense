@@ -1,0 +1,4 @@
+# Process offer expiry, cooldown reactivation, and available-slot allocation.
+# It is safe on multiple scheduler instances: the worker uses PostgreSQL row
+# locks and database uniqueness constraints to prevent duplicate offers.
+* * * * * cd /workspace && pnpm --filter @digilicense/db db:process-appointment-offers
