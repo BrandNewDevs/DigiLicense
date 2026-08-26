@@ -119,6 +119,14 @@ streamed hydration and the component styling model require them; it permits no
 third-party script or style origins. Moving those inline allowances to
 per-request nonces remains a deployment-hardening task.
 
+### Local security configuration
+
+For Docker Compose, the root `.env` file is the authoritative source of
+`DIGILICENSE_PUBLIC_ORIGIN`; copy `.env.example` to `.env` before starting the
+stack. `apps/web/.env` is for direct local tooling and does not configure the
+web container. Direct development runs may omit the value and use the current
+request origin, while production deployments must set an explicit HTTPS origin.
+
 ## Repository structure
 
 ```text

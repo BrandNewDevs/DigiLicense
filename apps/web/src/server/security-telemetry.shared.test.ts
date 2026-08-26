@@ -31,5 +31,6 @@ describe("security rejection telemetry", () => {
   it("does not accept an unbounded method value", () => {
     expect(sanitizeHttpMethod("POST applicant-secret")).toBe("UNKNOWN")
     expect(sanitizeHttpMethod("custommethodtoolong")).toBe("UNKNOWN")
+    expect(sanitizeHttpMethod("AUTHCODE")).toBe("UNKNOWN")
   })
 })
