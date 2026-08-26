@@ -22,6 +22,7 @@ type PermanentLicenceReadResult =
       kind: "eligible"
       eligibleOn: string
       learnerApplicationNumber: string
+      vehicleClass: PermanentLicenceSubmission["vehicleClass"]
     }
   | {
       kind: "active-application"
@@ -34,6 +35,11 @@ type PermanentLicenceSubmitResult =
   | Exclude<PermanentLicenceReadResult, { kind: "eligible" }>
   | { kind: "submitted"; applicationNumber: string }
   | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
+  | {
+      kind: "vehicle-class-mismatch"
+      message: string
+      vehicleClass: PermanentLicenceSubmission["vehicleClass"]
+    }
 
 function eligibilityDate(passedAt: Date) {
   const date = new Date(passedAt)
@@ -83,7 +89,11 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
           status: "TEST_PASSED",
         },
         orderBy: { updatedAt: "desc" },
-        select: { applicationNumber: true, updatedAt: true },
+        select: {
+          applicationNumber: true,
+          updatedAt: true,
+          draft: { select: { formPayload: true } },
+        },
       }),
     ])
 
@@ -101,6 +111,21 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
           "Pass the learner's test before starting a permanent-licence application.",
       }
 
+    const vehicleClass = learner.draft
+      ? getLearnerVehicleClass(learner.draft.formPayload)
+      : null
+    if (
+      vehicleClass !== "MOTORCYCLE_WITHOUT_GEAR" &&
+      vehicleClass !== "MOTORCYCLE_WITH_GEAR" &&
+      vehicleClass !== "LIGHT_MOTOR_VEHICLE"
+    ) {
+      return {
+        kind: "unavailable",
+        message:
+          "Your learner vehicle class could not be confirmed. Try again shortly.",
+      }
+    }
+
     const eligibleOn = eligibilityDate(learner.updatedAt)
     if (eligibleOn > new Date()) {
       return {
@@ -115,6 +140,7 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
       kind: "eligible",
       eligibleOn: eligibleOn.toISOString(),
       learnerApplicationNumber: learner.applicationNumber,
+      vehicleClass,
     }
   } catch (error) {
     recordDependencyFailure(error, {
@@ -152,6 +178,13 @@ async function submitPermanentLicenceApplication(
 
   const state = await readPermanentLicenceState()
   if (state.kind !== "eligible") return state
+  if (input.vehicleClass !== state.vehicleClass) {
+    return {
+      kind: "vehicle-class-mismatch",
+      message: "Choose the same vehicle class as your learner's licence.",
+      vehicleClass: state.vehicleClass,
+    }
+  }
 
   try {
     const created = await prisma.$transaction(async (transaction) => {

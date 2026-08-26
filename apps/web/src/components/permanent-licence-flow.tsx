@@ -41,8 +41,13 @@ function PermanentLicenceFlow() {
   })
 
   useEffect(() => {
-    void readState({ data: undefined }).then(setState)
-  }, [readState])
+    void readState({ data: undefined }).then((result) => {
+      setState(result)
+      if (result.kind === "eligible") {
+        form.reset({ vehicleClass: result.vehicleClass })
+      }
+    })
+  }, [form, readState])
 
   if (!state)
     return <p className="text-muted-foreground">Checking your eligibility...</p>
