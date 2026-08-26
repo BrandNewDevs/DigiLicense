@@ -192,11 +192,7 @@ function LearnerLicenceForm() {
     // A date of birth that cannot hold any learner's-licence class is
     // rejected immediately, even before a vehicle class is chosen. Future
     // dates produce a negative age and fail the same check.
-    if (
-      values.dateOfBirth &&
-      !nextErrors.dateOfBirth &&
-      stepIndex === 0
-    ) {
+    if (values.dateOfBirth && !nextErrors.dateOfBirth && stepIndex === 0) {
       const completedYears = calculateCompletedYears(
         values.dateOfBirth,
         new Date()
@@ -368,8 +364,8 @@ function LearnerLicenceForm() {
           Sign in required
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          Your applicant session ended. Sign in again to continue the
-          learner's licence workflow.
+          Your applicant session ended. Sign in again to continue the learner's
+          licence workflow.
         </p>
         <Link
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
@@ -447,6 +443,15 @@ function LearnerLicenceForm() {
                 </dd>
               </div>
             </dl>
+            {activeApplication.status === "TEST_PENDING" ? (
+              <Link
+                className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                params={{ serviceId: "learner-test" }}
+                to="/services/$serviceId"
+              >
+                Start learner's test
+              </Link>
+            ) : null}
             <p className="mt-5 text-sm leading-6 text-muted-foreground">
               Only one learner's licence application can be open at a time. This
               rule is enforced by the database, not just this page.
@@ -503,6 +508,13 @@ function LearnerLicenceForm() {
             </dd>
           </div>
         </dl>
+        <Link
+          className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          params={{ serviceId: "learner-test" }}
+          to="/services/$serviceId"
+        >
+          Start learner's test
+        </Link>
         <ul className="mt-6 space-y-3">
           {[
             "Three document records were created for this application.",
@@ -515,8 +527,8 @@ function LearnerLicenceForm() {
           ))}
         </ul>
         <p className="mt-6 text-sm leading-6 text-muted-foreground">
-          This created DigiLicense records only. No government
-          service was contacted and no fee was collected.
+          This created DigiLicense records only. No government service was
+          contacted and no fee was collected.
         </p>
       </section>
     )
@@ -541,7 +553,7 @@ function LearnerLicenceForm() {
       </div>
 
       <p className="text-sm font-medium text-muted-foreground">
-          Guided workflow
+        Guided workflow
       </p>
       <h2
         className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
@@ -585,8 +597,8 @@ function LearnerLicenceForm() {
           className="mt-5 text-sm leading-6 text-muted-foreground"
           id="learner-form-note"
         >
-          Check every answer. Submitting saves the application on the server
-          and closes any saved draft.
+          Check every answer. Submitting saves the application on the server and
+          closes any saved draft.
         </p>
       )}
 
@@ -594,7 +606,10 @@ function LearnerLicenceForm() {
         {!isReviewStep && stepIndex === 0 ? (
           <>
             <div>
-              <label className="mb-2 block text-sm font-medium" htmlFor="ll-fullName">
+              <label
+                className="mb-2 block text-sm font-medium"
+                htmlFor="ll-fullName"
+              >
                 {fieldLabels.fullName}
               </label>
               <input
@@ -607,7 +622,9 @@ function LearnerLicenceForm() {
                 id="ll-fullName"
                 maxLength={80}
                 name="fullName"
-                onChange={(event) => updateValue("fullName", event.target.value)}
+                onChange={(event) =>
+                  updateValue("fullName", event.target.value)
+                }
                 type="text"
                 value={values.fullName}
               />
@@ -622,7 +639,10 @@ function LearnerLicenceForm() {
               ) : null}
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium" htmlFor="ll-dateOfBirth">
+              <label
+                className="mb-2 block text-sm font-medium"
+                htmlFor="ll-dateOfBirth"
+              >
                 {fieldLabels.dateOfBirth}
               </label>
               <input
@@ -701,7 +721,10 @@ function LearnerLicenceForm() {
               ) : null}
             </fieldset>
             <div>
-              <label className="mb-2 block text-sm font-medium" htmlFor="ll-zone">
+              <label
+                className="mb-2 block text-sm font-medium"
+                htmlFor="ll-zone"
+              >
                 {fieldLabels.zone}
               </label>
               <select
@@ -730,7 +753,10 @@ function LearnerLicenceForm() {
         {!isReviewStep && stepIndex === 2 ? (
           <>
             <div>
-              <label className="mb-2 block text-sm font-medium" htmlFor="ll-identityProofType">
+              <label
+                className="mb-2 block text-sm font-medium"
+                htmlFor="ll-identityProofType"
+              >
                 {fieldLabels.identityProofType}
               </label>
               <select
@@ -756,7 +782,10 @@ function LearnerLicenceForm() {
               ) : null}
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium" htmlFor="ll-addressProofType">
+              <label
+                className="mb-2 block text-sm font-medium"
+                htmlFor="ll-addressProofType"
+              >
                 {fieldLabels.addressProofType}
               </label>
               <select
@@ -794,19 +823,20 @@ function LearnerLicenceForm() {
                   </dt>
                   <dd className="mt-1">
                     {field === "identityProofType"
-                      ? identityProofOptions.find(
+                      ? (identityProofOptions.find(
                           (option) => option.value === values[field]
-                        )?.label ?? "Not provided"
+                        )?.label ?? "Not provided")
                       : field === "addressProofType"
-                        ? addressProofOptions.find(
+                        ? (addressProofOptions.find(
                             (option) => option.value === values[field]
-                          )?.label ?? "Not provided"
+                          )?.label ?? "Not provided")
                         : field === "vehicleClass"
-                          ? getVehicleClass(values[field])?.label ?? "Not provided"
+                          ? (getVehicleClass(values[field])?.label ??
+                            "Not provided")
                           : field === "zone"
-                            ? delhiZones.find(
+                            ? (delhiZones.find(
                                 (option) => option.value === values[field]
-                              )?.label ?? "Not provided"
+                              )?.label ?? "Not provided")
                             : values[field] || "Not provided"}
                   </dd>
                 </div>
@@ -823,8 +853,7 @@ function LearnerLicenceForm() {
               />
               <span className="leading-6">
                 I confirm these are the details for this application, and I
-                understand nothing is sent to a government
-                service.
+                understand nothing is sent to a government service.
               </span>
             </label>
           </>

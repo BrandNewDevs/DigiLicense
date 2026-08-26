@@ -15,6 +15,7 @@ type ServiceWorkflow =
   | "learner-licence"
   | "learner-test"
   | "mobile-update"
+  | "permanent-licence"
 
 type ServiceDefinition = {
   action: string
@@ -82,6 +83,7 @@ const services = [
       "Check the eligibility date, prepare the application, and continue to an appointment.",
     action: "Check eligibility",
     protected: true,
+    workflow: "permanent-licence",
     whatYouNeed: [
       "An eligible learner's licence",
       "The same vehicle class",
