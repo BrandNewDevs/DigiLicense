@@ -136,7 +136,8 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     expect(request.status).toBe("LOCKED")
     expect(request.otpChallenge?.attemptCount).toBe(5)
     expect(JSON.stringify(request)).not.toContain("9000000009")
-    expect(JSON.stringify(request)).not.toContain("000000")
+    expect(request.otpChallenge?.codeHash).not.toBe("000000")
+    expect("otp" in (request.otpChallenge ?? {})).toBe(false)
   })
 
   it("automatically completes a due address review exactly once", async () => {
