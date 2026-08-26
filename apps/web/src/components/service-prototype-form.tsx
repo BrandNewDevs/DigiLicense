@@ -14,7 +14,7 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
   const form = useForm({
     defaultValues: Object.fromEntries(
       service.fields.map((field) => [field.name, field.defaultValue ?? ""])
-    ) as Record<string, string>,
+    ),
     onSubmit: () => setSubmitted(true),
   })
 
@@ -37,7 +37,10 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
         <Button
           className="mt-6 h-11 px-5 text-base"
           variant="outline"
-          onClick={() => setSubmitted(false)}
+          onClick={() => {
+            form.reset()
+            setSubmitted(false)
+          }}
           type="button"
         >
           Start again

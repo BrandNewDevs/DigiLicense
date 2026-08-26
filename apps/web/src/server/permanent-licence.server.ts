@@ -41,6 +41,17 @@ function eligibilityDate(passedAt: Date) {
   return date
 }
 
+function getLearnerVehicleClass(formPayload: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(formPayload)
+    if (!parsed || typeof parsed !== "object") return null
+    const vehicleClass = (parsed as Record<string, unknown>).vehicleClass
+    return typeof vehicleClass === "string" ? vehicleClass : null
+  } catch {
+    return null
+  }
+}
+
 function applicationNumber(now: Date) {
   return `DLDEMO${now.getUTCFullYear()}${Math.floor(Math.random() * 900_000 + 100_000)}`
 }
@@ -144,6 +155,24 @@ async function submitPermanentLicenceApplication(
 
   try {
     const created = await prisma.$transaction(async (transaction) => {
+      const learner = await transaction.application.findFirst({
+        where: {
+          applicantId: applicant.applicantId,
+          service: learnerLicenceService,
+          status: "TEST_PASSED",
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true, draft: { select: { formPayload: true } } },
+      })
+      const learnerVehicleClass = learner?.draft
+        ? getLearnerVehicleClass(learner.draft.formPayload)
+        : null
+      if (!learner || learnerVehicleClass !== input.vehicleClass) {
+        throw new Error(
+          "Permanent licence vehicle class must match the learner application."
+        )
+      }
+
       const now = new Date()
       const number = applicationNumber(now)
       const application = await transaction.application.create({
@@ -156,6 +185,14 @@ async function submitPermanentLicenceApplication(
             "Join the driving-test appointment waitlist when it becomes available.",
         },
         select: { id: true, applicationNumber: true },
+      })
+      await transaction.permanentLicenceDetail.create({
+        data: {
+          applicationId: application.id,
+          learnerApplicationId: learner.id,
+          vehicleClass: learnerVehicleClass,
+          idempotencyKey: input.idempotencyKey,
+        },
       })
       await transaction.workflowEvent.create({
         data: {

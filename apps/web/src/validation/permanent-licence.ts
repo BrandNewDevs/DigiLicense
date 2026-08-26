@@ -6,7 +6,7 @@ const permanentLicenceSubmissionSchema = z
     vehicleClass: z.enum([
       "MOTORCYCLE_WITHOUT_GEAR",
       "MOTORCYCLE_WITH_GEAR",
-      "CAR",
+      "LIGHT_MOTOR_VEHICLE",
     ]),
   })
   .strict()

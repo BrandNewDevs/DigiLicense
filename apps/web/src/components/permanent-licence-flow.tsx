@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form"
 import { useServerFn } from "@tanstack/react-start"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 
@@ -16,21 +16,23 @@ type PermanentState =
 const vehicleClasses = [
   { value: "MOTORCYCLE_WITHOUT_GEAR", label: "Motorcycle without gear" },
   { value: "MOTORCYCLE_WITH_GEAR", label: "Motorcycle with gear" },
-  { value: "CAR", label: "Car" },
+  { value: "LIGHT_MOTOR_VEHICLE", label: "Car" },
 ] as const
 
 function PermanentLicenceFlow() {
   const readState = useServerFn(readPermanentLicenceState)
   const submit = useServerFn(submitPermanentLicenceApplication)
   const [state, setState] = useState<PermanentState>()
+  const idempotencyKeyRef = useRef(crypto.randomUUID())
   const form = useForm({
     defaultValues: {
-      vehicleClass: "CAR" as (typeof vehicleClasses)[number]["value"],
+      vehicleClass:
+        "LIGHT_MOTOR_VEHICLE" as (typeof vehicleClasses)[number]["value"],
     },
     onSubmit: async ({ value }) => {
       const result = await submit({
         data: {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: idempotencyKeyRef.current,
           vehicleClass: value.vehicleClass,
         },
       })

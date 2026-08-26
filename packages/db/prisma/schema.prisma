@@ -116,6 +116,7 @@ model Application {
   notifications     NotificationRecord[]
   learnerTestAttempts LearnerTestAttempt[]
   addressChangeDetail AddressChangeDetail?
+  permanentLicenceDetail PermanentLicenceDetail?
 
   @@index([applicantId, applicationNumber])
   @@index([status, submittedAt])
@@ -328,6 +329,18 @@ model AddressChangeDetail {
   licenceRecord            DrivingLicenceRecord  @relation(fields: [licenceRecordId], references: [id], onDelete: Restrict)
 
   @@index([licenceRecordId, createdAt])
+}
+
+model PermanentLicenceDetail {
+  id                    String      @id @default(cuid())
+  applicationId         String      @unique
+  learnerApplicationId  String
+  vehicleClass          String
+  idempotencyKey        String      @unique
+  createdAt             DateTime    @default(now())
+  application           Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([learnerApplicationId])
 }
 
 model MobileChangeRequest {
