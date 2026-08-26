@@ -50,4 +50,17 @@ describe("private AI service configuration", () => {
       })
     ).toEqual({ baseUrl: "https://ai.internal", bearerToken: credential })
   })
+
+  it.each(["https://ai.internal/", "https://ai.internal:443"])(
+    "accepts an origin-equivalent configured URL: %s",
+    (baseUrl) => {
+      expect(
+        readPrivateAiConfiguration({
+          DIGILICENSE_AI_BASE_URL: baseUrl,
+          DIGILICENSE_AI_SERVICE_BEARER_TOKEN: credential,
+          NODE_ENV: "production",
+        })
+      ).toEqual({ baseUrl: "https://ai.internal", bearerToken: credential })
+    }
+  )
 })
