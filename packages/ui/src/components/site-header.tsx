@@ -311,6 +311,7 @@ function SiteHeader({
 
           {account || actions.length > 0 ? (
             <div className="ml-auto flex shrink-0 items-center gap-1">
+              {utility ? <div className="lg:hidden">{utility}</div> : null}
               {account ? (
                 account
               ) : actions.length > 0 ? (

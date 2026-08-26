@@ -48,7 +48,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --font-sans: "Oranienbaum", "Noto Serif", Georgia, serif;
+  --font-sans: var(--digilicense-font-heading);
 }
 
 :root {
@@ -85,6 +85,8 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   --digilicense-home-width: 48rem;
+  --digilicense-font-description: Inter, sans-serif;
+  --digilicense-font-heading: Oranienbaum, "Noto Serif", serif;
   --digilicense-page-width: 68.75rem;
 }
 
@@ -151,7 +153,7 @@ html[data-digilicense-content-width="wide"] {
   }
 
   p {
-    font-family: "Inter", sans-serif;
+    font-family: var(--digilicense-font-description);
   }
 
   :where(a, button, input, textarea, select):focus-visible {
@@ -162,13 +164,13 @@ html[data-digilicense-content-width="wide"] {
 
 @layer utilities {
   .oranienbaum-regular {
-    font-family: "Oranienbaum", serif;
+    font-family: var(--digilicense-font-heading);
     font-style: normal;
     font-weight: 400;
   }
 
   .font-description {
-    font-family: "Inter", sans-serif;
+    font-family: var(--digilicense-font-description);
   }
 
   .journey-step-card {
