@@ -63,8 +63,16 @@ function LicenceJourneyCycle() {
   return (
     <section
       aria-label="Learner's licence journey"
-      className="mx-auto mt-12 hidden w-full max-w-[calc(100%-2rem)] px-2 pb-12 sm:mt-16 sm:block sm:max-w-[calc(100%-14rem)] sm:px-4 lg:max-w-[calc(100%-10rem)] 2xl:max-w-[calc(100%-14rem)]"
+      className="mx-auto mt-12 w-full max-w-[calc(100%-2rem)] px-2 pb-12 sm:mt-16 sm:max-w-[calc(100%-14rem)] sm:px-4 lg:max-w-[calc(100%-10rem)] 2xl:max-w-[calc(100%-14rem)]"
     >
+      <ol className="grid gap-4 px-3 py-8 sm:hidden">
+        {journeySteps.map((step) => (
+          <li key={step.label}>
+            <JourneyCard step={step} />
+          </li>
+        ))}
+      </ol>
+
       <Carousel
         className="hidden px-12 py-8 sm:block lg:hidden"
         opts={{ align: "start", loop: true }}
