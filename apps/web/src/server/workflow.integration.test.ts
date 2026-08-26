@@ -127,7 +127,7 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
         })
       )
     )
-    expect(attempts.at(-1)?.kind).toBe("otp-locked")
+    expect(attempts.some((attempt) => attempt.kind === "otp-locked")).toBe(true)
 
     const request = await prisma.mobileChangeRequest.findUniqueOrThrow({
       where: { id: start.requestId },

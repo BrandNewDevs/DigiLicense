@@ -489,6 +489,13 @@ async function verifyMobileUpdateOtp(input: {
 
   try {
     return await prisma.$transaction(async (transaction) => {
+      // The challenge row is read and then its attempt count is incremented.
+      // Serialize that sequence per request so concurrent invalid OTPs cannot
+      // overwrite each other and bypass the durable lockout threshold.
+      await transaction.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${input.requestId}, 0))
+      `
+
       const request = await transaction.mobileChangeRequest.findFirst({
         where: { applicantId: applicant.applicantId, id: input.requestId },
         include: { otpChallenge: true },
