@@ -23,6 +23,16 @@ enum ApplicationStatus {
   WAITLISTED
 }
 
+enum ApplicationBlockingReason {
+  DOCUMENT_REVIEW_PENDING
+  CORRECTION_REQUIRED
+  PAYMENT_CONFIRMATION_PENDING
+  TEST_RESULT_PENDING
+  APPROVAL_REVIEW_PENDING
+  APPOINTMENT_SLOT_UNAVAILABLE
+  WAITING_PERIOD_NOT_MET
+}
+
 enum TestLanguage {
   ENGLISH
   HINDI
@@ -104,6 +114,8 @@ model Application {
   applicationNumber String               @unique
   service           String
   status            ApplicationStatus
+  blockingReasonCode ApplicationBlockingReason?
+  statusDeadlineAt  DateTime?
   nextAction        String
   version           Int                  @default(1)
   submittedAt       DateTime             @default(now())
@@ -120,6 +132,7 @@ model Application {
 
   @@index([applicantId, applicationNumber])
   @@index([status, submittedAt])
+  @@index([service, status, statusDeadlineAt])
 }
 
 model WorkflowEvent {

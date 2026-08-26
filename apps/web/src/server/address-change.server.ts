@@ -770,6 +770,7 @@ async function submitAddressChangeApplication(
   }
 
   const submittedAt = new Date()
+  const reviewDeadline = new Date(submittedAt.getTime() + 60_000)
 
   for (let attempt = 0; attempt < submitAttemptLimit; attempt += 1) {
     const applicationNumber = generateApplicationNumber(submittedAt)
@@ -828,8 +829,11 @@ async function submitAddressChangeApplication(
           data: {
             applicantId: applicant.applicantId,
             applicationNumber,
-            nextAction: "Wait for the simulated address-proof review.",
+            blockingReasonCode: "DOCUMENT_REVIEW_PENDING",
+            nextAction:
+              "DigiLicense is reviewing the submitted proof. No government service was contacted.",
             service: addressChangeServiceName,
+            statusDeadlineAt: reviewDeadline,
             status: "DOCUMENT_REVIEW",
             workflowEvents: {
               create: {

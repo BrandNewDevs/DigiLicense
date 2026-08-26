@@ -4,6 +4,7 @@ import { config } from "dotenv"
 
 import { PrismaClient } from "../src/generated/prisma/client.ts"
 import {
+  ApplicationBlockingReason,
   ApplicationStatus,
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
@@ -90,6 +91,7 @@ const scenarios = [
     applicationNumber: "DLDEMO20260001",
     service: "Learner's licence",
     status: ApplicationStatus.DOCUMENT_REVIEW,
+    blockingReasonCode: ApplicationBlockingReason.DOCUMENT_REVIEW_PENDING,
     nextAction: "Wait for the mock document review.",
     title: "Synthetic application submitted",
   },
@@ -98,6 +100,7 @@ const scenarios = [
     applicationNumber: "DLDEMO20260002",
     service: "Learner's licence",
     status: ApplicationStatus.TEST_PENDING,
+    blockingReasonCode: ApplicationBlockingReason.TEST_RESULT_PENDING,
     nextAction: "Wait for the simulated learner-test result.",
     title: "Simulated test completed",
   },
@@ -106,6 +109,7 @@ const scenarios = [
     applicationNumber: "DLDEMO20260003",
     service: "Permanent driving licence",
     status: ApplicationStatus.PAYMENT_REVIEW,
+    blockingReasonCode: ApplicationBlockingReason.PAYMENT_CONFIRMATION_PENDING,
     nextAction: "Wait for the simulated payment check.",
     title: "Mock payment needs review",
   },
@@ -114,6 +118,7 @@ const scenarios = [
     applicationNumber: "DLDEMO20260004",
     service: "Driving-licence renewal",
     status: ApplicationStatus.APPROVAL_PENDING,
+    blockingReasonCode: ApplicationBlockingReason.APPROVAL_REVIEW_PENDING,
     nextAction: "Wait for the mock operator decision.",
     title: "Synthetic checks completed",
   },
@@ -122,6 +127,7 @@ const scenarios = [
     applicationNumber: "DLDEMO20260005",
     service: "Permanent driving licence",
     status: ApplicationStatus.WAITLISTED,
+    blockingReasonCode: ApplicationBlockingReason.APPOINTMENT_SLOT_UNAVAILABLE,
     nextAction: "Wait for a synthetic driving-test slot offer.",
     title: "Joined the mock appointment waitlist",
   },
@@ -188,6 +194,7 @@ for (const scenario of scenarios) {
         service: scenario.service,
         status: scenario.status,
         nextAction: scenario.nextAction,
+        blockingReasonCode: scenario.blockingReasonCode,
         workflowEvents: {
           create: {
             actor: WorkflowActor.SYSTEM,
