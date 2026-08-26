@@ -299,6 +299,22 @@ async function submitPermanentLicenceApplication(
           applicationNumber: replay.application.applicationNumber,
         }
       }
+
+      const competingApplication = await prisma.application.findFirst({
+        where: {
+          applicantId: applicant.applicantId,
+          service: permanentLicenceService,
+          status: { notIn: ["APPROVED", "REJECTED"] },
+        },
+        orderBy: { submittedAt: "desc" },
+        select: { applicationNumber: true },
+      })
+      if (competingApplication) {
+        return {
+          kind: "submitted",
+          applicationNumber: competingApplication.applicationNumber,
+        }
+      }
     }
 
     recordDependencyFailure(error, {
