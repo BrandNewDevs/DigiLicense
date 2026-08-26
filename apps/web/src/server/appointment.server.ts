@@ -249,8 +249,8 @@ async function readAppointmentJourney(
       },
     })
     if (!application) return { kind: "not-found", message: notFoundMessage }
-    const entry = application.appointmentWaitlistEntries[0]
-    const offer = entry?.offers[0]
+    const entry = application.appointmentWaitlistEntries.at(0)
+    const offer = entry?.offers.at(0)
     const breakdown = offer?.rankingBreakdown
     const parsedBreakdown =
       breakdown &&

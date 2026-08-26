@@ -261,8 +261,8 @@ async function lookupAuthorizedApplicationStatus(
     const documentsHasMore = record.documents.length > documentLimit
     const notificationsHasMore = record.notifications.length > notificationLimit
     const deadline = record.statusDeadlineAt
-    const waitlistEntry = record.appointmentWaitlistEntries[0]
-    const activeOffer = waitlistEntry?.offers[0]
+    const waitlistEntry = record.appointmentWaitlistEntries.at(0)
+    const activeOffer = waitlistEntry?.offers.at(0)
     const confirmedAppointment = record.confirmedAppointment
 
     return {
