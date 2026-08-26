@@ -165,9 +165,21 @@ await prisma.appointmentPreference.deleteMany({
 })
 await prisma.appointmentPreference.createMany({
   data: [
-    { rank: 1, waitlistEntryId: appointmentFixtureEntry.id, zone: "CENTRAL_DELHI" },
-    { rank: 2, waitlistEntryId: appointmentFixtureEntry.id, zone: "EAST_DELHI" },
-    { rank: 3, waitlistEntryId: appointmentFixtureEntry.id, zone: "SOUTH_DELHI" },
+    {
+      rank: 1,
+      waitlistEntryId: appointmentFixtureEntry.id,
+      zone: "CENTRAL_DELHI",
+    },
+    {
+      rank: 2,
+      waitlistEntryId: appointmentFixtureEntry.id,
+      zone: "EAST_DELHI",
+    },
+    {
+      rank: 3,
+      waitlistEntryId: appointmentFixtureEntry.id,
+      zone: "SOUTH_DELHI",
+    },
   ],
 })
 await prisma.appointmentNotificationPreference.deleteMany({

@@ -179,19 +179,21 @@ async function allocateAppointmentSlot(
         },
         select: { id: true },
       })
-      const preferences = await transaction.appointmentNotificationPreference.findMany({
-        where: { waitlistEntryId: candidate.id },
-        select: { channel: true, recipientAlias: true },
-      })
+      const preferences =
+        await transaction.appointmentNotificationPreference.findMany({
+          where: { waitlistEntryId: candidate.id },
+          select: { channel: true, recipientAlias: true },
+        })
 
       await transaction.appointmentSlot.update({
         where: { id: slot.id },
         data: { status: "OFFERED" },
       })
-      const application = await transaction.appointmentWaitlistEntry.findUniqueOrThrow({
-        where: { id: candidate.id },
-        select: { applicationId: true, applicantId: true },
-      })
+      const application =
+        await transaction.appointmentWaitlistEntry.findUniqueOrThrow({
+          where: { id: candidate.id },
+          select: { applicationId: true, applicantId: true },
+        })
       await transaction.application.update({
         where: { id: application.applicationId },
         data: {
@@ -280,10 +282,11 @@ async function expireAppointmentOffer(
       if (!offer) return false
 
       const cooldownEndsAt = createCooldownDeadline(now)
-      const entry = await transaction.appointmentWaitlistEntry.findUniqueOrThrow({
-        where: { id: offer.waitlistEntryId },
-        select: { applicantId: true },
-      })
+      const entry =
+        await transaction.appointmentWaitlistEntry.findUniqueOrThrow({
+          where: { id: offer.waitlistEntryId },
+          select: { applicantId: true },
+        })
       await transaction.appointmentOffer.update({
         where: { id: offer.id },
         data: { responseAt: now, status: "EXPIRED" },

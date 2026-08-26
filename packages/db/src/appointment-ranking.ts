@@ -40,7 +40,8 @@ function preferencePoints(preferenceRank: AppointmentPreferenceRank): number {
 }
 
 function urgencyPoints(learnerEligibilityDeadlineAt: Date, now: Date): number {
-  const remainingMilliseconds = learnerEligibilityDeadlineAt.getTime() - now.getTime()
+  const remainingMilliseconds =
+    learnerEligibilityDeadlineAt.getTime() - now.getTime()
   const urgencyWindowMilliseconds = urgencyWindowDays * dayMilliseconds
 
   if (remainingMilliseconds <= 0) return maximumUrgencyPoints

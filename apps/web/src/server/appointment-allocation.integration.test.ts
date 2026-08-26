@@ -108,8 +108,11 @@ describe.sequential("PostgreSQL appointment allocation foundation", () => {
   })
 
   it("creates exactly one durable offer with an explainable ranking snapshot under concurrent workers", async () => {
-    const { createFixedAppointmentClock, allocateAvailableAppointmentOffers, prisma } =
-      await import("@digilicense/db/server")
+    const {
+      createFixedAppointmentClock,
+      allocateAvailableAppointmentOffers,
+      prisma,
+    } = await import("@digilicense/db/server")
     const scenario = await createEligibleAppointmentScenario()
     const clock = createFixedAppointmentClock(now)
 
@@ -118,7 +121,9 @@ describe.sequential("PostgreSQL appointment allocation foundation", () => {
       allocateAvailableAppointmentOffers(clock),
     ])
 
-    expect(results.reduce((count, result) => count + result.offeredCount, 0)).toBe(1)
+    expect(
+      results.reduce((count, result) => count + result.offeredCount, 0)
+    ).toBe(1)
     const offer = await prisma.appointmentOffer.findUniqueOrThrow({
       where: { slotId: scenario.slotId },
       include: { deliveries: true },
@@ -166,9 +171,10 @@ describe.sequential("PostgreSQL appointment allocation foundation", () => {
     await expect(
       expireDueAppointmentOffers(createFixedAppointmentClock(expiryTime))
     ).resolves.toEqual({ expiredCount: 1 })
-    const expiredEntry = await prisma.appointmentWaitlistEntry.findUniqueOrThrow({
-      where: { id: scenario.entryId },
-    })
+    const expiredEntry =
+      await prisma.appointmentWaitlistEntry.findUniqueOrThrow({
+        where: { id: scenario.entryId },
+      })
     const expiredSlot = await prisma.appointmentSlot.findUniqueOrThrow({
       where: { id: scenario.slotId },
     })
