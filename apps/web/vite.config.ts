@@ -1,4 +1,5 @@
 import { defineConfig } from "vite"
+import { configDefaults } from "vitest/config"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
@@ -15,6 +16,9 @@ const config = defineConfig(({ isPreview }) => {
     preview: { cors: false, headers: assetSecurityHeaders },
     resolve: { tsconfigPaths: true },
     server: { cors: false, headers: assetSecurityHeaders },
+    test: {
+      exclude: [...configDefaults.exclude, "src/**/*.integration.test.ts"],
+    },
     plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
   }
 })

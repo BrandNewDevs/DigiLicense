@@ -10,6 +10,7 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
+    "test:integration": "pnpm --filter web test:integration",
     "test:clean-build": "node scripts/verify-clean-build.mjs",
     "format": "turbo format",
     "typecheck": "turbo typecheck"
