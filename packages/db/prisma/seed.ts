@@ -6,6 +6,9 @@ import { PrismaClient } from "../src/generated/prisma/client.ts"
 import {
   ApplicationBlockingReason,
   ApplicationStatus,
+  AppointmentNotificationChannel,
+  AppointmentSlotStatus,
+  AppointmentWaitlistStatus,
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
 import { createDatabaseAdapter } from "../src/database-adapter.ts"
@@ -32,6 +35,7 @@ const applicantAccounts = [
   { id: "demo-applicant-001", mobileNumber: "9000000001" },
   { id: "demo-applicant-002", mobileNumber: "9000000002" },
   { id: "demo-applicant-003", mobileNumber: "9000000003" },
+  { id: "demo-applicant-004", mobileNumber: "9000000004" },
 ] as const
 
 for (const applicant of applicantAccounts) {
@@ -48,6 +52,164 @@ for (const applicant of applicantAccounts) {
       mobileHmacKeyVersion: getCurrentMobileHmacKeyVersion(),
       mobileLastFour: applicant.mobileNumber.slice(-4),
     },
+  })
+}
+
+// This separate account is resettable appointment-fixture data. Its learner
+// test is already past the 30-day waiting period so the permanent-to-offer
+// journey can be shown without weakening the production eligibility rule.
+const appointmentFixtureApplicantId = "demo-applicant-004"
+const appointmentFixtureNow = new Date()
+const appointmentFixturePassedAt = new Date(
+  appointmentFixtureNow.getTime() - 31 * 24 * 60 * 60 * 1_000
+)
+const appointmentFixtureEligibilityDeadline = new Date(
+  appointmentFixturePassedAt.getTime() + 180 * 24 * 60 * 60 * 1_000
+)
+
+const appointmentFixtureLearner = await prisma.application.upsert({
+  where: { applicationNumber: "DLDEMO20260006" },
+  update: {},
+  create: {
+    applicantId: appointmentFixtureApplicantId,
+    applicationNumber: "DLDEMO20260006",
+    nextAction: "Your learner test result is recorded by DigiLicense only.",
+    service: "Learner's licence",
+    status: ApplicationStatus.TEST_PASSED,
+    submittedAt: appointmentFixturePassedAt,
+    updatedAt: appointmentFixturePassedAt,
+    workflowEvents: {
+      create: {
+        actor: WorkflowActor.SYSTEM,
+        actorId: "synthetic-seed",
+        description:
+          "Created as synthetic DigiLicense data. No government service was contacted.",
+        title: "Learner test passed",
+        toStatus: ApplicationStatus.TEST_PASSED,
+      },
+    },
+  },
+  select: { id: true },
+})
+
+await prisma.applicationDraft.upsert({
+  where: { applicationId: appointmentFixtureLearner.id },
+  update: {},
+  create: {
+    applicantId: appointmentFixtureApplicantId,
+    applicationId: appointmentFixtureLearner.id,
+    formPayload: JSON.stringify({ vehicleClass: "LIGHT_MOTOR_VEHICLE" }),
+    service: "Learner's licence",
+  },
+})
+
+const appointmentFixturePermanent = await prisma.application.upsert({
+  where: { applicationNumber: "DLDEMO20260007" },
+  update: {},
+  create: {
+    applicantId: appointmentFixtureApplicantId,
+    applicationNumber: "DLDEMO20260007",
+    blockingReasonCode: ApplicationBlockingReason.APPOINTMENT_SLOT_UNAVAILABLE,
+    nextAction: "Wait for an appointment offer from DigiLicense.",
+    service: "Permanent driving licence",
+    status: ApplicationStatus.WAITLISTED,
+    workflowEvents: {
+      create: {
+        actor: WorkflowActor.SYSTEM,
+        actorId: "synthetic-seed",
+        description:
+          "Created as synthetic DigiLicense appointment fixture data. No government service was contacted.",
+        title: "Joined appointment waitlist",
+        toStatus: ApplicationStatus.WAITLISTED,
+      },
+    },
+  },
+  select: { id: true },
+})
+
+await prisma.permanentLicenceDetail.upsert({
+  where: {
+    applicantId_idempotencyKey: {
+      applicantId: appointmentFixtureApplicantId,
+      idempotencyKey: "seeded-appointment-permanent-application",
+    },
+  },
+  update: {},
+  create: {
+    applicantId: appointmentFixtureApplicantId,
+    applicationId: appointmentFixturePermanent.id,
+    idempotencyKey: "seeded-appointment-permanent-application",
+    learnerApplicationId: appointmentFixtureLearner.id,
+    learnerEligibilityDeadlineAt: appointmentFixtureEligibilityDeadline,
+    vehicleClass: "LIGHT_MOTOR_VEHICLE",
+  },
+})
+
+const appointmentFixtureEntry = await prisma.appointmentWaitlistEntry.upsert({
+  where: { joinIdempotencyKey: "seeded-appointment-waitlist-entry" },
+  update: {},
+  create: {
+    applicantId: appointmentFixtureApplicantId,
+    applicationId: appointmentFixturePermanent.id,
+    joinIdempotencyKey: "seeded-appointment-waitlist-entry",
+    originalJoinedAt: new Date(
+      appointmentFixtureNow.getTime() - 4 * 24 * 60 * 60 * 1_000
+    ),
+    status: AppointmentWaitlistStatus.ACTIVE,
+  },
+  select: { id: true },
+})
+
+await prisma.appointmentPreference.deleteMany({
+  where: { waitlistEntryId: appointmentFixtureEntry.id },
+})
+await prisma.appointmentPreference.createMany({
+  data: [
+    { rank: 1, waitlistEntryId: appointmentFixtureEntry.id, zone: "CENTRAL_DELHI" },
+    { rank: 2, waitlistEntryId: appointmentFixtureEntry.id, zone: "EAST_DELHI" },
+    { rank: 3, waitlistEntryId: appointmentFixtureEntry.id, zone: "SOUTH_DELHI" },
+  ],
+})
+await prisma.appointmentNotificationPreference.deleteMany({
+  where: { waitlistEntryId: appointmentFixtureEntry.id },
+})
+await prisma.appointmentNotificationPreference.createMany({
+  data: [
+    {
+      channel: AppointmentNotificationChannel.SMS,
+      recipientAlias: "synthetic-sms:demo-applicant-004",
+      waitlistEntryId: appointmentFixtureEntry.id,
+    },
+    {
+      channel: AppointmentNotificationChannel.EMAIL,
+      recipientAlias: "synthetic-email:demo-applicant-004",
+      waitlistEntryId: appointmentFixtureEntry.id,
+    },
+  ],
+})
+
+const appointmentFixtureSlots = [
+  {
+    endsAt: new Date(appointmentFixtureNow.getTime() + 26 * 60 * 60 * 1_000),
+    inventoryKey: "seeded-appointment-central-lmv-001",
+    startsAt: new Date(appointmentFixtureNow.getTime() + 25 * 60 * 60 * 1_000),
+    vehicleClass: "LIGHT_MOTOR_VEHICLE",
+    zone: "CENTRAL_DELHI",
+  },
+  {
+    endsAt: new Date(appointmentFixtureNow.getTime() + 50 * 60 * 60 * 1_000),
+    inventoryKey: "seeded-appointment-east-lmv-001",
+    startsAt: new Date(appointmentFixtureNow.getTime() + 49 * 60 * 60 * 1_000),
+    vehicleClass: "LIGHT_MOTOR_VEHICLE",
+    zone: "EAST_DELHI",
+  },
+] as const
+
+for (const slot of appointmentFixtureSlots) {
+  await prisma.appointmentSlot.upsert({
+    where: { inventoryKey: slot.inventoryKey },
+    update: {},
+    create: { ...slot, status: AppointmentSlotStatus.OPEN },
   })
 }
 
