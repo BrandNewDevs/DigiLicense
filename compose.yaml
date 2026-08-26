@@ -11,6 +11,9 @@ services:
       # host URL in apps/web/.env for Prisma commands run outside Docker.
       DATABASE_URL: "postgresql://digilicense:${DIGILICENSE_LOCAL_DB_PASSWORD:?Set DIGILICENSE_LOCAL_DB_PASSWORD in .env}@db:5432/digilicense?sslmode=require&uselibpqcompat=true"
       DIGILICENSE_SESSION_SECRET: "${DIGILICENSE_SESSION_SECRET:?Set DIGILICENSE_SESSION_SECRET in .env}"
+      # Docker Compose resolves this value from the root .env file. Values in
+      # this block override apps/web/.env, so the root file is authoritative
+      # for the browser origin used by the container.
       DIGILICENSE_PUBLIC_ORIGIN: "${DIGILICENSE_PUBLIC_ORIGIN:-http://localhost:3000}"
     volumes:
       - .:/workspace

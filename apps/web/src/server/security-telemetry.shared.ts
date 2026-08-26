@@ -14,9 +14,21 @@ type SecurityRequestRejectedEvent = {
   timestamp: string
 }
 
+const telemetryHttpMethods = new Set([
+  "CONNECT",
+  "DELETE",
+  "GET",
+  "HEAD",
+  "OPTIONS",
+  "PATCH",
+  "POST",
+  "PUT",
+  "TRACE",
+])
+
 function sanitizeHttpMethod(method: string): string {
   const normalized = method.trim().toUpperCase()
-  return /^[A-Z]{3,10}$/.test(normalized) ? normalized : "UNKNOWN"
+  return telemetryHttpMethods.has(normalized) ? normalized : "UNKNOWN"
 }
 
 function buildSecurityRequestRejectedEvent(

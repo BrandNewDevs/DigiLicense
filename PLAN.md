@@ -58,7 +58,8 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Add mock document checks, payments, notifications, and government-action markers
 - [ ] Implement transactional appointment allocation, offer expiry, and confirmation
 - [x] Add append-only workflow and application-submission audit events
-- [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (CSRF/origin enforcement, input validation, secure cookies, secret isolation, TLS-required database URLs, security headers, and structured dependency/security-failure logging done; broader metrics and alerts remain)
+- [x] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (CSRF/origin enforcement, input validation, secure cookies, secret isolation, TLS-required database URLs, security headers, and structured dependency/security-failure logging done)
+- [ ] Add broader metrics and alerts
 - [x] Keep applicant authorization checks at every server boundary
 
 ## AI engineering service
