@@ -104,7 +104,13 @@ describe.sequential("PostgreSQL permanent appointment workflow", () => {
     })
     const journey = await readAppointmentJourney(applicationNumber)
     expect(journey.kind).toBe("found")
-    if (journey.kind !== "found" || !journey.offer) return
+    if (journey.kind !== "found")
+      throw new Error("Expected the owned appointment journey to be found")
+    expect(journey.offer).not.toBeNull()
+    if (!journey.offer)
+      throw new Error(
+        "Expected allocation to create an active appointment offer"
+      )
     expect(journey.offer.ranking.policyVersion).toBe("appointment-v1")
     expect(journey.preferences.notificationChannels).toEqual(["SMS", "EMAIL"])
 

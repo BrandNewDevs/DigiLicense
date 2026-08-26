@@ -43,11 +43,14 @@ type AppointmentJourney = {
     expiresAt: string
     id: string
     ranking: {
+      // The allocator always writes this score snapshot. Treat it as optional
+      // when projecting historic rows, however, so a malformed non-sensitive
+      // audit payload cannot hide an active offer or prevent a response.
       breakdown: {
         preferencePoints: number
         urgencyPoints: number
         waitTimePoints: number
-      }
+      } | null
       policyVersion: string
       score: number
     }
@@ -277,23 +280,22 @@ async function readAppointmentJourney(
           }
         : null,
       kind: "found",
-      offer:
-        offer && parsedBreakdown
-          ? {
-              expiresAt: offer.expiresAt.toISOString(),
-              id: offer.id,
-              ranking: {
-                breakdown: parsedBreakdown,
-                policyVersion: offer.rankingPolicyVersion,
-                score: offer.rankingScore,
-              },
-              slot: {
-                endsAt: offer.slot.endsAt.toISOString(),
-                startsAt: offer.slot.startsAt.toISOString(),
-                zone: offer.slot.zone,
-              },
-            }
-          : null,
+      offer: offer
+        ? {
+            expiresAt: offer.expiresAt.toISOString(),
+            id: offer.id,
+            ranking: {
+              breakdown: parsedBreakdown,
+              policyVersion: offer.rankingPolicyVersion,
+              score: offer.rankingScore,
+            },
+            slot: {
+              endsAt: offer.slot.endsAt.toISOString(),
+              startsAt: offer.slot.startsAt.toISOString(),
+              zone: offer.slot.zone,
+            },
+          }
+        : null,
       preferences: {
         notificationChannels: (entry?.notificationPreferences ?? []).map(
           (preference) => preference.channel
@@ -426,6 +428,23 @@ async function saveAppointmentPreferences(
       return { entryId: entry.id, kind: "saved" }
     })
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const replay = await prisma.appointmentWaitlistEntry.findFirst({
+        where: {
+          preferenceIdempotencyKey: input.idempotencyKey,
+          application: {
+            applicantId: authorization.applicantId,
+            applicationNumber: input.applicationNumber,
+            service: permanentLicenceService,
+          },
+        },
+        select: { id: true },
+      })
+      if (replay) return { entryId: replay.id, kind: "saved" }
+    }
     recordDependencyFailure(error, {
       dependency: "postgres",
       operation: "appointment_preferences_save",
@@ -532,6 +551,23 @@ async function leaveAppointmentWaitlist(
     })
     return result
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const replay = await prisma.appointmentWaitlistEntry.findFirst({
+        where: {
+          leaveIdempotencyKey: input.idempotencyKey,
+          application: {
+            applicantId: authorization.applicantId,
+            applicationNumber: input.applicationNumber,
+            service: permanentLicenceService,
+          },
+        },
+        select: { id: true },
+      })
+      if (replay) return { kind: "left" }
+    }
     recordDependencyFailure(error, {
       dependency: "postgres",
       operation: "appointment_waitlist_leave",

@@ -13,7 +13,10 @@ const rateLimitRules = {
   "application-submit": { limit: 5, windowMs: 15 * 60_000 },
   "application-status-lookup": { limit: 30, windowMs: 15 * 60_000 },
   "application-notification-read": { limit: 30, windowMs: 15 * 60_000 },
-  "appointment-journey-read": { limit: 30, windowMs: 15 * 60_000 },
+  // A frontend polls an active 30-minute offer once each minute and may also
+  // refetch after a response or restored browser focus. The limit leaves that
+  // normal, authenticated path headroom without making reads unbounded.
+  "appointment-journey-read": { limit: 60, windowMs: 15 * 60_000 },
   "appointment-offer-response": { limit: 5, windowMs: 10 * 60_000 },
   "appointment-preferences": { limit: 10, windowMs: 15 * 60_000 },
   "appointment-waitlist-leave": { limit: 5, windowMs: 15 * 60_000 },

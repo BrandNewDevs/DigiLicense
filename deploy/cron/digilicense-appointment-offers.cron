@@ -1,4 +1,6 @@
+# Install this file in the DigiLicense runtime user's crontab, not /etc/cron.d.
 # Process offer expiry, cooldown reactivation, and available-slot allocation.
 # It is safe on multiple scheduler instances: the worker uses PostgreSQL row
 # locks and database uniqueness constraints to prevent duplicate offers.
-* * * * * cd /workspace && pnpm --filter @digilicense/db db:process-appointment-offers
+PATH=/usr/local/bin:/usr/bin:/bin
+* * * * * cd /workspace && /usr/local/bin/pnpm --filter @digilicense/db db:process-appointment-offers
