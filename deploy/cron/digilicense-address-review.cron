@@ -1,0 +1,3 @@
+# Process only due DigiLicense address-change records. The job is safe to run
+# on multiple instances; PostgreSQL row locks prevent duplicate transitions.
+* * * * * cd /workspace && pnpm --filter @digilicense/db db:process-address-reviews
