@@ -3,6 +3,7 @@ import "@tanstack/react-start/server-only"
 export { prisma } from "./db.ts"
 export { Prisma } from "./generated/prisma/client.ts"
 export {
+  ApplicationBlockingReason,
   AddressChangeVerificationStatus,
   MobileChangeStatus,
   MobileChangeVerificationMethod,
