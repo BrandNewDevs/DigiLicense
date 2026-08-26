@@ -333,13 +333,15 @@ model AddressChangeDetail {
 
 model PermanentLicenceDetail {
   id                    String      @id @default(cuid())
-  applicationId         String      @unique
+  applicationId         String?     @unique
+  applicantId           String
   learnerApplicationId  String
   vehicleClass          String
-  idempotencyKey        String      @unique
+  idempotencyKey        String
   createdAt             DateTime    @default(now())
-  application           Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  application           Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
 
+  @@unique([applicantId, idempotencyKey])
   @@index([learnerApplicationId])
 }
 

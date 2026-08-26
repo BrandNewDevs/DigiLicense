@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
-import { prisma, WorkflowActor } from "@digilicense/db/server"
+import { Prisma, prisma, WorkflowActor } from "@digilicense/db/server"
 
 import type { PermanentLicenceSubmission } from "../validation/permanent-licence"
 import { requireApplicant } from "./demo-session.server"
@@ -155,6 +155,19 @@ async function submitPermanentLicenceApplication(
 
   try {
     const created = await prisma.$transaction(async (transaction) => {
+      const replay = await transaction.permanentLicenceDetail.findUnique({
+        where: {
+          applicantId_idempotencyKey: {
+            applicantId: applicant.applicantId,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+        select: { application: { select: { applicationNumber: true } } },
+      })
+      if (replay?.application) {
+        return { applicationNumber: replay.application.applicationNumber }
+      }
+
       const learner = await transaction.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
@@ -173,6 +186,16 @@ async function submitPermanentLicenceApplication(
         )
       }
 
+      const detail = await transaction.permanentLicenceDetail.create({
+        data: {
+          applicantId: applicant.applicantId,
+          learnerApplicationId: learner.id,
+          vehicleClass: learnerVehicleClass,
+          idempotencyKey: input.idempotencyKey,
+        },
+        select: { id: true },
+      })
+
       const now = new Date()
       const number = applicationNumber(now)
       const application = await transaction.application.create({
@@ -186,13 +209,9 @@ async function submitPermanentLicenceApplication(
         },
         select: { id: true, applicationNumber: true },
       })
-      await transaction.permanentLicenceDetail.create({
-        data: {
-          applicationId: application.id,
-          learnerApplicationId: learner.id,
-          vehicleClass: learnerVehicleClass,
-          idempotencyKey: input.idempotencyKey,
-        },
+      await transaction.permanentLicenceDetail.update({
+        where: { id: detail.id },
+        data: { applicationId: application.id },
       })
       await transaction.workflowEvent.create({
         data: {
@@ -228,6 +247,27 @@ async function submitPermanentLicenceApplication(
     })
     return { kind: "submitted", applicationNumber: created.applicationNumber }
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const replay = await prisma.permanentLicenceDetail.findUnique({
+        where: {
+          applicantId_idempotencyKey: {
+            applicantId: applicant.applicantId,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+        select: { application: { select: { applicationNumber: true } } },
+      })
+      if (replay?.application) {
+        return {
+          kind: "submitted",
+          applicationNumber: replay.application.applicationNumber,
+        }
+      }
+    }
+
     recordDependencyFailure(error, {
       dependency: "postgres",
       operation: "permanent_licence_submit",
