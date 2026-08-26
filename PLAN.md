@@ -9,7 +9,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [x] Define TanStack Router route groups for applicant and public experiences
 - [x] Implement applicant login with a seeded synthetic mobile number and simulated OTP
 - [x] Keep the demo focused on a single synthetic applicant login
-- [ ] Add server-side sessions, rate limits, and security headers through TanStack Start server code (sessions and Postgres-backed login rate limits done; security headers outstanding)
+- [x] Add server-side sessions, rate limits, CSRF/origin enforcement, and security headers through TanStack Start server code
 - [x] Configure PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data. Provide a reproducible local Docker PostgreSQL setup with a browser-based Adminer viewer.
 - [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models (application, workflow-event, audit-event, draft, document, payment, and notification models exist; the appointment inventory model remains)
 
@@ -58,7 +58,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Add mock document checks, payments, notifications, and government-action markers
 - [ ] Implement transactional appointment allocation, offer expiry, and confirmation
 - [x] Add append-only workflow and application-submission audit events
-- [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (input validation, secure cookies, secret isolation, TLS-required database URLs, and structured dependency-failure logging done; broader log coverage, metrics/alerts, and CSRF outstanding)
+- [ ] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (CSRF/origin enforcement, input validation, secure cookies, secret isolation, TLS-required database URLs, security headers, and structured dependency/security-failure logging done; broader metrics and alerts remain)
 - [x] Keep applicant authorization checks at every server boundary
 
 ## AI engineering service

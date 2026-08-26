@@ -11,6 +11,7 @@ services:
       # host URL in apps/web/.env for Prisma commands run outside Docker.
       DATABASE_URL: "postgresql://digilicense:${DIGILICENSE_LOCAL_DB_PASSWORD:?Set DIGILICENSE_LOCAL_DB_PASSWORD in .env}@db:5432/digilicense?sslmode=require&uselibpqcompat=true"
       DIGILICENSE_SESSION_SECRET: "${DIGILICENSE_SESSION_SECRET:?Set DIGILICENSE_SESSION_SECRET in .env}"
+      DIGILICENSE_PUBLIC_ORIGIN: "${DIGILICENSE_PUBLIC_ORIGIN:-http://localhost:3000}"
     volumes:
       - .:/workspace
       - node_modules:/workspace/node_modules
