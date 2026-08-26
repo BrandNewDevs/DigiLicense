@@ -1,6 +1,7 @@
 CREATE TABLE "PermanentLicenceDetail" (
   "id" TEXT NOT NULL,
-  "applicationId" TEXT NOT NULL,
+  "applicationId" TEXT,
+  "applicantId" TEXT NOT NULL,
   "learnerApplicationId" TEXT NOT NULL,
   "vehicleClass" TEXT NOT NULL,
   "idempotencyKey" TEXT NOT NULL,
@@ -9,6 +10,6 @@ CREATE TABLE "PermanentLicenceDetail" (
 );
 
 CREATE UNIQUE INDEX "PermanentLicenceDetail_applicationId_key" ON "PermanentLicenceDetail"("applicationId");
-CREATE UNIQUE INDEX "PermanentLicenceDetail_idempotencyKey_key" ON "PermanentLicenceDetail"("idempotencyKey");
+CREATE UNIQUE INDEX "PermanentLicenceDetail_applicantId_idempotencyKey_key" ON "PermanentLicenceDetail"("applicantId", "idempotencyKey");
 CREATE INDEX "PermanentLicenceDetail_learnerApplicationId_idx" ON "PermanentLicenceDetail"("learnerApplicationId");
 ALTER TABLE "PermanentLicenceDetail" ADD CONSTRAINT "PermanentLicenceDetail_applicationId_fkey" FOREIGN KEY ("applicationId") REFERENCES "Application"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
