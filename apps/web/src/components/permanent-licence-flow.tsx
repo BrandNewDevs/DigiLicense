@@ -36,6 +36,12 @@ function PermanentLicenceFlow() {
           vehicleClass: value.vehicleClass,
         },
       })
+      if (result.kind === "vehicle-class-mismatch") {
+        form.reset({ vehicleClass: result.vehicleClass })
+        const refreshedState = await readState({ data: undefined })
+        setState(refreshedState)
+        return
+      }
       setState(result)
     },
   })
