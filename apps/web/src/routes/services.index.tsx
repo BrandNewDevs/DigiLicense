@@ -10,7 +10,7 @@ export const Route = createFileRoute("/services/")({
 
 function ServicesPage() {
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
+    <div className="flex flex-1 flex-col bg-background text-foreground">
       <main className="flex-1" id="main-content">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="max-w-2xl">
