@@ -92,6 +92,7 @@ function AddressChangeFlow() {
   const [licenceRecordId, setLicenceRecordId] = useState("")
   const [currentMobileLastFour, setCurrentMobileLastFour] = useState("")
   const [verification, setVerification] = useState<Verification | null>(null)
+  const [issuedOtp, setIssuedOtp] = useState("")
   const [otp, setOtp] = useState("")
   const [values, setValues] = useState<FormValues>(emptyValues)
   const [declarationAccepted, setDeclarationAccepted] = useState(false)
@@ -208,6 +209,7 @@ function AddressChangeFlow() {
       })
       if (result.kind === "started") {
         setCurrentMobileLastFour(result.currentMobileLastFour)
+        setIssuedOtp(result.syntheticOtp ?? "")
         setVerification({
           expiresAt: result.expiresAt,
           id: result.verificationId,
@@ -454,8 +456,9 @@ function AddressChangeFlow() {
           Confirm the mobile number ending in {currentMobileLastFour}
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          No SMS is sent. Enter the configured six-digit OTP. This request
-          expires {formatDate(verification.expiresAt)}.
+          No SMS is sent. DigiLicense generated this one-time code for this
+          request: <strong>{issuedOtp || "Code available in the request confirmation."}</strong>
+          This request expires {formatDate(verification.expiresAt)}.
         </p>
         <label
           className="mt-6 block text-sm font-medium"

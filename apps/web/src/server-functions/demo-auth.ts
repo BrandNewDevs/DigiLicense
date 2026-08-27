@@ -81,12 +81,12 @@ const loginDemoSession = createServerFn({ method: "POST" })
       } = await import(
         "@digilicense/db/server"
       )
-      const { getMockMobileUpdateOtp } = await import(
-        "../server/mobile-update.shared"
+      const { getDemoApplicantOtp } = await import(
+        "../server/verification-otp.shared"
       )
       const mobileNumber = normalizeMobileNumber(data.mobileNumber)
 
-      if (!mobileNumber || data.otp !== getMockMobileUpdateOtp()) {
+      if (!mobileNumber || data.otp !== getDemoApplicantOtp()) {
         return {
           ok: false as const,
           message: "The demo credentials were not accepted.",

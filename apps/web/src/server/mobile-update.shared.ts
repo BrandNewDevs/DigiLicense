@@ -1,13 +1,13 @@
 import "@tanstack/react-start/server-only"
 
 import {
-  getMockWorkflowOtp,
+  generateWorkflowOtp,
   hashWorkflowOtp,
   workflowOtpMatches,
 } from "./verification-otp.shared"
 
-function getMockMobileUpdateOtp(): string {
-  return getMockWorkflowOtp()
+function generateMobileUpdateOtp(): string {
+  return generateWorkflowOtp()
 }
 
 function hashMobileUpdateOtp(otp: string): string {
@@ -18,4 +18,4 @@ function otpMatches(expectedHash: string, candidateOtp: string): boolean {
   return workflowOtpMatches("mobile-update", expectedHash, candidateOtp)
 }
 
-export { getMockMobileUpdateOtp, hashMobileUpdateOtp, otpMatches }
+export { generateMobileUpdateOtp, hashMobileUpdateOtp, otpMatches }

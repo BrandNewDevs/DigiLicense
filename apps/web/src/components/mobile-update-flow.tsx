@@ -67,6 +67,7 @@ function MobileUpdateFlow() {
   const [currentMobileLastFour, setCurrentMobileLastFour] = useState("")
   const [targetMobileNumber, setTargetMobileNumber] = useState("9000000004")
   const [method, setMethod] = useState<"MOCK_AADHAAR" | "OTP">("OTP")
+  const [issuedOtp, setIssuedOtp] = useState("")
   const [otp, setOtp] = useState("")
   const [message, setMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -130,6 +131,7 @@ function MobileUpdateFlow() {
   function setRequestFromStart(
     result: Extract<MobileUpdateStartResult, { kind: "started" }>
   ) {
+    setIssuedOtp(result.syntheticOtp ?? "")
     const request = {
       expiresAt: result.expiresAt,
       id: result.requestId,
@@ -327,9 +329,9 @@ function MobileUpdateFlow() {
           Confirm the number ending in {activeRequest.targetMobileLastFour}
         </h2>
         <p className="mt-3 text-muted-foreground">
-          No SMS is sent. For local prototype use, enter the configured
-          synthetic six-digit OTP. This request expires at{" "}
-          {getExpiryLabel(activeRequest.expiresAt)}.
+          No SMS is sent. DigiLicense generated this one-time code for this
+          request: <strong>{issuedOtp || "Code available in the request confirmation."}</strong>
+          This request expires at {getExpiryLabel(activeRequest.expiresAt)}.
         </p>
         <label
           className="mt-6 block text-sm font-medium"

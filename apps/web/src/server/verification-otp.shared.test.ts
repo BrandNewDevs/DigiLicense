@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { hashWorkflowOtp, workflowOtpMatches } from "./verification-otp.shared"
+import {
+  generateWorkflowOtp,
+  hashWorkflowOtp,
+  workflowOtpMatches,
+} from "./verification-otp.shared"
 
 const previousHmacSecret = process.env.DIGILICENSE_IDENTIFIER_HMAC_SECRET
 
@@ -14,6 +18,10 @@ afterEach(() => {
 })
 
 describe("workflow OTP hashing", () => {
+  it("generates a six-digit code for each challenge", () => {
+    expect(generateWorkflowOtp()).toMatch(/^\d{6}$/)
+  })
+
   it("matches only the intended purpose and synthetic OTP", () => {
     process.env.DIGILICENSE_IDENTIFIER_HMAC_SECRET =
       "synthetic-test-secret-with-at-least-thirty-two-characters"

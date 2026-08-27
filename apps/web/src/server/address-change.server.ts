@@ -20,7 +20,7 @@ import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
 import { normalizeUniqueConstraintTargets } from "./unique-constraint.shared"
 import {
-  getMockWorkflowOtp,
+  generateWorkflowOtp,
   hashWorkflowOtp,
   workflowOtpMatches,
 } from "./verification-otp.shared"
@@ -77,6 +77,7 @@ type AddressChangeStartOtpResult =
       currentMobileLastFour: string
       expiresAt: string
       verificationId: string
+      syntheticOtp?: string
     }
 
 type AddressChangeVerifyOtpResult =
@@ -362,9 +363,10 @@ async function startAddressChangeOtp(input: {
         select: { id: true },
       })
 
+      const syntheticOtp = generateWorkflowOtp()
       await transaction.addressChangeOtpChallenge.create({
         data: {
-          codeHash: hashWorkflowOtp("address-change", getMockWorkflowOtp()),
+          codeHash: hashWorkflowOtp("address-change", syntheticOtp),
           expiresAt,
           verificationId: verification.id,
         },
@@ -385,6 +387,7 @@ async function startAddressChangeOtp(input: {
         currentMobileLastFour: account.mobileLastFour,
         expiresAt,
         kind: "started" as const,
+        syntheticOtp,
         verificationId: verification.id,
       }
     })
@@ -413,6 +416,7 @@ async function startAddressChangeOtp(input: {
       kind: "started",
       currentMobileLastFour: outcome.currentMobileLastFour,
       expiresAt: outcome.expiresAt.toISOString(),
+      syntheticOtp: outcome.syntheticOtp,
       verificationId: outcome.verificationId,
     }
   } catch (error) {

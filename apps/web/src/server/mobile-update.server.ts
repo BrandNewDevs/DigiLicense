@@ -13,7 +13,7 @@ import {
 import { requireApplicant } from "./demo-session.server"
 import { recordDependencyFailure } from "./logger.server"
 import {
-  getMockMobileUpdateOtp,
+  generateMobileUpdateOtp,
   hashMobileUpdateOtp,
   otpMatches,
 } from "./mobile-update.shared"
@@ -50,6 +50,7 @@ type MobileUpdateStartResult =
       expiresAt: string
       nextStep: "OTP_REQUIRED" | "AADHAAR_REQUIRED"
       requestId: string
+      syntheticOtp?: string
       targetMobileLastFour: string
     }
 
@@ -294,10 +295,12 @@ async function startMobileUpdate(input: {
         select: { id: true },
       })
 
-      if (input.method === "OTP") {
+      const syntheticOtp =
+        input.method === "OTP" ? generateMobileUpdateOtp() : undefined
+      if (syntheticOtp) {
         await transaction.mobileChangeOtpChallenge.create({
           data: {
-            codeHash: hashMobileUpdateOtp(getMockMobileUpdateOtp()),
+            codeHash: hashMobileUpdateOtp(syntheticOtp),
             expiresAt,
             requestId: request.id,
           },
@@ -333,6 +336,7 @@ async function startMobileUpdate(input: {
         expiresAt,
         method: input.method,
         requestId: request.id,
+        syntheticOtp,
         targetMobileLastFour: input.targetMobileNumber.slice(-4),
       }
     })
@@ -368,6 +372,7 @@ async function startMobileUpdate(input: {
       expiresAt: outcome.expiresAt.toISOString(),
       nextStep: outcome.method === "OTP" ? "OTP_REQUIRED" : "AADHAAR_REQUIRED",
       requestId: outcome.requestId,
+      syntheticOtp: outcome.syntheticOtp,
       targetMobileLastFour: outcome.targetMobileLastFour,
     }
   } catch (error) {

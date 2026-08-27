@@ -16,9 +16,9 @@ services:
         generateValue: true
       - key: DIGILICENSE_IDENTIFIER_HMAC_KEY_VERSION
         value: v1
-      # Set to a random 6-digit number in the Render dashboard.
-      # Rotate by updating the value and redeploying.
-      - key: DIGILICENSE_MOCK_WORKFLOW_OTP
+      # Required only for synthetic applicant sign-in. Set a random 6-digit
+      # value in the Render dashboard and rotate it between demonstrations.
+      - key: DIGILICENSE_DEMO_APPLICANT_OTP
         sync: false
       - key: DIGILICENSE_PUBLIC_ORIGIN
         sync: false

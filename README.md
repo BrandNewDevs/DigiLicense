@@ -480,8 +480,8 @@ Dockerfile (`Dockerfile.render`).
 4. After the first deploy, set the following in the Render dashboard:
    - **DIGILICENSE_PUBLIC_ORIGIN** — your Render service URL (for example
      `https://digilicense.onrender.com`)
-   - **DIGILICENSE_MOCK_WORKFLOW_OTP** — a random 6-digit number (rotate by
-     updating the value and redeploying)
+   - **DIGILICENSE_DEMO_APPLICANT_OTP** — a random 6-digit sign-in passcode
+     (rotate by updating the value and redeploying)
 5. On every deploy, `docker/render-start.sh` runs `prisma migrate deploy` and
    then seeds the idempotent synthetic records before starting the server. The
    server does not start until both commands complete without error.
