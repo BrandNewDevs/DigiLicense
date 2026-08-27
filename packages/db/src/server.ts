@@ -34,6 +34,7 @@ export {
   MockAadhaarVerificationStatus,
   PaymentFailureReason,
   PaymentStatus,
+  RenewalReason,
   WorkflowActor,
 } from "./generated/prisma/enums.ts"
 export type {

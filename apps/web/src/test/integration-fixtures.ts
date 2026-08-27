@@ -38,6 +38,7 @@ async function resetIntegrationDatabase(): Promise<void> {
   await prisma.learnerTestAttempt.deleteMany()
   await prisma.learnerLicenceDetail.deleteMany()
   await prisma.addressChangeDetail.deleteMany()
+  await prisma.renewalDetail.deleteMany()
   await prisma.documentRecord.deleteMany()
   await prisma.paymentRecord.deleteMany()
   await prisma.feeSchedule.deleteMany()
@@ -68,6 +69,7 @@ async function seedIntegrationApplicants(): Promise<void> {
           create: {
             licenceNumber: applicant.licenceNumber,
             currentAddressSummary: "Synthetic Delhi address",
+            validUntil: new Date(Date.now() + 180 * 24 * 60 * 60_000),
           },
         },
       },
