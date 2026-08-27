@@ -167,6 +167,15 @@ await prisma.applicationDraft.upsert({
   },
 })
 
+await prisma.learnerLicenceDetail.upsert({
+  where: { applicationId: appointmentFixtureLearner.id },
+  update: { vehicleClass: "LIGHT_MOTOR_VEHICLE" },
+  create: {
+    applicationId: appointmentFixtureLearner.id,
+    vehicleClass: "LIGHT_MOTOR_VEHICLE",
+  },
+})
+
 const appointmentFixturePermanent = await prisma.application.upsert({
   where: { applicationNumber: "DLDEMO20260007" },
   update: {},

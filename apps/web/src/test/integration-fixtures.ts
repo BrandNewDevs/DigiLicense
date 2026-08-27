@@ -36,6 +36,7 @@ async function resetIntegrationDatabase(): Promise<void> {
   await prisma.appointmentWaitlistEntry.deleteMany()
   await prisma.appointmentSlot.deleteMany()
   await prisma.learnerTestAttempt.deleteMany()
+  await prisma.learnerLicenceDetail.deleteMany()
   await prisma.addressChangeDetail.deleteMany()
   await prisma.documentRecord.deleteMany()
   await prisma.paymentRecord.deleteMany()

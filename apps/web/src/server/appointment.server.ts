@@ -178,7 +178,11 @@ async function assertOwnedEligiblePermanentApplication(
       service: learnerLicenceService,
       status: "TEST_PASSED",
     },
-    select: { draft: { select: { formPayload: true } }, updatedAt: true },
+    select: {
+      draft: { select: { formPayload: true } },
+      learnerLicenceDetail: { select: { vehicleClass: true } },
+      updatedAt: true,
+    },
   })
   if (!learner || eligibilityDate(learner.updatedAt) > now) {
     return {
@@ -190,7 +194,8 @@ async function assertOwnedEligiblePermanentApplication(
   if (
     learner.updatedAt.getTime() + 180 * 24 * 60 * 60_000 !==
       application.permanentLicenceDetail.learnerEligibilityDeadlineAt.getTime() ||
-    getLearnerVehicleClass(learner.draft?.formPayload ?? "") !==
+    (learner.learnerLicenceDetail?.vehicleClass ??
+      getLearnerVehicleClass(learner.draft?.formPayload ?? "")) !==
       application.permanentLicenceDetail.vehicleClass ||
     application.permanentLicenceDetail.learnerEligibilityDeadlineAt <= now
   ) {
