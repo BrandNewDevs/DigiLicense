@@ -18,6 +18,7 @@ vi.mock("./demo-session.server", () => ({
 async function createPaymentApplication(input?: {
   applicant?: "a" | "b"
   applicationNumber?: string
+  service?: string
 }): Promise<string> {
   const { prisma } = await import("@digilicense/db/server")
   const applicationNumber =
@@ -28,7 +29,7 @@ async function createPaymentApplication(input?: {
       applicationNumber,
       blockingReasonCode: "PAYMENT_CONFIRMATION_PENDING",
       nextAction: "Record a payment outcome.",
-      service: "Learner's licence",
+      service: input?.service ?? "Learner's licence",
       status: "PAYMENT_REVIEW",
     },
   })
@@ -91,6 +92,8 @@ describe.sequential("PostgreSQL payment workflow foundation", () => {
     const { prisma } = await import("@digilicense/db/server")
     const { resolveApplicationPayment, startApplicationPayment } =
       await import("./payment.server")
+    const { lookupAuthorizedApplicationStatus } =
+      await import("./application-status.server")
     const applicationNumber = await createPaymentApplication()
     const startInput = {
       applicationNumber,
@@ -136,6 +139,42 @@ describe.sequential("PostgreSQL payment workflow foundation", () => {
         },
       })
     ).resolves.toBe(1)
+
+    const status = await lookupAuthorizedApplicationStatus(applicationNumber)
+    expect(status).toMatchObject({
+      application: { status: { code: "DOCUMENTS_VERIFIED" } },
+      kind: "found",
+      payment: {
+        amountPaise: 15_000,
+        catalogueCode: "DL-FEE-LEARNER",
+        status: "PAID",
+      },
+    })
+  })
+
+  it("opens permanent appointment preferences only after payment", async () => {
+    const { resolveApplicationPayment, startApplicationPayment } =
+      await import("./payment.server")
+    const applicationNumber = await createPaymentApplication({
+      applicationNumber: "DLINTPAYMENTPERMANENT001",
+      service: "Permanent driving licence",
+    })
+    const started = await startApplicationPayment({
+      applicationNumber,
+      idempotencyKey: "00000000-0000-4000-8000-000000000908",
+    })
+    if (started.kind !== "started") throw new Error("Expected payment start")
+    await expect(
+      resolveApplicationPayment({
+        applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000909",
+        outcome: "SUCCESS",
+        paymentId: started.payment.id,
+      })
+    ).resolves.toMatchObject({
+      applicationStatus: "WAITLISTED",
+      kind: "paid",
+    })
   })
 
   it("records failure durably and permits a fresh retry", async () => {
