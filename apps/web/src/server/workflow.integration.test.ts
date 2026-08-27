@@ -324,6 +324,8 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     const { saveLearnerLicenceDraft, submitLearnerLicenceApplication } =
       await import("./learner-licence.server")
     const { submitLearnerTest } = await import("./learner-test.server")
+    const { resolveApplicationPayment, startApplicationPayment } =
+      await import("./payment.server")
     const {
       readPermanentLicenceState,
       submitPermanentLicenceApplication,
@@ -342,6 +344,24 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     )
     expect(learnerSubmission.kind).toBe("submitted")
     if (learnerSubmission.kind !== "submitted") return
+
+    const learnerPayment = await startApplicationPayment({
+      applicationNumber: learnerSubmission.applicationNumber,
+      idempotencyKey: "00000000-0000-4000-8000-000000000305",
+    })
+    if (learnerPayment.kind !== "started")
+      throw new Error("Expected learner-licence payment start")
+    await expect(
+      resolveApplicationPayment({
+        applicationNumber: learnerSubmission.applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000306",
+        outcome: "SUCCESS",
+        paymentId: learnerPayment.payment.id,
+      })
+    ).resolves.toMatchObject({
+      applicationStatus: "DOCUMENTS_VERIFIED",
+      kind: "paid",
+    })
 
     const learnerTest = await submitLearnerTest({
       answers: correctLearnerTestAnswers(),
