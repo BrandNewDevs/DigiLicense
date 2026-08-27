@@ -38,6 +38,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=base /workspace/apps/web/dist ./apps/web/dist
 COPY --from=base /workspace/packages/db/src ./packages/db/src
+COPY --from=base /workspace/packages/db/scripts ./packages/db/scripts
 COPY --from=base /workspace/packages/db/prisma ./packages/db/prisma
 COPY --from=base /workspace/packages/db/prisma.config.ts ./packages/db/prisma.config.ts
 COPY --from=base /workspace/docker/render-start.sh ./docker/render-start.sh
