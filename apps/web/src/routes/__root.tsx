@@ -1,8 +1,13 @@
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+} from "@tanstack/react-router"
 
 import appCss from "@workspace/ui/globals.css?url"
 
-import { DisplayPreferencesProvider } from "../components/display-preferences"
+import { ApplicantHeader } from "../components/applicant-header"
 
 export const Route = createRootRoute({
   head: () => ({
@@ -20,28 +25,12 @@ export const Route = createRootRoute({
     ],
     links: [
       {
-        rel: "preconnect",
-        href: "https://fonts.googleapis.com",
-      },
-      {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Oranienbaum&display=swap",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-      },
-      {
         rel: "stylesheet",
         href: appCss,
       },
     ],
   }),
+  component: RootLayout,
   notFoundComponent: () => (
     <main id="main-content" className="container mx-auto p-4 pt-16">
       <h1>404</h1>
@@ -51,9 +40,24 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 })
 
+function RootLayout() {
+  return (
+    <div className="flex min-h-svh flex-col bg-background text-foreground">
+      <ApplicantHeader />
+      <Outlet />
+      <footer className="border-t">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>DigiLicense is an independent Delhi service design.</p>
+          <p>No government service is connected.</p>
+        </div>
+      </footer>
+    </div>
+  )
+}
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html className="scroll-smooth motion-reduce:scroll-auto" lang="en">
       <head>
         <HeadContent />
       </head>
@@ -64,7 +68,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         >
           Skip to main content
         </a>
-        <DisplayPreferencesProvider>{children}</DisplayPreferencesProvider>
+        {children}
         <Scripts />
       </body>
     </html>
