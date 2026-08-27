@@ -140,7 +140,8 @@ requires both values, an HTTPS origin, and a 32+ character rotated credential
 that matches the private AI service. Timeout, service unavailability, malformed
 responses, and rate limits return deterministic bilingual guidance without
 exposing error details. The applicant assistant calls this boundary; see
-[the assistant handoff](docs/frontend-assistant-handoff.md).
+[the assistant handoff](docs/frontend-assistant-handoff.md) and the complete
+[AI chatbot guide](docs/ai/README.md).
 
 ### Browser request security
 

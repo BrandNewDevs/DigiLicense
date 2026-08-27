@@ -5,6 +5,9 @@ in-process PII DLP gateway and a bounded OpenAI provider adapter while retaining
 components for offline development and fallback testing. It has no product-database credentials
 and makes no product-workflow calls.
 
+For the complete provider-mode, localhost testing, deployment, security, and operations runbook,
+see the [AI chatbot guide](../../docs/ai/README.md).
+
 ## Requirements
 
 - Python 3.12
