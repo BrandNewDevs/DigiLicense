@@ -1,6 +1,15 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowUpRight, House, LogOut, Menu, Search, X } from "lucide-react"
+import {
+  ArrowUpRight,
+  ChevronDown,
+  CircleUserRound,
+  House,
+  LogOut,
+  Menu,
+  Search,
+  X,
+} from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -12,6 +21,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover"
 
 import { endMockSession, useMockSession } from "../lib/mock-auth"
 import { services } from "../lib/services"
@@ -63,17 +77,33 @@ function ApplicantHeader() {
 
   const accountControl = (className?: string) =>
     isSignedIn ? (
-      <Button
-        className={className}
-        disabled={isSigningOut}
-        onClick={() => void signOut()}
-        size="sm"
-        type="button"
-        variant="outline"
-      >
-        {isSigningOut ? "Logging out..." : "Log out"}
-        <LogOut aria-hidden="true" className="size-4" />
-      </Button>
+      <Popover>
+        <PopoverTrigger
+          className={`inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 ${className ?? ""}`}
+        >
+          <CircleUserRound aria-hidden="true" className="size-4" />
+          Account
+          <ChevronDown aria-hidden="true" className="size-4" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-52 p-1.5">
+          <Link
+            className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            onClick={() => setIsMenuOpen(false)}
+            to="/dashboard"
+          >
+            Dashboard
+          </Link>
+          <button
+            className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
+            disabled={isSigningOut}
+            onClick={() => void signOut()}
+            type="button"
+          >
+            <LogOut aria-hidden="true" className="size-4" />
+            {isSigningOut ? "Logging out..." : "Log out"}
+          </button>
+        </PopoverContent>
+      </Popover>
     ) : (
       <Button
         className={className}

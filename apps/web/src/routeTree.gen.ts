@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ServicesRouteImport } from './routes/services'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServicesIndexRouteImport } from './routes/services.index'
 import { Route as ServicesServiceIdRouteImport } from './routes/services.$serviceId'
@@ -18,6 +19,11 @@ import { Route as ApplicantLoginRouteImport } from './routes/applicant.login'
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -43,6 +49,7 @@ const ApplicantLoginRoute = ApplicantLoginRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/services': typeof ServicesRouteWithChildren
   '/applicant/login': typeof ApplicantLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/applicant/login': typeof ApplicantLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
   '/services': typeof ServicesIndexRoute
@@ -57,6 +65,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/services': typeof ServicesRouteWithChildren
   '/applicant/login': typeof ApplicantLoginRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
@@ -66,15 +75,22 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dashboard'
     | '/services'
     | '/applicant/login'
     | '/services/$serviceId'
     | '/services/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/applicant/login' | '/services/$serviceId' | '/services'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/applicant/login'
+    | '/services/$serviceId'
+    | '/services'
   id:
     | '__root__'
     | '/'
+    | '/dashboard'
     | '/services'
     | '/applicant/login'
     | '/services/$serviceId'
@@ -83,6 +99,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
   ServicesRoute: typeof ServicesRouteWithChildren
   ApplicantLoginRoute: typeof ApplicantLoginRoute
 }
@@ -94,6 +111,13 @@ declare module '@tanstack/react-router' {
       path: '/services'
       fullPath: '/services'
       preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -143,6 +167,7 @@ const ServicesRouteWithChildren = ServicesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
   ServicesRoute: ServicesRouteWithChildren,
   ApplicantLoginRoute: ApplicantLoginRoute,
 }

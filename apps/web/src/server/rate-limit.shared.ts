@@ -12,6 +12,7 @@ const rateLimitRules = {
   "application-draft": { limit: 30, windowMs: 15 * 60_000 },
   "application-submit": { limit: 5, windowMs: 15 * 60_000 },
   "application-status-lookup": { limit: 30, windowMs: 15 * 60_000 },
+  "applicant-dashboard-read": { limit: 30, windowMs: 15 * 60_000 },
   "application-notification-read": { limit: 30, windowMs: 15 * 60_000 },
   // Guidance questions reach a bounded external dependency after server-side
   // validation, so keep a tighter per-applicant budget than ordinary reads.
