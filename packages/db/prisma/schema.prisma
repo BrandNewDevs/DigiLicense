@@ -101,6 +101,18 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentFailureReason {
+  RECORDED_FAILURE
+}
+
+enum FeeService {
+  LEARNER_LICENCE
+  PERMANENT_LICENCE
+  ADDRESS_CHANGE
+  RENEWAL
+  REPLACEMENT
+}
+
 enum NotificationStatus {
   UNREAD
   READ
@@ -241,18 +253,46 @@ model DocumentRecord {
 model PaymentRecord {
   id             String        @id @default(cuid())
   applicationId  String
+  feeScheduleId  String?
+  feeScheduleVersion String?
   feeLines       String
   amountPaise    Int
   status         PaymentStatus @default(PENDING)
+  failureReason  PaymentFailureReason?
   idempotencyKey String        @unique
+  resolutionIdempotencyKey String? @unique
   reference      String?       @unique
   isSimulated    Boolean       @default(true)
+  completedAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   application    Application   @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  feeSchedule    FeeSchedule?  @relation(fields: [feeScheduleId], references: [id], onDelete: Restrict)
 
   @@index([applicationId, createdAt])
   @@index([applicationId, status])
+  @@index([feeScheduleId])
+  @@unique([applicationId], map: "payment_one_active_per_application_key", where: raw("\"status\" IN ('PENDING'::\"PaymentStatus\", 'PROCESSING'::\"PaymentStatus\")"))
+  @@unique([applicationId], map: "payment_one_paid_per_application_key", where: raw("\"status\" = 'PAID'::\"PaymentStatus\""))
+}
+
+// Versioned DigiLicense-only catalogue. Values are prototype records and are
+// never represented as government fee demands or payment-provider quotes.
+model FeeSchedule {
+  id            String      @id @default(cuid())
+  code          String
+  service       FeeService
+  version       String
+  amountPaise   Int
+  active        Boolean     @default(true)
+  effectiveFrom DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  payments      PaymentRecord[]
+
+  @@unique([code, version])
+  @@index([service, effectiveFrom])
+  @@unique([service], map: "fee_schedule_one_active_per_service_key", where: raw("\"active\" = true"))
 }
 
 model NotificationRecord {

@@ -27,10 +27,13 @@ export {
   AppointmentSlotStatus,
   AppointmentWaitlistStatus,
   AddressChangeVerificationStatus,
+  FeeService,
   MobileChangeStatus,
   MobileChangeVerificationMethod,
   MockAddressProofType,
   MockAadhaarVerificationStatus,
+  PaymentFailureReason,
+  PaymentStatus,
   WorkflowActor,
 } from "./generated/prisma/enums.ts"
 export type {

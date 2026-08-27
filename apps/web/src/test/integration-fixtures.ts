@@ -1,4 +1,5 @@
 import {
+  FeeService,
   getCurrentMobileHmacKeyVersion,
   hashMobileNumber,
   prisma,
@@ -38,6 +39,7 @@ async function resetIntegrationDatabase(): Promise<void> {
   await prisma.addressChangeDetail.deleteMany()
   await prisma.documentRecord.deleteMany()
   await prisma.paymentRecord.deleteMany()
+  await prisma.feeSchedule.deleteMany()
   await prisma.notificationRecord.deleteMany()
   await prisma.workflowEvent.deleteMany()
   await prisma.auditEvent.deleteMany()
@@ -72,8 +74,49 @@ async function seedIntegrationApplicants(): Promise<void> {
   }
 }
 
+async function seedIntegrationFeeSchedules(): Promise<void> {
+  const effectiveFrom = new Date("2026-01-01T00:00:00.000Z")
+  const version = "integration-v1"
+  const schedules = [
+    {
+      amountPaise: 15_000,
+      code: "DL-FEE-LEARNER",
+      service: FeeService.LEARNER_LICENCE,
+    },
+    {
+      amountPaise: 20_000,
+      code: "DL-FEE-PERMANENT",
+      service: FeeService.PERMANENT_LICENCE,
+    },
+    {
+      amountPaise: 5_000,
+      code: "DL-FEE-ADDRESS",
+      service: FeeService.ADDRESS_CHANGE,
+    },
+    {
+      amountPaise: 20_000,
+      code: "DL-FEE-RENEWAL",
+      service: FeeService.RENEWAL,
+    },
+    {
+      amountPaise: 25_000,
+      code: "DL-FEE-REPLACEMENT",
+      service: FeeService.REPLACEMENT,
+    },
+  ] as const
+
+  await prisma.feeSchedule.createMany({
+    data: schedules.map((schedule) => ({
+      ...schedule,
+      effectiveFrom,
+      version,
+    })),
+  })
+}
+
 async function resetAndSeedIntegrationDatabase(): Promise<void> {
   await resetIntegrationDatabase()
+  await seedIntegrationFeeSchedules()
   await seedIntegrationApplicants()
 }
 
