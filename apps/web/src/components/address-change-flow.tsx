@@ -212,7 +212,7 @@ function AddressChangeFlow() {
       })
       if (result.kind === "started") {
         setCurrentMobileLastFour(result.currentMobileLastFour)
-        setIssuedOtp(result.syntheticOtp ?? "")
+        setIssuedOtp(result.syntheticOtp)
         setVerification({
           expiresAt: result.expiresAt,
           id: result.verificationId,
