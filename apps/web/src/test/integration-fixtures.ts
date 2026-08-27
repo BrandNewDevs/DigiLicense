@@ -75,7 +75,7 @@ async function seedIntegrationApplicants(): Promise<void> {
 }
 
 async function seedIntegrationFeeSchedules(): Promise<void> {
-  const effectiveFrom = new Date("2026-08-28T00:00:00.000Z")
+  const effectiveFrom = new Date("2026-01-01T00:00:00.000Z")
   const version = "integration-v1"
   const schedules = [
     {

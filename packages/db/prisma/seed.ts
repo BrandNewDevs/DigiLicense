@@ -33,7 +33,7 @@ const prisma = new PrismaClient({
 })
 
 const feeCatalogueVersion = "digilicense-2026-v1"
-const feeCatalogueEffectiveFrom = new Date("2026-08-28T00:00:00.000Z")
+const feeCatalogueEffectiveFrom = new Date("2026-01-01T00:00:00.000Z")
 const feeSchedules = [
   {
     amountPaise: 15_000,
