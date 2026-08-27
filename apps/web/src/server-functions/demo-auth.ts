@@ -9,9 +9,8 @@ import {
 const loginDemoSession = createServerFn({ method: "POST" })
   .validator((input: unknown) => demoCredentialsSchema.parse(input))
   .handler(async ({ data }) => {
-    const { consumeRateLimit, getRateLimitClientIp } = await import(
-      "../server/rate-limit.server"
-    )
+    const { consumeRateLimit, getRateLimitClientIp } =
+      await import("../server/rate-limit.server")
     const { recordDependencyFailure } = await import("../server/logger.server")
 
     let ipLimit: ConsumeRateLimitResult
@@ -78,12 +77,9 @@ const loginDemoSession = createServerFn({ method: "POST" })
         hashMobileNumber,
         normalizeMobileNumber,
         prisma,
-      } = await import(
-        "@digilicense/db/server"
-      )
-      const { getDemoApplicantOtp } = await import(
-        "../server/verification-otp.shared"
-      )
+      } = await import("@digilicense/db/server")
+      const { getDemoApplicantOtp } =
+        await import("../server/verification-otp.shared")
       const mobileNumber = normalizeMobileNumber(data.mobileNumber)
 
       if (!mobileNumber || data.otp !== getDemoApplicantOtp()) {
@@ -95,7 +91,9 @@ const loginDemoSession = createServerFn({ method: "POST" })
 
       const hashCandidates = getMobileHashCandidates(mobileNumber)
       const account = await prisma.applicantAccount.findFirst({
-        where: { mobileHmac: { in: hashCandidates.map((candidate) => candidate.hmac) } },
+        where: {
+          mobileHmac: { in: hashCandidates.map((candidate) => candidate.hmac) },
+        },
         select: { authVersion: true, id: true, mobileHmac: true },
       })
 
@@ -163,6 +161,15 @@ const readDemoSession = createServerFn({ method: "POST" })
   .validator((input: unknown) => demoLogoutSchema.parse(input))
   .handler(async ({ data }) => {
     if (data.role !== "applicant") return { authenticated: false }
+
+    try {
+      const { consumeRateLimit, getRateLimitClientIp } =
+        await import("../server/rate-limit.server")
+      const limit = await consumeRateLimit("login-ip", getRateLimitClientIp())
+      if (!limit.allowed) return { authenticated: false }
+    } catch {
+      return { authenticated: false }
+    }
 
     const { requireApplicant } = await import("../server/demo-session.server")
     return { authenticated: Boolean(await requireApplicant()) }

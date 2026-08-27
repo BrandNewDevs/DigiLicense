@@ -156,6 +156,7 @@ function PermanentLicenceFlow() {
           <Link
             className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             params={{ serviceId: "appointments" }}
+            search={{ applicationNumber: state.applicationNumber }}
             to="/services/$serviceId"
           >
             Choose appointment preferences

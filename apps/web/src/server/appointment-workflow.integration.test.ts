@@ -90,6 +90,37 @@ describe.sequential("PostgreSQL permanent appointment workflow", () => {
       zones: ["CENTRAL_DELHI", "EAST_DELHI"],
     })
     expect(saved.kind).toBe("saved")
+
+    const learner = await prisma.application.findUniqueOrThrow({
+      where: { applicationNumber: "DLINTAPPOINTMENTLEARNER" },
+      select: { id: true },
+    })
+    const ineligible = await prisma.application.create({
+      data: {
+        applicantId: getIntegrationApplicantId("a"),
+        applicationNumber: "DLINTAPPOINTMENTINELIGIBLE",
+        nextAction: "Not eligible for an appointment.",
+        service: "Permanent driving licence",
+        status: "WAITLISTED",
+      },
+      select: { id: true },
+    })
+    await prisma.permanentLicenceDetail.create({
+      data: {
+        applicantId: getIntegrationApplicantId("a"),
+        applicationId: ineligible.id,
+        idempotencyKey: "00000000-0000-4000-8000-000000000704",
+        learnerApplicationId: learner.id,
+        learnerEligibilityDeadlineAt: new Date(),
+        vehicleClass: "LIGHT_MOTOR_VEHICLE",
+      },
+    })
+    const latestEligibleJourney = await readAppointmentJourney(undefined)
+    expect(latestEligibleJourney).toMatchObject({
+      applicationNumber,
+      kind: "found",
+    })
+
     await prisma.appointmentSlot.create({
       data: {
         endsAt: new Date(Date.now() + 26 * 60 * 60_000),

@@ -214,10 +214,50 @@ async function readAppointmentJourney(
   )
   if (rate.kind !== "allowed") return rate
   try {
+    let selectedApplicationNumber = applicationNumber
+
+    if (!selectedApplicationNumber) {
+      const candidates = await prisma.application.findMany({
+        where: {
+          applicantId: authorization.applicantId,
+          service: permanentLicenceService,
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { applicationNumber: true },
+        take: 20,
+      })
+      if (!candidates.length)
+        return { kind: "not-found", message: notFoundMessage }
+
+      let ineligible: AppointmentFailure | null = null
+      for (const candidate of candidates) {
+        const eligibility = await assertOwnedEligiblePermanentApplication(
+          prisma,
+          authorization.applicantId,
+          candidate.applicationNumber,
+          new Date()
+        )
+        if ("applicationId" in eligibility) {
+          selectedApplicationNumber = candidate.applicationNumber
+          break
+        }
+        ineligible = eligibility
+      }
+      if (!selectedApplicationNumber) {
+        return (
+          ineligible ?? {
+            kind: "ineligible",
+            message:
+              "No permanent-licence application is eligible for an appointment.",
+          }
+        )
+      }
+    }
+
     const application = await prisma.application.findFirst({
       where: {
         applicantId: authorization.applicantId,
-        ...(applicationNumber ? { applicationNumber } : {}),
+        applicationNumber: selectedApplicationNumber,
         service: permanentLicenceService,
       },
       orderBy: { updatedAt: "desc" },

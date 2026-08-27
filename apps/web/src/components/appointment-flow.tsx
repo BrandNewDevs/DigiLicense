@@ -102,7 +102,11 @@ function createIdempotencyKey(): string | null {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
-function AppointmentFlow() {
+function AppointmentFlow({
+  applicationNumber,
+}: {
+  applicationNumber: string | undefined
+}) {
   const loadJourney = useServerFn(readAppointmentJourney)
   const savePreferences = useServerFn(saveAppointmentPreferences)
   const leaveWaitlist = useServerFn(leaveAppointmentWaitlist)
@@ -123,7 +127,7 @@ function AppointmentFlow() {
 
     async function load() {
       try {
-        const result = await loadJourney({ data: {} })
+        const result = await loadJourney({ data: { applicationNumber } })
         if (cancelled) return
 
         if (result.kind === "found") {
@@ -148,7 +152,7 @@ function AppointmentFlow() {
     return () => {
       cancelled = true
     }
-  }, [loadJourney])
+  }, [applicationNumber, loadJourney])
 
   useEffect(() => {
     if (!journey?.offer) return
@@ -201,6 +205,11 @@ function AppointmentFlow() {
   async function handleSavePreferences(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    if (!journey) {
+      setActionMessage("Your appointment journey is still loading. Try again.")
+      return
+    }
+
     if (selectedZones.length === 0 || selectedChannels.length === 0) {
       setActionMessage("Select at least one zone and one notification channel.")
       return
@@ -220,7 +229,7 @@ function AppointmentFlow() {
     try {
       const result = await savePreferences({
         data: {
-          applicationNumber: journey?.applicationNumber ?? "",
+          applicationNumber: journey.applicationNumber,
           idempotencyKey: key,
           notificationChannels: selectedChannels as Array<"SMS" | "EMAIL">,
           zones: selectedZones as Array<
@@ -237,7 +246,7 @@ function AppointmentFlow() {
             : "Preferences saved. You are now on the waitlist."
         )
         const refreshed = await loadJourney({
-          data: { applicationNumber: journey?.applicationNumber ?? "" },
+          data: { applicationNumber: journey.applicationNumber },
         })
         if (refreshed.kind === "found") {
           setJourney(refreshed)
@@ -254,6 +263,8 @@ function AppointmentFlow() {
   }
 
   async function handleLeaveWaitlist() {
+    if (!journey) return
+
     const key = createIdempotencyKey()
     if (!key) return
 
@@ -263,7 +274,7 @@ function AppointmentFlow() {
     try {
       const result = await leaveWaitlist({
         data: {
-          applicationNumber: journey?.applicationNumber ?? "",
+          applicationNumber: journey.applicationNumber,
           idempotencyKey: key,
         },
       })
