@@ -811,8 +811,6 @@ async function submitAddressChangeApplication(
   }
 
   const submittedAt = new Date()
-  const reviewDeadline = new Date(submittedAt.getTime() + 60_000)
-
   for (let attempt = 0; attempt < submitAttemptLimit; attempt += 1) {
     const applicationNumber = generateApplicationNumber(submittedAt)
 
@@ -870,20 +868,18 @@ async function submitAddressChangeApplication(
           data: {
             applicantId: applicant.applicantId,
             applicationNumber,
-            blockingReasonCode: "DOCUMENT_REVIEW_PENDING",
-            nextAction:
-              "DigiLicense is reviewing the submitted proof. No government service was contacted.",
+            blockingReasonCode: "PAYMENT_CONFIRMATION_PENDING",
+            nextAction: "Record the DigiLicense-only fee outcome to continue.",
             service: addressChangeServiceName,
-            statusDeadlineAt: reviewDeadline,
-            status: "DOCUMENT_REVIEW",
+            status: "PAYMENT_REVIEW",
             workflowEvents: {
               create: {
                 actor: WorkflowActor.APPLICANT,
                 actorId: applicant.applicantId,
                 description:
-                  "Submitted through DigiLicense using a synthetic address and mock proof. No government system or real document was contacted.",
+                  "Submitted through DigiLicense using a synthetic address and mock proof. Continue with the DigiLicense-only fee step; no government system or real document was contacted.",
                 title: "Address-change application submitted",
-                toStatus: "DOCUMENT_REVIEW",
+                toStatus: "PAYMENT_REVIEW",
               },
             },
           },
@@ -907,7 +903,7 @@ async function submitAddressChangeApplication(
             applicationId: application.id,
             fileName: `mock-${proofType.toLowerCase()}.pdf`,
             reference: `DOC-SYNTH-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
-            status: "UNDER_REVIEW",
+            status: "UPLOADED",
             type: "ADDRESS_PROOF",
           },
         })
@@ -916,7 +912,7 @@ async function submitAddressChangeApplication(
             applicantId: applicant.applicantId,
             applicationId: application.id,
             message:
-              "Your synthetic address-change application was received for mock document review. No government service was contacted.",
+              "Your address-change application was received. Record the DigiLicense-only fee outcome to continue; no government service was contacted.",
             title: "Address-change application received",
           },
         })

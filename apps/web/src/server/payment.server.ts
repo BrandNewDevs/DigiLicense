@@ -9,6 +9,7 @@ import {
   WorkflowActor,
   prisma,
 } from "@digilicense/db/server"
+import type { ApplicationStatus } from "@digilicense/db/server"
 
 import type {
   FeeQuoteInput,
@@ -83,7 +84,7 @@ type PaymentStartResult =
 type PaymentResolveResult =
   | PaymentFailure
   | {
-      applicationStatus: "PAYMENT_CONFIRMED" | "PAYMENT_REVIEW"
+      applicationStatus: ApplicationStatus
       kind: "failed" | "paid"
       payment: PaymentProjection
     }
@@ -96,6 +97,98 @@ type ProjectablePayment = {
   id: string
   reference: string | null
   status: PaymentStatus
+}
+
+type ResolvedProjectablePayment = ProjectablePayment & {
+  application: { status: ApplicationStatus }
+}
+
+type PaymentCompletionTransition = {
+  blockingReasonCode:
+    | "APPOINTMENT_PREFERENCES_REQUIRED"
+    | "DOCUMENT_REVIEW_PENDING"
+    | null
+  documentStatus: "ACCEPTED" | "UNDER_REVIEW" | null
+  events: Array<{
+    description: string
+    fromStatus: ApplicationStatus
+    title: string
+    toStatus: ApplicationStatus
+  }>
+  nextAction: string
+  status: ApplicationStatus
+  statusDeadlineAt: Date | null
+}
+
+function getPaymentCompletionTransition(
+  service: string,
+  completedAt: Date
+): PaymentCompletionTransition {
+  if (service === "Learner's licence") {
+    return {
+      blockingReasonCode: null,
+      documentStatus: "ACCEPTED",
+      events: [
+        {
+          description:
+            "DigiLicense automatically completed the document checks. No government service or real document was used.",
+          fromStatus: "PAYMENT_CONFIRMED",
+          title: "Automatic checks completed",
+          toStatus: "DOCUMENTS_VERIFIED",
+        },
+      ],
+      nextAction: "Your application is ready for the learner's test.",
+      status: "DOCUMENTS_VERIFIED",
+      statusDeadlineAt: null,
+    }
+  }
+  if (service === "Permanent driving licence") {
+    return {
+      blockingReasonCode: "APPOINTMENT_PREFERENCES_REQUIRED",
+      documentStatus: null,
+      events: [
+        {
+          description:
+            "The application can now join the DigiLicense appointment waitlist. No government service was contacted.",
+          fromStatus: "PAYMENT_CONFIRMED",
+          title: "Appointment preferences available",
+          toStatus: "WAITLISTED",
+        },
+      ],
+      nextAction:
+        "Choose driving-test appointment preferences to join the waitlist.",
+      status: "WAITLISTED",
+      statusDeadlineAt: null,
+    }
+  }
+  if (service === "Driving-licence address change") {
+    return {
+      blockingReasonCode: "DOCUMENT_REVIEW_PENDING",
+      documentStatus: "UNDER_REVIEW",
+      events: [
+        {
+          description:
+            "DigiLicense started the automatic proof review. No government service was contacted.",
+          fromStatus: "PAYMENT_CONFIRMED",
+          title: "Address proof review started",
+          toStatus: "DOCUMENT_REVIEW",
+        },
+      ],
+      nextAction:
+        "DigiLicense is reviewing the submitted proof. No government service was contacted.",
+      status: "DOCUMENT_REVIEW",
+      statusDeadlineAt: new Date(completedAt.getTime() + 60_000),
+    }
+  }
+  return {
+    blockingReasonCode: null,
+    documentStatus: null,
+    events: [],
+    nextAction:
+      "Payment is recorded by DigiLicense only. Continue with the service workflow.",
+    status: "PAYMENT_CONFIRMED",
+    statusDeadlineAt: null,
+  }
 }
 
 function projectPayment(payment: ProjectablePayment): PaymentProjection {
@@ -428,7 +521,7 @@ async function startApplicationPayment(
 async function findOwnedResolutionReplay(
   applicantId: string,
   input: ResolveApplicationPaymentInput
-): Promise<ProjectablePayment | null> {
+): Promise<ResolvedProjectablePayment | null> {
   return prisma.paymentRecord.findFirst({
     where: {
       application: {
@@ -438,16 +531,20 @@ async function findOwnedResolutionReplay(
       id: input.paymentId,
       resolutionIdempotencyKey: input.idempotencyKey,
     },
-    select: paymentProjectionSelect,
+    select: {
+      ...paymentProjectionSelect,
+      application: { select: { status: true } },
+    },
   })
 }
 
 function projectResolvedPayment(
-  payment: ProjectablePayment
+  payment: ProjectablePayment,
+  applicationStatus: ApplicationStatus
 ): PaymentResolveResult {
   const paid = payment.status === PaymentStatus.PAID
   return {
-    applicationStatus: paid ? "PAYMENT_CONFIRMED" : "PAYMENT_REVIEW",
+    applicationStatus,
     kind: paid ? "paid" : "failed",
     payment: projectPayment(payment),
   }
@@ -464,7 +561,7 @@ async function resolveApplicationPayment(
       authorization.applicantId,
       input
     )
-    if (replay) return projectResolvedPayment(replay)
+    if (replay) return projectResolvedPayment(replay, replay.application.status)
   } catch (error) {
     recordDependencyFailure(error, {
       dependency: "postgres",
@@ -497,12 +594,16 @@ async function resolveApplicationPayment(
         where: { id: input.paymentId },
         select: {
           ...paymentProjectionSelect,
-          application: { select: { id: true, status: true } },
+          application: { select: { id: true, service: true, status: true } },
           resolutionIdempotencyKey: true,
         },
       })
       if (payment.resolutionIdempotencyKey === input.idempotencyKey) {
-        return { kind: "resolved" as const, payment }
+        return {
+          applicationStatus: payment.application.status,
+          kind: "resolved" as const,
+          payment,
+        }
       }
       if (payment.status !== PaymentStatus.PENDING) {
         return { kind: "invalid-state" as const }
@@ -513,7 +614,11 @@ async function resolveApplicationPayment(
 
       const completedAt = new Date()
       const paid = input.outcome === "SUCCESS"
-      const nextStatus = paid ? "PAYMENT_CONFIRMED" : "PAYMENT_REVIEW"
+      const completion = getPaymentCompletionTransition(
+        payment.application.service,
+        completedAt
+      )
+      const nextStatus = paid ? completion.status : "PAYMENT_REVIEW"
       const updatedPayment = await transaction.paymentRecord.update({
         where: { id: payment.id },
         data: {
@@ -533,11 +638,14 @@ async function resolveApplicationPayment(
       await transaction.application.update({
         where: { id: payment.application.id },
         data: {
-          blockingReasonCode: paid ? null : "PAYMENT_CONFIRMATION_PENDING",
+          blockingReasonCode: paid
+            ? completion.blockingReasonCode
+            : "PAYMENT_CONFIRMATION_PENDING",
           nextAction: paid
-            ? "Payment is recorded by DigiLicense only. Continue with the service workflow."
+            ? completion.nextAction
             : "Choose retry to record another DigiLicense-only payment outcome.",
           status: nextStatus,
+          statusDeadlineAt: paid ? completion.statusDeadlineAt : null,
           version: { increment: 1 },
         },
       })
@@ -551,9 +659,25 @@ async function resolveApplicationPayment(
             : `Payment was not completed. ${paymentBoundaryDisclosure}`,
           fromStatus: "PAYMENT_REVIEW",
           title: paid ? "Payment recorded" : "Payment attempt not completed",
-          toStatus: nextStatus,
+          toStatus: paid ? "PAYMENT_CONFIRMED" : "PAYMENT_REVIEW",
         },
       })
+      if (paid && completion.events.length > 0) {
+        await transaction.workflowEvent.createMany({
+          data: completion.events.map((event) => ({
+            ...event,
+            actor: WorkflowActor.SYSTEM,
+            actorId: "digilicense-payment-workflow",
+            applicationId: payment.application.id,
+          })),
+        })
+      }
+      if (paid && completion.documentStatus) {
+        await transaction.documentRecord.updateMany({
+          where: { applicationId: payment.application.id },
+          data: { status: completion.documentStatus },
+        })
+      }
       await transaction.notificationRecord.create({
         data: {
           applicantId: authorization.applicantId,
@@ -577,7 +701,11 @@ async function resolveApplicationPayment(
           requestId: randomUUID(),
         },
       })
-      return { kind: "resolved" as const, payment: updatedPayment }
+      return {
+        applicationStatus: nextStatus,
+        kind: "resolved" as const,
+        payment: updatedPayment,
+      }
     })
 
     if (result.kind === "not-found") {
@@ -589,7 +717,7 @@ async function resolveApplicationPayment(
         message: "This payment can no longer be changed.",
       }
     }
-    return projectResolvedPayment(result.payment)
+    return projectResolvedPayment(result.payment, result.applicationStatus)
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -599,7 +727,8 @@ async function resolveApplicationPayment(
         authorization.applicantId,
         input
       )
-      if (replay) return projectResolvedPayment(replay)
+      if (replay)
+        return projectResolvedPayment(replay, replay.application.status)
     }
     recordDependencyFailure(error, {
       dependency: "postgres",

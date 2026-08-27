@@ -325,12 +325,8 @@ async function submitLearnerLicenceApplication(
   // The schema refinement already enforced eligibility at the boundary using
   // the server clock; these repeat checks keep the workflow rules next to the
   // records they protect even if validation ever moves.
-  const {
-    addressProofType,
-    dateOfBirth,
-    identityProofType,
-    vehicleClass,
-  } = submission
+  const { addressProofType, dateOfBirth, identityProofType, vehicleClass } =
+    submission
 
   if (
     !addressProofType ||
@@ -391,30 +387,19 @@ async function submitLearnerLicenceApplication(
           data: {
             applicantId: applicant.applicantId,
             applicationNumber,
+            blockingReasonCode: "PAYMENT_CONFIRMATION_PENDING",
             service: learnerServiceName,
-            status: "DOCUMENTS_VERIFIED",
-            nextAction:
-              "Your application is ready for the learner's test.",
+            status: "PAYMENT_REVIEW",
+            nextAction: "Record the DigiLicense-only fee outcome to continue.",
             workflowEvents: {
-              create: [
-                {
-                  actor: WorkflowActor.APPLICANT,
-                  actorId: applicant.applicantId,
-                  title: "Learner's-licence application submitted",
-                  description:
-                    "Submitted through the guided DigiLicense form. This created records only; no government service was contacted.",
-                  toStatus: "DOCUMENT_REVIEW",
-                },
-                {
-                  actor: WorkflowActor.SYSTEM,
-                  actorId: "synthetic-automation",
-                  title: "Automatic checks completed",
-                  description:
-                    "DigiLicense automatically completed the document checks. No government service or real document was used.",
-                  fromStatus: "DOCUMENT_REVIEW",
-                  toStatus: "DOCUMENTS_VERIFIED",
-                },
-              ],
+              create: {
+                actor: WorkflowActor.APPLICANT,
+                actorId: applicant.applicantId,
+                title: "Learner's-licence application submitted",
+                description:
+                  "Submitted through the guided DigiLicense form. Continue with the DigiLicense-only fee step; no government service was contacted.",
+                toStatus: "PAYMENT_REVIEW",
+              },
             },
           },
           select: { id: true },
@@ -423,8 +408,14 @@ async function submitLearnerLicenceApplication(
         await transaction.documentRecord.createMany({
           data: (
             [
-              { fileName: mockProofFileNames[identityProofType], type: "IDENTITY_PROOF" },
-              { fileName: mockProofFileNames[addressProofType], type: "ADDRESS_PROOF" },
+              {
+                fileName: mockProofFileNames[identityProofType],
+                type: "IDENTITY_PROOF",
+              },
+              {
+                fileName: mockProofFileNames[addressProofType],
+                type: "ADDRESS_PROOF",
+              },
               { fileName: "mock-passport-photo.jpg", type: "PHOTO" },
             ] as const
           ).map((document) => ({
@@ -444,7 +435,7 @@ async function submitLearnerLicenceApplication(
             applicationId: application.id,
             title: "Learner's-licence application received",
             message:
-              "Your application was received and automatic checks are complete. No government service was contacted.",
+              "Your application was received. Record the DigiLicense-only fee outcome to continue; no government service was contacted.",
           },
         })
 
@@ -497,7 +488,9 @@ async function submitLearnerLicenceApplication(
         constraintTargets.includes("application_applicationnumber_key")
 
       const activeApplicationConflict =
-        constraintTargets.includes("application_active_applicant_service_key") ||
+        constraintTargets.includes(
+          "application_active_applicant_service_key"
+        ) ||
         (constraintTargets.includes("applicantid") &&
           constraintTargets.includes("service"))
 
