@@ -3,10 +3,10 @@ import "@tanstack/react-start/server-only"
 import { randomUUID } from "node:crypto"
 
 import { Prisma, WorkflowActor, prisma } from "@digilicense/db/server"
-import type { ApplicationStatus, RenewalReason } from "@digilicense/db/server"
+import type { ApplicationStatus } from "@digilicense/db/server"
 
-import { getRenewalEligibility, renewalServiceName } from "../lib/renewal"
-import type { RenewalSubmission } from "../validation/renewal"
+import { replacementServiceName } from "../lib/replacement"
+import type { ReplacementSubmission } from "../validation/replacement"
 import { requireApplicant } from "./demo-session.server"
 import { hasConflictingLicenceWorkflow } from "./licence-workflow.shared"
 import { recordDependencyFailure } from "./logger.server"
@@ -16,20 +16,9 @@ const terminalApplicationStatuses: ApplicationStatus[] = [
   "APPROVED",
   "REJECTED",
 ]
-const unavailableMessage = "Licence renewal is temporarily unavailable."
+const unavailableMessage = "Licence replacement is temporarily unavailable."
 
-type RenewalLicenceProjection = {
-  eligibility:
-    | { closesAt: string; kind: "eligible"; opensAt: string }
-    | { closesAt: string; kind: "not-open"; opensAt: string }
-    | { closesAt: string; kind: "window-closed"; opensAt: string }
-  id: string
-  licenceNumber: string
-  validUntil: string
-  vehicleClass: string
-}
-
-type RenewalReadResult =
+type ReplacementReadResult =
   | { kind: "authentication-required"; message: string }
   | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
   | { kind: "unavailable"; message: string }
@@ -40,48 +29,25 @@ type RenewalReadResult =
         status: ApplicationStatus
       } | null
       kind: "ready"
-      licences: RenewalLicenceProjection[]
+      licences: Array<{
+        id: string
+        licenceNumber: string
+        validUntil: string
+        vehicleClass: string
+      }>
     }
 
-type RenewalSubmitResult =
+type ReplacementSubmitResult =
   | { kind: "authentication-required"; message: string }
   | { kind: "duplicate-active"; message: string }
-  | { kind: "ineligible"; message: string }
   | { kind: "licence-busy"; message: string }
   | { kind: "licence-not-found"; message: string }
-  | { kind: "reason-mismatch"; message: string }
   | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
   | { kind: "submitted"; applicationNumber: string; submittedAt: string }
   | { kind: "unavailable"; message: string }
 
-function generateApplicationNumber(now: Date): string {
-  return `DLDEMO${now.getUTCFullYear()}${Math.floor(
-    Math.random() * 900_000 + 100_000
-  )}`
-}
-
-function projectLicence(input: {
-  id: string
-  licenceNumber: string
-  validUntil: Date
-  vehicleClass: string
-}): RenewalLicenceProjection {
-  const eligibility = getRenewalEligibility(input.validUntil, new Date())
-  return {
-    eligibility: {
-      closesAt: eligibility.closesAt.toISOString(),
-      kind: eligibility.kind,
-      opensAt: eligibility.opensAt.toISOString(),
-    },
-    id: input.id,
-    licenceNumber: input.licenceNumber,
-    validUntil: input.validUntil.toISOString(),
-    vehicleClass: input.vehicleClass,
-  }
-}
-
-async function consumeRenewalRateLimit(
-  rule: "renewal-read" | "renewal-submit",
+async function consumeReplacementRateLimit(
+  rule: "replacement-read" | "replacement-submit",
   applicantId: string
 ): Promise<
   | { kind: "allowed" }
@@ -94,28 +60,28 @@ async function consumeRenewalRateLimit(
       ? { kind: "allowed" }
       : {
           kind: "rate-limited",
-          message: "Too many renewal requests. Try again shortly.",
+          message: "Too many replacement requests. Try again shortly.",
           retryAfterSeconds: result.retryAfterSeconds,
         }
   } catch (error) {
     recordDependencyFailure(error, {
       dependency: "postgres",
-      operation: "rate_limit_renewal",
+      operation: "rate_limit_replacement",
     })
     return { kind: "unavailable", message: unavailableMessage }
   }
 }
 
-async function readRenewalState(): Promise<RenewalReadResult> {
+async function readReplacementState(): Promise<ReplacementReadResult> {
   const applicant = await requireApplicant()
   if (!applicant) {
     return {
       kind: "authentication-required",
-      message: "Sign in as an applicant to renew a licence.",
+      message: "Sign in as an applicant to replace a licence.",
     }
   }
-  const rateLimit = await consumeRenewalRateLimit(
-    "renewal-read",
+  const rateLimit = await consumeReplacementRateLimit(
+    "replacement-read",
     applicant.applicantId
   )
   if (rateLimit.kind !== "allowed") return rateLimit
@@ -125,7 +91,7 @@ async function readRenewalState(): Promise<RenewalReadResult> {
       prisma.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
-          service: renewalServiceName,
+          service: replacementServiceName,
           status: { notIn: terminalApplicationStatuses },
         },
         orderBy: { submittedAt: "desc" },
@@ -146,30 +112,31 @@ async function readRenewalState(): Promise<RenewalReadResult> {
     return {
       activeApplication,
       kind: "ready",
-      licences: licences.map(projectLicence),
+      licences: licences.map((licence) => ({
+        ...licence,
+        validUntil: licence.validUntil.toISOString(),
+      })),
     }
   } catch (error) {
     recordDependencyFailure(error, {
       dependency: "postgres",
-      operation: "renewal_state_read",
+      operation: "replacement_state_read",
     })
     return { kind: "unavailable", message: unavailableMessage }
   }
 }
 
-function reasonMatchesExpiry(
-  reason: RenewalReason,
-  validUntil: Date,
-  now: Date
-) {
-  return reason === "EXPIRING_SOON" ? validUntil >= now : validUntil < now
+function generateApplicationNumber(now: Date): string {
+  return `DLDEMO${now.getUTCFullYear()}${Math.floor(
+    Math.random() * 900_000 + 100_000
+  )}`
 }
 
-async function findOwnedRenewalReplay(
+async function findOwnedReplacementReplay(
   applicantId: string,
   idempotencyKey: string
 ): Promise<{ applicationNumber: string; submittedAt: Date } | null> {
-  const detail = await prisma.renewalDetail.findFirst({
+  const detail = await prisma.replacementDetail.findFirst({
     where: {
       application: { applicantId },
       submissionIdempotencyKey: idempotencyKey,
@@ -183,19 +150,19 @@ async function findOwnedRenewalReplay(
   return detail?.application ?? null
 }
 
-async function submitRenewalApplication(
-  input: RenewalSubmission
-): Promise<RenewalSubmitResult> {
+async function submitReplacementApplication(
+  input: ReplacementSubmission
+): Promise<ReplacementSubmitResult> {
   const applicant = await requireApplicant()
   if (!applicant) {
     return {
       kind: "authentication-required",
-      message: "Sign in as an applicant to submit a renewal.",
+      message: "Sign in as an applicant to submit a replacement request.",
     }
   }
 
   try {
-    const replay = await findOwnedRenewalReplay(
+    const replay = await findOwnedReplacementReplay(
       applicant.applicantId,
       input.idempotencyKey
     )
@@ -209,13 +176,13 @@ async function submitRenewalApplication(
   } catch (error) {
     recordDependencyFailure(error, {
       dependency: "postgres",
-      operation: "renewal_submit_replay",
+      operation: "replacement_submit_replay",
     })
     return { kind: "unavailable", message: unavailableMessage }
   }
 
-  const rateLimit = await consumeRenewalRateLimit(
-    "renewal-submit",
+  const rateLimit = await consumeReplacementRateLimit(
+    "replacement-submit",
     applicant.applicantId
   )
   if (rateLimit.kind !== "allowed") return rateLimit
@@ -228,7 +195,7 @@ async function submitRenewalApplication(
         await transaction.$executeRaw`
           SELECT pg_advisory_xact_lock(hashtextextended(${applicant.applicantId}, 0))
         `
-        const replay = await transaction.renewalDetail.findFirst({
+        const replay = await transaction.replacementDetail.findFirst({
           where: {
             application: { applicantId: applicant.applicantId },
             submissionIdempotencyKey: input.idempotencyKey,
@@ -246,24 +213,13 @@ async function submitRenewalApplication(
             applicantId: applicant.applicantId,
             id: input.licenceRecordId,
           },
-          select: { id: true, validUntil: true },
+          select: { id: true },
         })
         if (!licence) return { kind: "licence-not-found" as const }
-        if (
-          getRenewalEligibility(licence.validUntil, submittedAt).kind !==
-          "eligible"
-        ) {
-          return { kind: "ineligible" as const }
-        }
-        if (
-          !reasonMatchesExpiry(input.reason, licence.validUntil, submittedAt)
-        ) {
-          return { kind: "reason-mismatch" as const }
-        }
         const active = await transaction.application.findFirst({
           where: {
             applicantId: applicant.applicantId,
-            service: renewalServiceName,
+            service: replacementServiceName,
             status: { notIn: terminalApplicationStatuses },
           },
           select: { id: true },
@@ -272,7 +228,7 @@ async function submitRenewalApplication(
         if (
           await hasConflictingLicenceWorkflow(transaction, {
             applicantId: applicant.applicantId,
-            excludedService: renewalServiceName,
+            excludedService: replacementServiceName,
             licenceRecordId: licence.id,
           })
         ) {
@@ -285,18 +241,28 @@ async function submitRenewalApplication(
             applicationNumber,
             blockingReasonCode: "PAYMENT_CONFIRMATION_PENDING",
             nextAction: "Record the DigiLicense-only fee outcome to continue.",
-            service: renewalServiceName,
+            service: replacementServiceName,
             status: "PAYMENT_REVIEW",
           },
           select: { id: true, submittedAt: true },
         })
-        await transaction.renewalDetail.create({
+        await transaction.replacementDetail.create({
           data: {
             applicationId: application.id,
             licenceRecordId: licence.id,
-            previousValidUntil: licence.validUntil,
             reason: input.reason,
             submissionIdempotencyKey: input.idempotencyKey,
+          },
+        })
+        await transaction.documentRecord.create({
+          data: {
+            applicationId: application.id,
+            fileName: "digilicense-replacement-declaration.json",
+            reference: `DOC-SYNTH-${randomUUID()
+              .replaceAll("-", "")
+              .slice(0, 12)
+              .toUpperCase()}`,
+            type: "OTHER",
           },
         })
         await transaction.workflowEvent.create({
@@ -305,8 +271,8 @@ async function submitRenewalApplication(
             actorId: applicant.applicantId,
             applicationId: application.id,
             description:
-              "Renewal details were recorded from an owned DigiLicense licence record. No government service was contacted.",
-            title: "Renewal application submitted",
+              "A replacement declaration was recorded for an owned DigiLicense licence record. No government service was contacted.",
+            title: "Replacement request submitted",
             toStatus: "PAYMENT_REVIEW",
           },
         })
@@ -315,18 +281,18 @@ async function submitRenewalApplication(
             applicantId: applicant.applicantId,
             applicationId: application.id,
             message:
-              "Your renewal application is ready for the DigiLicense-only fee step. No government service was contacted.",
-            title: "Renewal application received",
+              "Your replacement request is ready for the DigiLicense-only fee step. No government service was contacted.",
+            title: "Replacement request received",
           },
         })
         await transaction.auditEvent.create({
           data: {
-            action: "SUBMIT_RENEWAL",
+            action: "SUBMIT_REPLACEMENT",
             actorId: applicant.applicantId,
             applicationId: application.id,
             entityId: application.id,
             entityType: "APPLICATION",
-            reasonCode: "RENEWAL_SUBMISSION",
+            reasonCode: "REPLACEMENT_SUBMISSION",
             requestId: randomUUID(),
           },
         })
@@ -342,31 +308,18 @@ async function submitRenewalApplication(
           message: "No licence was found for this account and reference.",
         }
       }
-      if (result.kind === "ineligible") {
-        return {
-          kind: "ineligible",
-          message:
-            "This licence is outside the DigiLicense renewal window of 12 months before through 12 months after expiry.",
-        }
-      }
-      if (result.kind === "reason-mismatch") {
-        return {
-          kind: "reason-mismatch",
-          message: "Choose the reason that matches the recorded expiry date.",
-        }
-      }
       if (result.kind === "licence-busy") {
         return {
           kind: "licence-busy",
           message:
-            "Complete the active licence-change workflow before starting a renewal.",
+            "Complete the active licence-change workflow before starting a replacement.",
         }
       }
       if (result.kind === "duplicate-active") {
         return {
           kind: "duplicate-active",
           message:
-            "An active renewal application already exists for this account.",
+            "An active replacement request already exists for this account.",
         }
       }
       return {
@@ -382,7 +335,7 @@ async function submitRenewalApplication(
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        const replay = await findOwnedRenewalReplay(
+        const replay = await findOwnedReplacementReplay(
           applicant.applicantId,
           input.idempotencyKey
         )
@@ -397,7 +350,7 @@ async function submitRenewalApplication(
       if (attempt < 2) continue
       recordDependencyFailure(error, {
         dependency: "postgres",
-        operation: "renewal_submit",
+        operation: "replacement_submit",
       })
       return { kind: "unavailable", message: unavailableMessage }
     }
@@ -405,5 +358,5 @@ async function submitRenewalApplication(
   return { kind: "unavailable", message: unavailableMessage }
 }
 
-export { readRenewalState, submitRenewalApplication }
-export type { RenewalReadResult, RenewalSubmitResult }
+export { readReplacementState, submitReplacementApplication }
+export type { ReplacementReadResult, ReplacementSubmitResult }
