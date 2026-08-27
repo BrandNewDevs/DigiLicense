@@ -118,6 +118,12 @@ enum RenewalReason {
   RECENTLY_EXPIRED
 }
 
+enum ReplacementReason {
+  LOST
+  DAMAGED
+  UNREADABLE
+}
+
 enum NotificationStatus {
   UNREAD
   READ
@@ -183,6 +189,7 @@ model Application {
   addressChangeDetail AddressChangeDetail?
   permanentLicenceDetail PermanentLicenceDetail?
   renewalDetail RenewalDetail?
+  replacementDetail ReplacementDetail?
   appointmentWaitlistEntries AppointmentWaitlistEntry[]
   confirmedAppointment ConfirmedAppointment?
 
@@ -379,6 +386,7 @@ model DrivingLicenceRecord {
   vehicleClass          String                      @default("LIGHT_MOTOR_VEHICLE")
   validUntil            DateTime
   lastRenewedAt         DateTime?
+  lastReplacementAt     DateTime?
   version               Int                         @default(1)
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @updatedAt
@@ -386,6 +394,7 @@ model DrivingLicenceRecord {
   addressVerifications  AddressChangeVerification[]
   addressChangeDetails  AddressChangeDetail[]
   renewalDetails        RenewalDetail[]
+  replacementDetails    ReplacementDetail[]
 
   @@index([applicantId, licenceNumber])
 }
@@ -400,6 +409,24 @@ model RenewalDetail {
   reason                   RenewalReason
   previousValidUntil       DateTime
   renewedValidUntil        DateTime?
+  submissionIdempotencyKey String               @unique
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  application              Application          @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  licenceRecord            DrivingLicenceRecord @relation(fields: [licenceRecordId], references: [id], onDelete: Restrict)
+
+  @@index([licenceRecordId, createdAt])
+}
+
+// A replacement never changes the synthetic licence number. This record
+// preserves the applicant command and the DigiLicense-only completion
+// reference while the shared application history records state transitions.
+model ReplacementDetail {
+  id                       String               @id @default(cuid())
+  applicationId            String               @unique
+  licenceRecordId          String
+  reason                   ReplacementReason
+  replacementReference     String?              @unique
   submissionIdempotencyKey String               @unique
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
