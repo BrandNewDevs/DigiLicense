@@ -20,6 +20,7 @@ const config = defineConfig(({ isPreview }) => {
       exclude: [
         ...configDefaults.exclude,
         "e2e/**",
+        "src/**/*.ai-integration.test.ts",
         "src/**/*.integration.test.ts",
       ],
     },

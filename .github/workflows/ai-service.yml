@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "packages/ai-service/**"
+      - "render.yaml"
       - ".github/workflows/ai-service.yml"
   push:
     branches: [main]
     paths:
       - "packages/ai-service/**"
+      - "render.yaml"
       - ".github/workflows/ai-service.yml"
 
 permissions:

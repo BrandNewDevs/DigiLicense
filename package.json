@@ -10,6 +10,7 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
+    "test:ai-integration": "pnpm --filter web test:ai-integration",
     "test:integration": "pnpm --filter web test:integration",
     "test:e2e": "pnpm --filter web test:e2e",
     "test:clean-build": "node scripts/verify-clean-build.mjs",
