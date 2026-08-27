@@ -16,11 +16,11 @@ gives people a clear path from application to completion. That includes simple
 navigation, useful status updates, dependable payments, and careful handling
 of personal information.
 
-The current repository contains a frontend prototype. Its service pages and
-status lookup show the intended user flow, but they do not yet submit data to a
-government system or a project backend. DigiLicense is an independent project,
-not a government website, and is not affiliated with or endorsed by any
-government department or agency.
+The repository contains a TanStack Start full-stack application, a
+PostgreSQL/Prisma workflow backend, and a private FastAPI guidance service.
+Product actions persist only to DigiLicense's synthetic records; nothing is
+submitted to a government system. DigiLicense is independent and is not
+affiliated with or endorsed by any government department or agency.
 
 ## Why DigiLicense
 
@@ -33,9 +33,8 @@ product is designed around the questions a citizen has at each step:
 - What happens after I submit it?
 - How do I know whether my application is moving forward?
 
-The first version focuses on making those entry points clear. Later versions
-will connect the flows to the project backend and clearly labelled simulated
-payment, identity, and government-action adapters.
+The current backend implements all ten scoped service capabilities. Some newer
+server contracts still await dedicated frontend components, as listed below.
 
 ## Current features
 
@@ -45,9 +44,13 @@ payment, identity, and government-action adapters.
 - A guided learner's-licence form with client and server validation, draft
   recovery, a seven-day draft-retention period, and a database-enforced guard
   against duplicate active applications.
-- Automatic simulated checks after learner-licence submission. The workflow
-  records both the applicant submission and the system action, without an
-  operator stage or a government-system call.
+- A versioned DigiLicense fee catalogue and deterministic payment-result
+  workflow with server-derived amounts, idempotency, transaction locks, and
+  PostgreSQL uniqueness guards.
+- Learner, permanent, and address submissions connected to the shared payment
+  workflow.
+- Persisted renewal and replacement workflows using owned licence, payment,
+  document, notification, status, and audit infrastructure.
 - An applicant-scoped application-status flow showing owned workflow history,
   document states, unread application notifications, blockers, and expected
   review timing. Notification reads are ownership-scoped and idempotent.
@@ -55,9 +58,17 @@ payment, identity, and government-action adapters.
   scheduled database worker accepts the permitted proof choices atomically,
   updates the DigiLicense-only licence summary, and records system workflow,
   notification, and audit history. No operator review route exists yet.
-- A shared dynamic service route at `/services/$serviceId`. The learner's
-  licence uses the persisted workflow. The remaining services are clearly
-  labelled forms that save nothing.
+- A permanent-licence appointment waitlist with ranked Delhi preferences,
+  30-minute offers, rejection/expiry/cooldown/reallocation, synthetic delivery
+  outbox records, and transactionally confirmed single-capacity slots.
+- A private, authenticated TanStack Start integration for the AI guidance
+  service with a public-context-only payload, bounded timeout, validation,
+  rate limiting, and deterministic bilingual fallback.
+- A shared dynamic service route at `/services/$serviceId`. Learner, learner
+  test, permanent, address, mobile, status, appointment, and assistant UI flows
+  use server-backed contracts. Fee/payment, renewal, and replacement contracts
+  are backend-complete but their current generic forms still save nothing; see
+  [the frontend handoff](docs/frontend-backend-handoff.md).
 - A skip link, labelled navigation, visible focus styles, form labels, and
   reduced-motion handling for the main interactive elements.
 - A shared `@workspace/ui` package containing the button, carousel, utility,
@@ -72,12 +83,10 @@ DigiLicense is being developed around four product goals:
 - Build payment and submission flows that are dependable and secure.
 - Treat accessibility, privacy, and citizen trust as product requirements.
 
-The learner's-licence workflow persists to the project's own PostgreSQL
-instance: drafts, submissions, status transitions, documents, notifications,
-audit events, and test results are real DigiLicense records. Production
-authentication, payment processing, and any integration with Parivahan or
-another government system remain unimplemented; those external actions are
-clearly labelled as simulated inside the product.
+All service state persists to the project's own PostgreSQL instance. Real
+government authentication, payment processing, messaging, document review,
+and government-system integration remain intentionally absent. Every affected
+result states that it was recorded by DigiLicense only.
 
 ## Tech stack
 
@@ -90,21 +99,24 @@ clearly labelled as simulated inside the product.
 - Lucide React icons
 - pnpm workspaces and Turborepo
 - Geist Variable font
+- PostgreSQL 17, Prisma 7, and TLS-enabled local Compose
+- Python 3.12 and FastAPI for the private AI service
+- Vitest and Playwright
 
 ## Architecture
 
 The web application uses TanStack Start as its full-stack React framework and
 TanStack Router for file-based routing. Browser code renders the interface and
-submits user actions. TanStack Start server functions or server routes will own
+submits user actions. TanStack Start server functions or server routes own
 authenticated reads and mutations, input validation, workflow enforcement,
 auditing, and database access.
 
-PostgreSQL on Neon will store synthetic product data, with Prisma handling the
+PostgreSQL on Neon stores synthetic product data, with Prisma handling the
 schema, migrations, queries, and seed data. The application must run on a
 server-capable deployment target so server-side rendering and server functions
 remain available. It is not designed as a static-only Vite deployment.
 
-The bilingual assistant will run as a separate stateless FastAPI service. Only
+The bilingual assistant runs as a separate stateless FastAPI service. Only
 the TanStack Start server may call it. The browser will not call it directly,
 and the AI service will not have database credentials or access to applicant
 records.
@@ -127,8 +139,8 @@ server returns local bilingual guidance when the service is absent. Production
 requires both values, an HTTPS origin, and a 32+ character rotated credential
 that matches the private AI service. Timeout, service unavailability, malformed
 responses, and rate limits return deterministic bilingual guidance without
-exposing error details. The assistant interface remains frontend work; see
-[the frontend handoff](docs/frontend-assistant-handoff.md).
+exposing error details. The applicant assistant calls this boundary; see
+[the assistant handoff](docs/frontend-assistant-handoff.md).
 
 ### Browser request security
 
@@ -155,6 +167,11 @@ refuses to run unless both that database name and
 development or production database. CI starts only the TLS-enabled Compose
 database, uses fixed synthetic credentials, and removes the container volume
 even after failures.
+
+`pnpm test:e2e` runs Playwright browser checks for the public shell, security
+headers, keyboard access, mobile overflow, slow asset delivery, applicant
+server login, and dashboard availability. CI seeds only synthetic applicants
+before this run and retains traces/screenshots/videos only after failure.
 
 The once-per-minute `deploy/cron/digilicense-address-review.cron` command runs
 the automatic address-review worker. It uses `FOR UPDATE SKIP LOCKED`, so
@@ -262,6 +279,9 @@ Run these commands from the repository root:
 | `pnpm lint`      | Run ESLint across the workspace.                |
 | `pnpm format`    | Format TypeScript and TSX files with Prettier.  |
 | `pnpm typecheck` | Run TypeScript checks without emitting files.   |
+| `pnpm test` | Run fast unit and schema tests. |
+| `pnpm test:integration` | Run serial workflows against the guarded integration database. |
+| `pnpm test:e2e` | Run Playwright browser quality checks. |
 
 To work only on the web app, use its package directly:
 
@@ -409,11 +429,10 @@ PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION="$consent" prisma migrate reset --fo
 | --- | --- |
 | `/` | Applicant-facing landing page. |
 | `/applicant/login` | Synthetic applicant sign-in. |
-| `/services/learner-licence` | Persisted guided learner's-licence workflow with automatic simulated checks. |
-| `/services/$serviceId` | Service detail route. All non-learner services are local, no-save simulations. |
+| `/services/learner-licence` | Persisted guided learner application; payment UI wiring remains. |
+| `/services/$serviceId` | Shared detail route for all ten service entries. |
 
-The `/services` directory page is reserved for the service directory UI, which
-is not built yet. Use a known service URL directly during development.
+The `/services` directory lists all ten service entries.
 
 ## Adding shared UI components
 
@@ -502,8 +521,15 @@ days after creation and permanently removed 14 days later if not upgraded.
 
 ## Project status
 
-The current implementation includes server-issued synthetic applicant sessions
-and a persisted learner-licence workflow with automatic simulated checks. The
-other service forms remain UI simulations. DigiLicense does not connect to
-government identity, licence, payment, test, appointment, or notification
-systems, and production deployment configuration is not complete.
+The backend and database cover the ten MVP capabilities, the complete
+learner-to-confirmed-appointment journey, applicant-scoped status, and the
+private AI boundary. Fee/payment, renewal, and replacement still need their
+dedicated frontend components; the server contracts are documented in
+[the frontend/backend handoff](docs/frontend-backend-handoff.md). Browser and
+PostgreSQL CI verify the implemented boundary, while deployment rehearsal,
+real monitoring/alert routing, nonce-based CSP, and any operator review UI
+remain future hardening work.
+
+DigiLicense never connects to government identity, licence, payment, test,
+appointment, document, or notification systems. All data and external-action
+results are synthetic DigiLicense records.

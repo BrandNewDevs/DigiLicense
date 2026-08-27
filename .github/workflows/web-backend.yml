@@ -31,7 +31,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       DATABASE_URL: postgresql://digilicense:integration-only-password@localhost:5432/digilicense_integration?sslmode=require&uselibpqcompat=true
       DIGILICENSE_IDENTIFIER_HMAC_KEY_VERSION: v1
@@ -102,6 +102,28 @@ jobs:
 
       - name: Run PostgreSQL integration tests
         run: pnpm test:integration
+
+      - name: Seed browser-test applicant data
+        run: pnpm --filter @digilicense/db db:seed
+
+      - name: Install Chromium for browser checks
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run browser accessibility and responsive smoke tests
+        env:
+          DIGILICENSE_PUBLIC_ORIGIN: http://127.0.0.1:3000
+        run: pnpm test:e2e
+
+      - name: Upload browser diagnostics after failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Show PostgreSQL logs after failure
         if: failure()
