@@ -204,7 +204,7 @@ async function assertOwnedEligiblePermanentApplication(
 }
 
 async function readAppointmentJourney(
-  applicationNumber: string
+  applicationNumber: string | undefined
 ): Promise<AppointmentResult> {
   const authorization = await authenticateApplicant()
   if (authorization.kind !== "authenticated") return authorization
@@ -214,12 +214,53 @@ async function readAppointmentJourney(
   )
   if (rate.kind !== "allowed") return rate
   try {
+    let selectedApplicationNumber = applicationNumber
+
+    if (!selectedApplicationNumber) {
+      const candidates = await prisma.application.findMany({
+        where: {
+          applicantId: authorization.applicantId,
+          service: permanentLicenceService,
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { applicationNumber: true },
+        take: 20,
+      })
+      if (!candidates.length)
+        return { kind: "not-found", message: notFoundMessage }
+
+      let ineligible: AppointmentFailure | null = null
+      for (const candidate of candidates) {
+        const eligibility = await assertOwnedEligiblePermanentApplication(
+          prisma,
+          authorization.applicantId,
+          candidate.applicationNumber,
+          new Date()
+        )
+        if ("applicationId" in eligibility) {
+          selectedApplicationNumber = candidate.applicationNumber
+          break
+        }
+        ineligible = eligibility
+      }
+      if (!selectedApplicationNumber) {
+        return (
+          ineligible ?? {
+            kind: "ineligible",
+            message:
+              "No permanent-licence application is eligible for an appointment.",
+          }
+        )
+      }
+    }
+
     const application = await prisma.application.findFirst({
       where: {
         applicantId: authorization.applicantId,
-        applicationNumber,
+        applicationNumber: selectedApplicationNumber,
         service: permanentLicenceService,
       },
+      orderBy: { updatedAt: "desc" },
       select: {
         applicationNumber: true,
         confirmedAppointment: {
@@ -357,6 +398,7 @@ async function saveAppointmentPreferences(
           message:
             "Respond to the active appointment offer before changing preferences.",
         }
+      const isPreferenceUpdate = Boolean(existing)
       const entry = existing
         ? await transaction.appointmentWaitlistEntry.update({
             where: { id: existing.id },
@@ -407,21 +449,28 @@ async function saveAppointmentPreferences(
           actor: "APPLICANT",
           actorId: authorization.applicantId,
           applicationId: context.applicationId,
-          description:
-            "Appointment preferences and selected delivery channels were recorded by DigiLicense only; no SMS or email was sent.",
+          description: isPreferenceUpdate
+            ? "Appointment preferences and selected delivery channels were updated by DigiLicense only; no SMS or email was sent. The original waitlist join time was retained."
+            : "Appointment preferences and selected delivery channels were recorded by DigiLicense only; no SMS or email was sent.",
           fromStatus: "WAITLISTED",
-          title: "Appointment preferences recorded",
+          title: isPreferenceUpdate
+            ? "Appointment preferences updated"
+            : "Appointment preferences recorded",
           toStatus: "WAITLISTED",
         },
       })
       await transaction.auditEvent.create({
         data: {
-          action: "SAVE_APPOINTMENT_PREFERENCES",
+          action: isPreferenceUpdate
+            ? "UPDATE_APPOINTMENT_PREFERENCES"
+            : "SAVE_APPOINTMENT_PREFERENCES",
           actorId: authorization.applicantId,
           applicationId: context.applicationId,
           entityId: entry.id,
           entityType: "APPOINTMENT_WAITLIST_ENTRY",
-          reasonCode: "APPOINTMENT_PREFERENCES",
+          reasonCode: isPreferenceUpdate
+            ? "APPOINTMENT_PREFERENCES_UPDATED"
+            : "APPOINTMENT_PREFERENCES",
           requestId: randomUUID(),
         },
       })

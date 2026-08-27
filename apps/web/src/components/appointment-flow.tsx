@@ -102,7 +102,11 @@ function createIdempotencyKey(): string | null {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
-function AppointmentFlow() {
+function AppointmentFlow({
+  applicationNumber,
+}: {
+  applicationNumber: string | undefined
+}) {
   const loadJourney = useServerFn(readAppointmentJourney)
   const savePreferences = useServerFn(saveAppointmentPreferences)
   const leaveWaitlist = useServerFn(leaveAppointmentWaitlist)
@@ -115,6 +119,7 @@ function AppointmentFlow() {
   const [selectedZones, setSelectedZones] = useState<string[]>([])
   const [selectedChannels, setSelectedChannels] = useState<string[]>(["SMS"])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isEditingPreferences, setIsEditingPreferences] = useState(false)
   const [actionMessage, setActionMessage] = useState("")
 
   useEffect(() => {
@@ -122,7 +127,7 @@ function AppointmentFlow() {
 
     async function load() {
       try {
-        const result = await loadJourney()
+        const result = await loadJourney({ data: { applicationNumber } })
         if (cancelled) return
 
         if (result.kind === "found") {
@@ -147,7 +152,7 @@ function AppointmentFlow() {
     return () => {
       cancelled = true
     }
-  }, [loadJourney])
+  }, [applicationNumber, loadJourney])
 
   useEffect(() => {
     if (!journey?.offer) return
@@ -200,6 +205,11 @@ function AppointmentFlow() {
   async function handleSavePreferences(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    if (!journey) {
+      setActionMessage("Your appointment journey is still loading. Try again.")
+      return
+    }
+
     if (selectedZones.length === 0 || selectedChannels.length === 0) {
       setActionMessage("Select at least one zone and one notification channel.")
       return
@@ -219,21 +229,25 @@ function AppointmentFlow() {
     try {
       const result = await savePreferences({
         data: {
-          applicationNumber: journey?.applicationNumber ?? "",
+          applicationNumber: journey.applicationNumber,
           idempotencyKey: key,
           notificationChannels: selectedChannels as Array<"SMS" | "EMAIL">,
           zones: selectedZones as Array<
-            | "CENTRAL_DELHI"
-            | "EAST_DELHI"
-            | "NORTH_DELHI"
-            | "SOUTH_DELHI"
+            "CENTRAL_DELHI" | "EAST_DELHI" | "NORTH_DELHI" | "SOUTH_DELHI"
           >,
         },
       })
 
       if (result.kind === "saved") {
-        setActionMessage("Preferences saved. You are now on the waitlist.")
-        const refreshed = await loadJourney()
+        setIsEditingPreferences(false)
+        setActionMessage(
+          isEditingPreferences
+            ? "Preferences updated. Your waitlist time has not changed."
+            : "Preferences saved. You are now on the waitlist."
+        )
+        const refreshed = await loadJourney({
+          data: { applicationNumber: journey.applicationNumber },
+        })
         if (refreshed.kind === "found") {
           setJourney(refreshed)
           mapStateToPhase(refreshed.state)
@@ -249,6 +263,8 @@ function AppointmentFlow() {
   }
 
   async function handleLeaveWaitlist() {
+    if (!journey) return
+
     const key = createIdempotencyKey()
     if (!key) return
 
@@ -258,7 +274,7 @@ function AppointmentFlow() {
     try {
       const result = await leaveWaitlist({
         data: {
-          applicationNumber: journey?.applicationNumber ?? "",
+          applicationNumber: journey.applicationNumber,
           idempotencyKey: key,
         },
       })
@@ -296,7 +312,9 @@ function AppointmentFlow() {
 
       if (result.kind === "confirmed") {
         setPhase("confirmation")
-        const refreshed = await loadJourney()
+        const refreshed = await loadJourney({
+          data: { applicationNumber: journey.applicationNumber },
+        })
         if (refreshed.kind === "found") {
           setJourney(refreshed)
           mapStateToPhase(refreshed.state)
@@ -331,7 +349,9 @@ function AppointmentFlow() {
 
       if (result.kind === "rejected") {
         setActionMessage("Offer declined. You remain on the waitlist.")
-        const refreshed = await loadJourney()
+        const refreshed = await loadJourney({
+          data: { applicationNumber: journey.applicationNumber },
+        })
         if (refreshed.kind === "found") {
           setJourney(refreshed)
           mapStateToPhase(refreshed.state)
@@ -344,6 +364,18 @@ function AppointmentFlow() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function openPreferenceEditor() {
+    setSelectedZones(journey?.preferences.zones ?? [])
+    setSelectedChannels(
+      journey?.preferences.notificationChannels.length
+        ? journey.preferences.notificationChannels
+        : ["SMS"]
+    )
+    setActionMessage("")
+    setIsEditingPreferences(true)
+    setPhase("preferences")
   }
 
   function toggleZone(zone: string) {
@@ -402,9 +434,7 @@ function AppointmentFlow() {
   if (phase === "unavailable") {
     return (
       <section className="rounded-xl border border-border p-6 sm:p-8">
-        <h2 className="font-sans text-2xl font-medium">
-          Service unavailable
-        </h2>
+        <h2 className="font-sans text-2xl font-medium">Service unavailable</h2>
         <p className="mt-3 leading-7 text-muted-foreground">
           {failure?.message ??
             "The appointment service could not be loaded. Reload the page to try again."}
@@ -433,12 +463,18 @@ function AppointmentFlow() {
             </dd>
           </div>
           <div className="flex items-center gap-2">
-            <MapPin aria-hidden="true" className="size-4 text-muted-foreground" />
+            <MapPin
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
             <dt className="sr-only">Zone</dt>
             <dd>{zoneLabels[appt.zone] ?? appt.zone}</dd>
           </div>
           <div className="flex items-center gap-2">
-            <Clock aria-hidden="true" className="size-4 text-muted-foreground" />
+            <Clock
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
             <dt className="sr-only">Date and time</dt>
             <dd>
               <time dateTime={appt.startsAt}>
@@ -451,6 +487,22 @@ function AppointmentFlow() {
             </dd>
           </div>
         </dl>
+        <section
+          aria-labelledby="appointment-checklist"
+          className="mt-6 rounded-2xl bg-muted p-5"
+        >
+          <h3 className="font-semibold" id="appointment-checklist">
+            Before the driving test
+          </h3>
+          <ul className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+            <li>Keep this DigiLicense appointment reference available.</li>
+            <li>Review the vehicle class recorded in your application.</li>
+            <li>
+              Check the test location and arrival instructions before you
+              travel.
+            </li>
+          </ul>
+        </section>
         <p className="mt-5 text-sm leading-6 text-muted-foreground">
           This appointment was recorded by DigiLicense only. No government
           service was contacted and no official booking exists.
@@ -479,6 +531,13 @@ function AppointmentFlow() {
             </dd>
           </div>
         </dl>
+        <p className="mt-5 text-sm leading-6 text-muted-foreground">
+          You can change preferences while you wait. This does not change when
+          you joined the waitlist.
+        </p>
+        <Button className="mt-6" onClick={openPreferenceEditor} type="button">
+          Edit preferences
+        </Button>
         {actionMessage ? (
           <p aria-live="polite" className="mt-4 text-sm text-muted-foreground">
             {actionMessage}
@@ -503,6 +562,9 @@ function AppointmentFlow() {
             {actionMessage}
           </p>
         ) : null}
+        <Button className="mt-6" onClick={openPreferenceEditor} type="button">
+          Choose preferences and rejoin
+        </Button>
       </section>
     )
   }
@@ -535,12 +597,18 @@ function AppointmentFlow() {
             </dd>
           </div>
           <div className="flex items-center gap-2">
-            <MapPin aria-hidden="true" className="size-4 text-muted-foreground" />
+            <MapPin
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
             <dt className="sr-only">Zone</dt>
             <dd>{zoneLabels[offer.slot.zone] ?? offer.slot.zone}</dd>
           </div>
           <div className="flex items-center gap-2">
-            <Clock aria-hidden="true" className="size-4 text-muted-foreground" />
+            <Clock
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
             <dt className="sr-only">Date and time</dt>
             <dd>
               <time dateTime={offer.slot.startsAt}>
@@ -596,7 +664,9 @@ function AppointmentFlow() {
   if (phase === "waitlisted") {
     return (
       <section className="rounded-xl border border-border p-6 sm:p-8">
-        <h2 className="font-sans text-2xl font-medium">You are on the waitlist</h2>
+        <h2 className="font-sans text-2xl font-medium">
+          You are on the waitlist
+        </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
           When a slot matching your preferences opens, you will receive an
           offer.
@@ -633,20 +703,28 @@ function AppointmentFlow() {
             </div>
           ) : null}
         </dl>
+        <p className="mt-5 text-sm leading-6 text-muted-foreground">
+          You can change preferences while you wait. This does not change when
+          you joined the waitlist.
+        </p>
         {actionMessage ? (
           <p aria-live="polite" className="mt-4 text-sm text-muted-foreground">
             {actionMessage}
           </p>
         ) : null}
-        <Button
-          className="mt-6"
-          disabled={isSubmitting}
-          onClick={handleLeaveWaitlist}
-          type="button"
-          variant="outline"
-        >
-          {isSubmitting ? "Processing..." : "Leave waitlist"}
-        </Button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button onClick={openPreferenceEditor} type="button">
+            Edit preferences
+          </Button>
+          <Button
+            disabled={isSubmitting}
+            onClick={handleLeaveWaitlist}
+            type="button"
+            variant="outline"
+          >
+            {isSubmitting ? "Processing..." : "Leave waitlist"}
+          </Button>
+        </div>
       </section>
     )
   }
@@ -654,11 +732,16 @@ function AppointmentFlow() {
   return (
     <section className="rounded-xl border border-border p-6 sm:p-8">
       <h2 className="font-sans text-2xl font-medium">
-        Set your appointment preferences
+        {isEditingPreferences
+          ? "Edit your appointment preferences"
+          : "Set your appointment preferences"}
       </h2>
       <p className="mt-3 leading-7 text-muted-foreground">
         Choose up to three Delhi test zones and how you would like to be
         notified when a slot opens.
+        {isEditingPreferences
+          ? " Changing these choices does not change your waitlist time."
+          : ""}
       </p>
       <form className="mt-7" onSubmit={handleSavePreferences}>
         <fieldset>
@@ -716,7 +799,11 @@ function AppointmentFlow() {
         ) : null}
 
         <Button className="mt-6" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Saving..." : "Save preferences and join waitlist"}
+          {isSubmitting
+            ? "Saving..."
+            : isEditingPreferences
+              ? "Save preference changes"
+              : "Save preferences and join waitlist"}
         </Button>
       </form>
       <p className="mt-5 text-sm leading-6 text-muted-foreground">

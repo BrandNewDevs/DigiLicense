@@ -33,6 +33,9 @@ const rateLimitRules = {
   "mobile-update-otp-verify": { limit: 5, windowMs: 10 * 60_000 },
   "mobile-update-start": { limit: 3, windowMs: 15 * 60_000 },
   "login-ip": { limit: 30, windowMs: 15 * 60_000 },
+  // Session hydration runs on page load and must not consume the stricter
+  // login-attempt budget. It still has a bounded per-IP allowance.
+  "session-read-ip": { limit: 120, windowMs: 15 * 60_000 },
   "login-account": { limit: 5, windowMs: 5 * 60_000 },
 } as const
 

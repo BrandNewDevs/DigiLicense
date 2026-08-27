@@ -1,16 +1,66 @@
+import { useServerFn } from "@tanstack/react-start"
 import { useEffect, useState } from "react"
+
+import { readDemoSession } from "../server-functions/demo-auth"
 
 type MockRole = "applicant"
 
-type MockSession = {
-  expiresAt: number
-  issuedAt: number
-  role: MockRole
-  subjectId: string
-  version: 1
+type SessionListener = () => void
+
+const signedInRoles = new Set<MockRole>()
+const listeners = new Set<SessionListener>()
+const sessionRevisions = new Map<MockRole, number>()
+
+function notifyListeners() {
+  for (const listener of listeners) listener()
 }
 
-const mockSessionDurationMs = 30 * 60 * 1000
+function isMockSessionActive(role: MockRole) {
+  return signedInRoles.has(role)
+}
+
+function useMockSession(role: MockRole) {
+  const readSession = useServerFn(readDemoSession)
+  const [isSignedIn, setIsSignedIn] = useState(() => isMockSessionActive(role))
+
+  useEffect(() => {
+    const sync = () => setIsSignedIn(isMockSessionActive(role))
+    listeners.add(sync)
+
+    const revision = sessionRevisions.get(role) ?? 0
+
+    void readSession({ data: { role } })
+      .then((result) => {
+        if ((sessionRevisions.get(role) ?? 0) !== revision) return
+        if (result.authenticated) signedInRoles.add(role)
+        else signedInRoles.delete(role)
+        notifyListeners()
+      })
+      .catch(() => {
+        if ((sessionRevisions.get(role) ?? 0) !== revision) return
+        signedInRoles.delete(role)
+        notifyListeners()
+      })
+
+    return () => {
+      listeners.delete(sync)
+    }
+  }, [readSession, role])
+
+  return isSignedIn
+}
+
+function startMockSession(role: MockRole) {
+  sessionRevisions.set(role, (sessionRevisions.get(role) ?? 0) + 1)
+  signedInRoles.add(role)
+  notifyListeners()
+}
+
+function endMockSession(role: MockRole) {
+  sessionRevisions.set(role, (sessionRevisions.get(role) ?? 0) + 1)
+  signedInRoles.delete(role)
+  notifyListeners()
+}
 
 const mockCredentials = {
   applicant: {
@@ -19,117 +69,10 @@ const mockCredentials = {
   },
 } as const
 
-const mockSubjects: Record<MockRole, string> = {
-  applicant: "demo-applicant-001",
-}
-
-const sessionKeys: Record<MockRole, string> = {
-  applicant: "digilicense.mock-session.applicant",
-}
-
-const sessionEvent = "digilicense:mock-session-change"
-
-function isValidStoredMockSession(
-  storedValue: string | null,
-  expectedRole: MockRole,
-  now = Date.now()
-) {
-  if (!storedValue) return false
-
-  let session: unknown
-
-  try {
-    session = JSON.parse(storedValue)
-  } catch {
-    return false
-  }
-
-  if (!session || typeof session !== "object") return false
-
-  const candidate = session as Partial<MockSession>
-
-  return (
-    candidate.version === 1 &&
-    candidate.role === expectedRole &&
-    candidate.subjectId === mockSubjects[expectedRole] &&
-    typeof candidate.issuedAt === "number" &&
-    typeof candidate.expiresAt === "number" &&
-    Number.isFinite(candidate.issuedAt) &&
-    Number.isFinite(candidate.expiresAt) &&
-    candidate.issuedAt <= now &&
-    candidate.expiresAt > now &&
-    candidate.expiresAt - candidate.issuedAt === mockSessionDurationMs
-  )
-}
-
-function hasMockSession(role: MockRole) {
-  if (typeof window === "undefined") return false
-
-  const storedValue = window.localStorage.getItem(sessionKeys[role])
-  const isValid = isValidStoredMockSession(storedValue, role)
-
-  if (!isValid && storedValue) {
-    window.localStorage.removeItem(sessionKeys[role])
-  }
-
-  return isValid
-}
-
-function subscribeToMockSession(callback: () => void) {
-  window.addEventListener("storage", callback)
-  window.addEventListener(sessionEvent, callback)
-  const expiryCheck = window.setInterval(callback, 30_000)
-
-  return () => {
-    window.removeEventListener("storage", callback)
-    window.removeEventListener(sessionEvent, callback)
-    window.clearInterval(expiryCheck)
-  }
-}
-
-function useMockSession(role: MockRole) {
-  const [isSignedIn, setIsSignedIn] = useState(false)
-
-  useEffect(() => {
-    const syncSession = () => setIsSignedIn(hasMockSession(role))
-
-    syncSession()
-    return subscribeToMockSession(syncSession)
-  }, [role])
-
-  return isSignedIn
-}
-
-function startMockSession(role: MockRole) {
-  const issuedAt = Date.now()
-  const session: MockSession = {
-    expiresAt: issuedAt + mockSessionDurationMs,
-    issuedAt,
-    role,
-    subjectId: mockSubjects[role],
-    version: 1,
-  }
-
-  try {
-    window.localStorage.setItem(sessionKeys[role], JSON.stringify(session))
-  } catch {
-    // Storage may be unavailable (private mode, quota). Sign-in then only
-    // lasts for this page load instead of crashing; that beats failing the
-    // whole page after the applicant entered a valid code.
-  }
-  window.dispatchEvent(new Event(sessionEvent))
-}
-
-function endMockSession(role: MockRole) {
-  window.localStorage.removeItem(sessionKeys[role])
-  window.dispatchEvent(new Event(sessionEvent))
-}
-
 export {
   endMockSession,
-  isValidStoredMockSession,
+  isMockSessionActive,
   mockCredentials,
-  mockSessionDurationMs,
   startMockSession,
   useMockSession,
 }

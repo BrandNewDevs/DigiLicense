@@ -1,17 +1,14 @@
 import { createServerFn } from "@tanstack/react-start"
 
 import {
+  appointmentJourneyReadSchema,
   leaveAppointmentWaitlistSchema,
   respondToAppointmentOfferSchema,
   saveAppointmentPreferencesSchema,
 } from "../validation/appointment"
 
 const readAppointmentJourney = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    leaveAppointmentWaitlistSchema
-      .pick({ applicationNumber: true })
-      .parse(input)
-  )
+  .validator((input: unknown) => appointmentJourneyReadSchema.parse(input))
   .handler(async ({ data }) => {
     const { readAppointmentJourney: read } =
       await import("../server/appointment.server")

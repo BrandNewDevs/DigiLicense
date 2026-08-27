@@ -1,6 +1,8 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 
+import { appointmentJourneyReadSchema } from "../validation/appointment"
+
 import { AddressChangeFlow } from "../components/address-change-flow"
 import { ApplicationStatusFlow } from "../components/application-status-flow"
 import { AppointmentFlow } from "../components/appointment-flow"
@@ -14,10 +16,12 @@ import { getService } from "../lib/services"
 
 export const Route = createFileRoute("/services/$serviceId")({
   component: ServicePage,
+  validateSearch: appointmentJourneyReadSchema,
 })
 
 function ServicePage() {
   const { serviceId } = Route.useParams()
+  const { applicationNumber } = Route.useSearch()
   const service = getService(serviceId)
 
   if (!service) {
@@ -40,7 +44,7 @@ function ServicePage() {
     ) : workflow === "address-change" ? (
       <AddressChangeFlow />
     ) : service.id === "appointments" ? (
-      <AppointmentFlow />
+      <AppointmentFlow applicationNumber={applicationNumber} />
     ) : (
       <ServicePrototypeForm service={service} />
     )

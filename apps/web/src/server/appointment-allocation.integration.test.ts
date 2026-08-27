@@ -5,7 +5,14 @@ import {
   resetAndSeedIntegrationDatabase,
 } from "../test/integration-fixtures"
 
-const now = new Date("2026-08-27T10:00:00.000Z")
+const now = new Date()
+const learnerPassedAt = new Date(now.getTime() - 57 * 24 * 60 * 60_000)
+const queueJoinedAt = new Date(now.getTime() - 7 * 24 * 60 * 60_000)
+const learnerEligibilityDeadline = new Date(
+  now.getTime() + 15 * 24 * 60 * 60_000
+)
+const slotStartsAt = new Date(now.getTime() + 24 * 60 * 60_000)
+const slotEndsAt = new Date(now.getTime() + 25 * 60 * 60_000)
 
 async function createEligibleAppointmentScenario(): Promise<{
   entryId: string
@@ -21,7 +28,7 @@ async function createEligibleAppointmentScenario(): Promise<{
       nextAction: "Learner test passed.",
       service: "Learner's licence",
       status: "TEST_PASSED",
-      submittedAt: new Date("2026-07-01T10:00:00.000Z"),
+      submittedAt: learnerPassedAt,
     },
     select: { id: true },
   })
@@ -42,7 +49,7 @@ async function createEligibleAppointmentScenario(): Promise<{
       applicationId: permanent.id,
       idempotencyKey: "integration-permanent-appointment-0001",
       learnerApplicationId: learner.id,
-      learnerEligibilityDeadlineAt: new Date("2026-09-11T10:00:00.000Z"),
+      learnerEligibilityDeadlineAt: learnerEligibilityDeadline,
       vehicleClass: "LIGHT_MOTOR_VEHICLE",
     },
   })
@@ -51,7 +58,7 @@ async function createEligibleAppointmentScenario(): Promise<{
       applicantId,
       applicationId: permanent.id,
       joinIdempotencyKey: "integration-waitlist-entry-0001",
-      originalJoinedAt: new Date("2026-08-20T10:00:00.000Z"),
+      originalJoinedAt: queueJoinedAt,
       preferences: {
         create: [
           { rank: 1, zone: "CENTRAL_DELHI" },
@@ -75,9 +82,9 @@ async function createEligibleAppointmentScenario(): Promise<{
   })
   const slot = await prisma.appointmentSlot.create({
     data: {
-      endsAt: new Date("2026-08-28T11:00:00.000Z"),
+      endsAt: slotEndsAt,
       inventoryKey: "integration-slot-0001",
-      startsAt: new Date("2026-08-28T10:00:00.000Z"),
+      startsAt: slotStartsAt,
       vehicleClass: "LIGHT_MOTOR_VEHICLE",
       zone: "CENTRAL_DELHI",
     },
@@ -179,9 +186,7 @@ describe.sequential("PostgreSQL appointment allocation foundation", () => {
       where: { id: scenario.slotId },
     })
     expect(expiredEntry.status).toBe("COOLDOWN")
-    expect(expiredEntry.originalJoinedAt).toEqual(
-      new Date("2026-08-20T10:00:00.000Z")
-    )
+    expect(expiredEntry.originalJoinedAt).toEqual(queueJoinedAt)
     expect(expiredSlot.status).toBe("OPEN")
 
     const cooldownEnd = expiredEntry.availableAfter
