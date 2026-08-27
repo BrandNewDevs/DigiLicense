@@ -108,7 +108,7 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
 
   it("locks a mobile OTP challenge durably without recording raw secrets", async () => {
     const { prisma } = await import("@digilicense/db/server")
-    const { startMobileUpdate, verifyMobileUpdateOtp } =
+    const { readMobileUpdateState, startMobileUpdate, verifyMobileUpdateOtp } =
       await import("./mobile-update.server")
     const start = await startMobileUpdate({
       idempotencyKey: "00000000-0000-4000-8000-000000000001",
@@ -117,6 +117,22 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     })
     expect(start.kind).toBe("started")
     if (start.kind !== "started") return
+    expect(start.syntheticOtp).toMatch(/^\d{6}$/)
+
+    const replayed = await startMobileUpdate({
+      idempotencyKey: "00000000-0000-4000-8000-000000000001",
+      method: "OTP",
+      targetMobileNumber: "9000000009",
+    })
+    expect(replayed).toMatchObject({ kind: "started", requestId: start.requestId })
+    if (replayed.kind !== "started") return
+    expect(replayed.syntheticOtp).toMatch(/^\d{6}$/)
+
+    const reloaded = await readMobileUpdateState()
+    expect(reloaded).toMatchObject({
+      kind: "ready",
+      activeRequest: { id: start.requestId, method: "OTP" },
+    })
 
     const attempts = await Promise.all(
       Array.from({ length: 5 }, (_, index) =>
@@ -144,6 +160,7 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     const { prisma, processDueAddressChangeReviews } =
       await import("@digilicense/db/server")
     const {
+      readAddressChangeState,
       startAddressChangeOtp,
       submitAddressChangeApplication,
       verifyAddressChangeOtp,
@@ -160,9 +177,25 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     expect(started.syntheticOtp).toMatch(/^\d{6}$/)
     if (!started.syntheticOtp) return
 
+    const replayed = await startAddressChangeOtp({
+      idempotencyKey: "00000000-0000-4000-8000-000000000201",
+      licenceRecordId: licence.id,
+    })
+    expect(replayed).toMatchObject({
+      kind: "started",
+      verificationId: started.verificationId,
+    })
+    if (replayed.kind !== "started" || !replayed.syntheticOtp) return
+
+    const reloaded = await readAddressChangeState()
+    expect(reloaded).toMatchObject({
+      kind: "ready",
+      activeVerification: { id: started.verificationId, status: "OTP_PENDING" },
+    })
+
     const verified = await verifyAddressChangeOtp({
       idempotencyKey: "00000000-0000-4000-8000-000000000202",
-      otp: started.syntheticOtp,
+      otp: replayed.syntheticOtp,
       verificationId: started.verificationId,
     })
     expect(verified.kind).toBe("verified")

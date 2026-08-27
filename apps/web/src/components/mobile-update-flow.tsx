@@ -89,13 +89,18 @@ function MobileUpdateFlow() {
 
         setCurrentMobileLastFour(result.currentMobileLastFour)
         setActiveRequest(result.activeRequest)
-        setPhase(
-          result.activeRequest?.method === "OTP"
-            ? "otp"
-            : result.activeRequest?.method === "MOCK_AADHAAR"
+        if (result.activeRequest?.method === "OTP") {
+          setMessage(
+            "Your verification is still open. Request a new one-time code to continue."
+          )
+          setPhase("ready")
+        } else {
+          setPhase(
+            result.activeRequest?.method === "MOCK_AADHAAR"
               ? "aadhaar"
               : "ready"
-        )
+          )
+        }
       } catch {
         if (!cancelled) {
           setMessage(
@@ -330,8 +335,8 @@ function MobileUpdateFlow() {
         </h2>
         <p className="mt-3 text-muted-foreground">
           No SMS is sent. DigiLicense generated this one-time code for this
-          request: <strong>{issuedOtp || "Code available in the request confirmation."}</strong>
-          This request expires at {getExpiryLabel(activeRequest.expiresAt)}.
+          request: <strong>{issuedOtp}</strong>. This request expires at{" "}
+          {getExpiryLabel(activeRequest.expiresAt)}.
         </p>
         <label
           className="mt-6 block text-sm font-medium"
@@ -454,7 +459,11 @@ function MobileUpdateFlow() {
         {message}
       </p>
       <Button className="mt-5" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Starting…" : "Start verification"}
+        {isSubmitting
+          ? "Starting…"
+          : activeRequest?.method === "OTP"
+            ? "Get a new one-time code"
+            : "Start verification"}
       </Button>
     </form>
   )

@@ -135,7 +135,10 @@ function AddressChangeFlow() {
         } else if (result.activeVerification?.status === "OTP_VERIFIED") {
           setPhase("form")
         } else if (result.activeVerification) {
-          setPhase("otp")
+          setMessage(
+            "Your verification is still open. Request a new one-time code to continue."
+          )
+          setPhase("ready")
         } else {
           setPhase("ready")
         }
@@ -457,8 +460,8 @@ function AddressChangeFlow() {
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
           No SMS is sent. DigiLicense generated this one-time code for this
-          request: <strong>{issuedOtp || "Code available in the request confirmation."}</strong>
-          This request expires {formatDate(verification.expiresAt)}.
+          request: <strong>{issuedOtp}</strong>. This request expires{" "}
+          {formatDate(verification.expiresAt)}.
         </p>
         <label
           className="mt-6 block text-sm font-medium"
@@ -545,7 +548,11 @@ function AddressChangeFlow() {
           disabled={isSubmitting || licences.length === 0}
           type="submit"
         >
-          {isSubmitting ? "Starting..." : "Start verification"}
+          {isSubmitting
+            ? "Starting..."
+            : verification?.status === "OTP_PENDING"
+              ? "Get a new one-time code"
+              : "Start verification"}
         </Button>
       </form>
     )

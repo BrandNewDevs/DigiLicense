@@ -76,8 +76,9 @@ type AddressChangeStartOtpResult =
       kind: "started"
       currentMobileLastFour: string
       expiresAt: string
+      // Every successful start, including a retry, reissues a new code.
+      syntheticOtp: string
       verificationId: string
-      syntheticOtp?: string
     }
 
 type AddressChangeVerifyOtpResult =
@@ -326,10 +327,19 @@ async function startAddressChangeOtp(input: {
         ) {
           return { kind: "expired" as const }
         }
+        const syntheticOtp = generateWorkflowOtp()
+        await transaction.addressChangeOtpChallenge.update({
+          where: { verificationId: previous.id },
+          data: {
+            attemptCount: 0,
+            codeHash: hashWorkflowOtp("address-change", syntheticOtp),
+          },
+        })
         return {
           currentMobileLastFour: account.mobileLastFour,
           expiresAt: previous.expiresAt,
           kind: "started" as const,
+          syntheticOtp,
           verificationId: previous.id,
         }
       }
@@ -351,6 +361,33 @@ async function startAddressChangeOtp(input: {
         },
         data: { status: "EXPIRED" },
       })
+
+      const activeVerification =
+        await transaction.addressChangeVerification.findFirst({
+          where: {
+            applicantId: applicant.applicantId,
+            expiresAt: { gt: new Date() },
+            status: "OTP_PENDING",
+          },
+          select: { expiresAt: true, id: true },
+        })
+      if (activeVerification) {
+        const syntheticOtp = generateWorkflowOtp()
+        await transaction.addressChangeOtpChallenge.update({
+          where: { verificationId: activeVerification.id },
+          data: {
+            attemptCount: 0,
+            codeHash: hashWorkflowOtp("address-change", syntheticOtp),
+          },
+        })
+        return {
+          currentMobileLastFour: account.mobileLastFour,
+          expiresAt: activeVerification.expiresAt,
+          kind: "started" as const,
+          syntheticOtp,
+          verificationId: activeVerification.id,
+        }
+      }
 
       const verification = await transaction.addressChangeVerification.create({
         data: {
