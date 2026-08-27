@@ -149,6 +149,31 @@ function AppointmentFlow() {
     }
   }, [loadJourney])
 
+  useEffect(() => {
+    if (!journey?.offer) return
+
+    const ref = journey.applicationNumber
+
+    async function refreshOnFocus() {
+      try {
+        const result = await loadJourney({ data: { applicationNumber: ref } })
+        if (result.kind === "found") {
+          setJourney(result)
+          mapStateToPhase(result.state)
+        }
+      } catch {
+        // ignore refresh errors
+      }
+    }
+
+    const interval = window.setInterval(refreshOnFocus, 60_000)
+    window.addEventListener("focus", refreshOnFocus)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener("focus", refreshOnFocus)
+    }
+  }, [journey?.offer, journey?.applicationNumber, loadJourney])
+
   function mapStateToPhase(state: AppointmentJourney["state"]) {
     switch (state) {
       case "CONFIRMED":
