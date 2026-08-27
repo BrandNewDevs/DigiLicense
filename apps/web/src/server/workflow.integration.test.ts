@@ -5,6 +5,10 @@ import {
   integrationApplicants,
   resetAndSeedIntegrationDatabase,
 } from "../test/integration-fixtures"
+import {
+  getLearnerTestAnswerKey,
+  learnerTestBank,
+} from "./learner-test-bank.server"
 
 let authenticatedApplicant: string | null = null
 
@@ -24,6 +28,15 @@ const validLearnerSubmission = {
   identityProofType: "MOCK_AADHAAR_CARD" as const,
   vehicleClass: "MOTORCYCLE_WITH_GEAR" as const,
   zone: "CENTRAL_DELHI" as const,
+}
+
+function correctLearnerTestAnswers(): number[] {
+  const answerKey = getLearnerTestAnswerKey()
+  return learnerTestBank.map((question) => {
+    const answer = answerKey.get(question.id)
+    if (answer === undefined) throw new Error("Missing learner-test answer")
+    return answer
+  })
 }
 
 describe.sequential("PostgreSQL learner workflow boundaries", () => {
@@ -301,5 +314,170 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     expect(application.notifications).toHaveLength(3)
     expect(application.auditEvents).toHaveLength(4)
     expect(refreshedLicence.currentAddressSummary).toBe("DWARKA, Delhi 110075")
+  })
+
+  it("persists the learner-to-confirmed-appointment journey through public workflow functions", async () => {
+    const {
+      allocateAvailableAppointmentOffers,
+      prisma,
+    } = await import("@digilicense/db/server")
+    const { saveLearnerLicenceDraft, submitLearnerLicenceApplication } =
+      await import("./learner-licence.server")
+    const { submitLearnerTest } = await import("./learner-test.server")
+    const { resolveApplicationPayment, startApplicationPayment } =
+      await import("./payment.server")
+    const {
+      readPermanentLicenceState,
+      submitPermanentLicenceApplication,
+    } = await import("./permanent-licence.server")
+    const {
+      acceptAppointmentOffer,
+      readAppointmentJourney,
+      saveAppointmentPreferences,
+    } = await import("./appointment.server")
+
+    await expect(
+      saveLearnerLicenceDraft({ payload: validLearnerSubmission })
+    ).resolves.toMatchObject({ kind: "saved" })
+    const learnerSubmission = await submitLearnerLicenceApplication(
+      validLearnerSubmission
+    )
+    expect(learnerSubmission.kind).toBe("submitted")
+    if (learnerSubmission.kind !== "submitted") return
+
+    const learnerPayment = await startApplicationPayment({
+      applicationNumber: learnerSubmission.applicationNumber,
+      idempotencyKey: "00000000-0000-4000-8000-000000000305",
+    })
+    if (learnerPayment.kind !== "started")
+      throw new Error("Expected learner-licence payment start")
+    await expect(
+      resolveApplicationPayment({
+        applicationNumber: learnerSubmission.applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000306",
+        outcome: "SUCCESS",
+        paymentId: learnerPayment.payment.id,
+      })
+    ).resolves.toMatchObject({
+      applicationStatus: "DOCUMENTS_VERIFIED",
+      kind: "paid",
+    })
+
+    const learnerTest = await submitLearnerTest({
+      answers: correctLearnerTestAnswers(),
+      idempotencyKey: "00000000-0000-4000-8000-000000000301",
+      language: "ENGLISH",
+    })
+    expect(learnerTest).toMatchObject({ kind: "graded", passed: true })
+
+    await prisma.application.update({
+      where: { applicationNumber: learnerSubmission.applicationNumber },
+      data: { updatedAt: new Date(Date.now() - 31 * 24 * 60 * 60_000) },
+    })
+    await expect(readPermanentLicenceState()).resolves.toMatchObject({
+      kind: "eligible",
+      learnerApplicationNumber: learnerSubmission.applicationNumber,
+      vehicleClass: "MOTORCYCLE_WITH_GEAR",
+    })
+
+    const permanentSubmission = await submitPermanentLicenceApplication({
+      idempotencyKey: "00000000-0000-4000-8000-000000000302",
+      vehicleClass: "MOTORCYCLE_WITH_GEAR",
+    })
+    expect(permanentSubmission.kind).toBe("submitted")
+    if (permanentSubmission.kind !== "submitted") return
+
+    await expect(
+      saveAppointmentPreferences({
+        applicationNumber: permanentSubmission.applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000303",
+        notificationChannels: ["SMS"],
+        zones: ["CENTRAL_DELHI"],
+      })
+    ).resolves.toMatchObject({ kind: "saved" })
+    await prisma.appointmentSlot.create({
+      data: {
+        endsAt: new Date(Date.now() + 26 * 60 * 60_000),
+        inventoryKey: "integration-primary-journey-slot",
+        startsAt: new Date(Date.now() + 25 * 60 * 60_000),
+        vehicleClass: "MOTORCYCLE_WITH_GEAR",
+        zone: "CENTRAL_DELHI",
+      },
+    })
+    await expect(allocateAvailableAppointmentOffers()).resolves.toMatchObject({
+      offeredCount: 1,
+    })
+
+    const offeredJourney = await readAppointmentJourney(
+      permanentSubmission.applicationNumber
+    )
+    expect(offeredJourney.kind).toBe("found")
+    if (offeredJourney.kind !== "found")
+      throw new Error("Expected the owned appointment journey to be found")
+    expect(offeredJourney.offer).not.toBeNull()
+    if (!offeredJourney.offer)
+      throw new Error(
+        "Expected allocation to create an active appointment offer"
+      )
+
+    await expect(
+      acceptAppointmentOffer({
+        applicationNumber: permanentSubmission.applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000304",
+        offerId: offeredJourney.offer.id,
+      })
+    ).resolves.toMatchObject({ kind: "confirmed" })
+
+    const application = await prisma.application.findUniqueOrThrow({
+      where: { applicationNumber: permanentSubmission.applicationNumber },
+      include: {
+        auditEvents: true,
+        confirmedAppointment: true,
+        notifications: true,
+        workflowEvents: true,
+      },
+    })
+    expect(application.status).toBe("APPOINTMENT_CONFIRMED")
+    expect(application.confirmedAppointment).not.toBeNull()
+    expect(application.workflowEvents).toHaveLength(4)
+    expect(application.notifications).toHaveLength(3)
+    expect(application.auditEvents).toHaveLength(4)
+  })
+
+  it("enforces the permanent-licence waiting-period boundary from stored learner results", async () => {
+    const { prisma } = await import("@digilicense/db/server")
+    const { readPermanentLicenceState } =
+      await import("./permanent-licence.server")
+    const learner = await prisma.application.create({
+      data: {
+        applicantId: getIntegrationApplicantId("a"),
+        applicationNumber: "DLINTWAITINGBOUNDARY",
+        nextAction: "Learner test passed.",
+        service: "Learner's licence",
+        status: "TEST_PASSED",
+        updatedAt: new Date(Date.now() - 29 * 24 * 60 * 60_000),
+      },
+      select: { id: true },
+    })
+    await prisma.applicationDraft.create({
+      data: {
+        applicantId: getIntegrationApplicantId("a"),
+        applicationId: learner.id,
+        formPayload: JSON.stringify({ vehicleClass: "MOTORCYCLE_WITH_GEAR" }),
+        service: "Learner's licence",
+      },
+    })
+    await expect(readPermanentLicenceState()).resolves.toMatchObject({
+      kind: "waiting-period",
+    })
+
+    await prisma.application.update({
+      where: { id: learner.id },
+      data: { updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60_000) },
+    })
+    await expect(readPermanentLicenceState()).resolves.toMatchObject({
+      kind: "eligible",
+      vehicleClass: "MOTORCYCLE_WITH_GEAR",
+    })
   })
 })
