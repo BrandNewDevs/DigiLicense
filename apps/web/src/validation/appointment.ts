@@ -48,6 +48,10 @@ const saveAppointmentPreferencesSchema = z
     }
   })
 
+const appointmentJourneyReadSchema = z
+  .object({ applicationNumber: applicationNumberSchema.optional() })
+  .strict()
+
 const leaveAppointmentWaitlistSchema = z
   .object({
     applicationNumber: applicationNumberSchema,
@@ -74,6 +78,7 @@ type RespondToAppointmentOfferInput = z.infer<
 >
 
 export {
+  appointmentJourneyReadSchema,
   leaveAppointmentWaitlistSchema,
   respondToAppointmentOfferSchema,
   saveAppointmentPreferencesSchema,

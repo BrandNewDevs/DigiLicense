@@ -159,6 +159,15 @@ const loginDemoSession = createServerFn({ method: "POST" })
     return { ok: true as const }
   })
 
+const readDemoSession = createServerFn({ method: "POST" })
+  .validator((input: unknown) => demoLogoutSchema.parse(input))
+  .handler(async ({ data }) => {
+    if (data.role !== "applicant") return { authenticated: false }
+
+    const { requireApplicant } = await import("../server/demo-session.server")
+    return { authenticated: Boolean(await requireApplicant()) }
+  })
+
 const logoutDemoSession = createServerFn({ method: "POST" })
   .validator((input: unknown) => demoLogoutSchema.parse(input))
   .handler(async ({ data }) => {
@@ -173,4 +182,4 @@ const logoutDemoSession = createServerFn({ method: "POST" })
     return { ok: true as const }
   })
 
-export { loginDemoSession, logoutDemoSession }
+export { loginDemoSession, logoutDemoSession, readDemoSession }

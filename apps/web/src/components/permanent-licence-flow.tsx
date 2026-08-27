@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form"
+import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useEffect, useRef, useState } from "react"
+import type { ReactNode } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
@@ -150,6 +152,15 @@ function PermanentLicenceFlow() {
         : "Your application is ready for driving-test appointment preferences."
     return (
       <StateCard
+        action={
+          <Link
+            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            params={{ serviceId: "appointments" }}
+            to="/services/$serviceId"
+          >
+            Choose appointment preferences
+          </Link>
+        }
         title="Permanent-licence application in progress"
         detail={`${detail} Reference: ${state.applicationNumber}.`}
       />
@@ -163,11 +174,20 @@ function PermanentLicenceFlow() {
   )
 }
 
-function StateCard({ detail, title }: { detail: string; title: string }) {
+function StateCard({
+  action,
+  detail,
+  title,
+}: {
+  action?: ReactNode
+  detail: string
+  title: string
+}) {
   return (
     <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
       <h2 className="font-sans text-2xl font-semibold">{title}</h2>
       <p className="mt-3 leading-7 text-muted-foreground">{detail}</p>
+      {action}
     </section>
   )
 }
