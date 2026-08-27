@@ -21,13 +21,10 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
   if (submitted) {
     return (
       <section
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
         aria-live="polite"
       >
-        <p className="mt-5 text-sm font-medium text-muted-foreground">
-          Completed
-        </p>
-        <h2 className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]">
+        <h2 className="font-sans text-2xl font-medium">
           Your request is ready
         </h2>
         <p className="mt-3 max-w-xl leading-7 text-muted-foreground">
@@ -51,16 +48,13 @@ function ServicePrototypeForm({ service }: ServicePrototypeFormProps) {
 
   return (
     <form
-      className="rounded-3xl border border-border p-6 sm:p-8"
+      className="rounded-xl border border-border p-6 sm:p-8"
       onSubmit={(event) => {
         event.preventDefault()
         void form.handleSubmit()
       }}
     >
-      <p className="text-sm font-medium text-muted-foreground">Service form</p>
-      <h2 className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]">
-        Enter details
-      </h2>
+      <h2 className="font-sans text-2xl font-medium">Enter details</h2>
       <p className="mt-3 leading-7 text-muted-foreground">
         Do not enter a real licence number, mobile number, address, or identity
         detail.

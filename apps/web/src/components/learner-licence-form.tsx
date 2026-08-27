@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from "react"
+import { CalendarIcon, Info } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
+import { Calendar } from "@workspace/ui/components/calendar"
+import { Field, FieldLabel } from "@workspace/ui/components/field"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
 import {
   addressProofOptions,
@@ -43,31 +52,6 @@ const emptyValues: FormValues = {
   zone: "",
 }
 
-const steps = [
-  {
-    checksEligibility: false,
-    fields: ["fullName", "dateOfBirth"] as const,
-    hint: "Use any name and birth date. Real identity details must never be entered.",
-    title: "Personal details",
-  },
-  {
-    checksEligibility: true,
-    fields: ["vehicleClass", "zone"] as const,
-    hint: "The class decides the minimum age, and the zone is where the test would run.",
-    title: "Licence request",
-  },
-  {
-    checksEligibility: false,
-    fields: ["identityProofType", "addressProofType"] as const,
-    hint: "No file upload exists here. Choosing an option records a document entry.",
-    title: "Documents",
-  },
-]
-
-const reviewStepIndex = steps.length
-
-const totalStepCount = steps.length + 1
-
 const fieldLabels: Record<FieldName, string> = {
   addressProofType: "Address proof",
   dateOfBirth: "Date of birth",
@@ -78,7 +62,40 @@ const fieldLabels: Record<FieldName, string> = {
 }
 
 const inputClassName =
-  "h-11 w-full rounded-lg border border-input px-3 text-base"
+  "h-11 w-full rounded-lg border border-input px-3 text-base disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+
+function dateToInputValue(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
+function formatDateInput(isoDate: string) {
+  if (!isoDate) return ""
+
+  const [year, month, day] = isoDate.split("-")
+  return `${day}/${month}/${year}`
+}
+
+function parseDateInput(value: string) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
+  if (!match) return undefined
+
+  const [, day, month, year] = match
+  const date = new Date(Number(year), Number(month) - 1, Number(day))
+
+  if (
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() !== Number(month) - 1 ||
+    date.getDate() !== Number(day)
+  ) {
+    return undefined
+  }
+
+  return date
+}
 
 function formatDate(isoDateTime: string) {
   return new Date(isoDateTime).toLocaleDateString("en-IN", {
@@ -103,8 +120,11 @@ function LearnerLicenceForm() {
   >("loading")
   const [values, setValues] = useState<FormValues>(emptyValues)
   const [errors, setErrors] = useState<FieldErrors>({})
-  const [stepIndex, setStepIndex] = useState(0)
   const [declarationAccepted, setDeclarationAccepted] = useState(false)
+  const [blockedFieldMessage, setBlockedFieldMessage] = useState<string>()
+  const [dateOfBirthInput, setDateOfBirthInput] = useState("")
+  const [calendarMonth, setCalendarMonth] = useState<Date>()
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [draftSavedAt, setDraftSavedAt] = useState<string>()
@@ -144,6 +164,13 @@ function LearnerLicenceForm() {
             ...current,
             ...result.draft?.payload,
           }))
+          const draftDateOfBirth = result.draft?.payload.dateOfBirth ?? ""
+          setDateOfBirthInput(formatDateInput(draftDateOfBirth))
+          setCalendarMonth(
+            draftDateOfBirth
+              ? new Date(`${draftDateOfBirth}T00:00:00`)
+              : undefined
+          )
           setPhase("form")
           return
         }
@@ -162,10 +189,10 @@ function LearnerLicenceForm() {
   }, [readState])
 
   useEffect(() => {
-    if (phase === "form" || phase === "submitted") {
+    if (phase === "submitted") {
       headingRef.current?.focus()
     }
-  }, [phase, stepIndex])
+  }, [phase])
 
   function announce(message: string) {
     setAnnouncement(message)
@@ -192,7 +219,7 @@ function LearnerLicenceForm() {
     // A date of birth that cannot hold any learner's-licence class is
     // rejected immediately, even before a vehicle class is chosen. Future
     // dates produce a negative age and fail the same check.
-    if (values.dateOfBirth && !nextErrors.dateOfBirth && stepIndex === 0) {
+    if (values.dateOfBirth && !nextErrors.dateOfBirth) {
       const completedYears = calculateCompletedYears(
         values.dateOfBirth,
         new Date()
@@ -228,35 +255,6 @@ function LearnerLicenceForm() {
     }
   }
 
-  function goToStep(nextStepIndex: number) {
-    setStepIndex(nextStepIndex)
-    setErrors({})
-    setSubmitError(undefined)
-    announce(
-      nextStepIndex < reviewStepIndex
-        ? `Step ${nextStepIndex + 1} of ${totalStepCount}: ${steps[nextStepIndex].title}`
-        : `Step ${totalStepCount} of ${totalStepCount}: Review and declare`
-    )
-  }
-
-  function handleContinue() {
-    const stepDefinition = steps[stepIndex]
-
-    const nextErrors = {
-      ...validateFields(stepDefinition.fields),
-      ...(stepDefinition.checksEligibility ? checkEligibility() : {}),
-    }
-
-    setErrors(nextErrors)
-
-    if (Object.keys(nextErrors).length > 0) {
-      announce("Some details need attention before continuing.")
-      return
-    }
-
-    goToStep(stepIndex + 1)
-  }
-
   async function handleSaveDraft() {
     setIsSavingDraft(true)
 
@@ -281,10 +279,31 @@ function LearnerLicenceForm() {
   }
 
   async function handleSubmit() {
-    // The server schema only accepts a literal true; this guard keeps the
-    // checkbox meaningful on this side of the boundary too.
+    const nextErrors = {
+      ...validateFields([
+        "fullName",
+        "dateOfBirth",
+        "vehicleClass",
+        "zone",
+        "identityProofType",
+        "addressProofType",
+      ]),
+      ...checkEligibility(),
+    }
+
+    setErrors(nextErrors)
+
+    if (Object.keys(nextErrors).length > 0) {
+      const message = "Complete the required details before submitting."
+      setBlockedFieldMessage(message)
+      announce(message)
+      return
+    }
+
     if (!declarationAccepted) {
-      announce("Accept the declaration before submitting.")
+      const message = "Accept the declaration before submitting."
+      setBlockedFieldMessage(message)
+      announce(message)
       return
     }
 
@@ -343,26 +362,36 @@ function LearnerLicenceForm() {
   }
 
   function updateValue(field: FieldName, value: string) {
+    setBlockedFieldMessage(undefined)
     setValues((current) => ({ ...current, [field]: value }))
     setErrors((current) => ({ ...current, [field]: undefined }))
   }
 
+  function explainLockedField(message: string) {
+    setBlockedFieldMessage(message)
+    announce(message)
+  }
+
   if (phase === "loading") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <p className="text-base leading-7 text-muted-foreground" role="status">
-          Loading your learner's licence progress...
-        </p>
+      <section
+        aria-busy="true"
+        aria-label="Loading learner's licence progress"
+        className="rounded-lg border bg-card p-6 sm:p-8"
+      >
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="mt-4 h-4 w-full max-w-xl" />
+        <Skeleton className="mt-2 h-4 w-4/5 max-w-lg" />
+        <Skeleton className="mt-8 h-11 w-full" />
+        <Skeleton className="mt-4 h-11 w-full" />
       </section>
     )
   }
 
   if (phase === "authentication-required") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <h2 className="font-heading text-2xl font-medium tracking-[-0.04em]">
-          Sign in required
-        </h2>
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="font-sans text-2xl font-medium">Sign in required</h2>
         <p className="mt-3 leading-7 text-muted-foreground">
           Your applicant session ended. Sign in again to continue the learner's
           licence workflow.
@@ -380,8 +409,8 @@ function LearnerLicenceForm() {
 
   if (phase === "unavailable") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="mt-5 font-sans text-2xl font-medium">
           Service unavailable
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
@@ -398,13 +427,13 @@ function LearnerLicenceForm() {
     return (
       <section
         aria-labelledby="active-application-title"
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
       >
         <p className="mt-5 text-sm font-medium text-muted-foreground">
           Application already in progress
         </p>
         <h2
-          className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
+          className="mt-2 font-sans text-2xl font-medium"
           id="active-application-title"
         >
           You have an open learner's licence application
@@ -445,7 +474,7 @@ function LearnerLicenceForm() {
             </dl>
             {activeApplication.status === "TEST_PENDING" ? (
               <Link
-                className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                className="mt-6 inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 params={{ serviceId: "learner-test" }}
                 to="/services/$serviceId"
               >
@@ -471,13 +500,13 @@ function LearnerLicenceForm() {
     return (
       <section
         aria-labelledby="submission-complete-title"
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
       >
         <p className="mt-6 text-sm font-medium text-muted-foreground">
           Submission complete
         </p>
         <h2
-          className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
+          className="mt-2 font-sans text-2xl font-medium"
           id="submission-complete-title"
           ref={headingRef}
           tabIndex={-1}
@@ -509,7 +538,7 @@ function LearnerLicenceForm() {
           </div>
         </dl>
         <Link
-          className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="mt-6 inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           params={{ serviceId: "learner-test" }}
           to="/services/$serviceId"
         >
@@ -534,14 +563,21 @@ function LearnerLicenceForm() {
     )
   }
 
-  const isReviewStep = stepIndex === reviewStepIndex
-  const currentStep = steps[stepIndex]
-  const progressItems = [...steps.map((step) => step.title), "Review"]
+  const isPersonalComplete =
+    Object.keys(validateFields(["fullName", "dateOfBirth"])).length === 0
+  const isRequestComplete =
+    isPersonalComplete &&
+    Object.keys(validateFields(["vehicleClass", "zone"])).length === 0 &&
+    Object.keys(checkEligibility()).length === 0
+  const isDocumentsComplete =
+    isRequestComplete &&
+    Object.keys(validateFields(["identityProofType", "addressProofType"]))
+      .length === 0
 
   return (
     <form
       aria-describedby="learner-form-note"
-      className="rounded-3xl border border-border p-6 sm:p-8"
+      className="rounded-xl border border-border p-6 sm:p-8"
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
@@ -552,312 +588,382 @@ function LearnerLicenceForm() {
         {announcement}
       </div>
 
-      <p className="text-sm font-medium text-muted-foreground">
-        Guided workflow
-      </p>
       <h2
-        className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
+        className="font-sans text-2xl font-medium"
         ref={headingRef}
         tabIndex={-1}
       >
-        {isReviewStep ? "Review and declare" : currentStep.title}
+        Learner's licence application
       </h2>
-
-      <ol
-        aria-label="Workflow progress"
-        className="mt-5 flex flex-wrap gap-2 text-xs font-medium"
+      <p
+        className="mt-3 text-sm leading-6 text-muted-foreground"
+        id="learner-form-note"
       >
-        {progressItems.map((label, index) => (
-          <li key={label}>
-            {index === stepIndex ? (
-              <span
-                aria-current="step"
-                className="rounded-full border border-border px-3 py-1.5 text-foreground"
-              >
-                {index + 1}. {label}
-              </span>
-            ) : (
-              <span className="rounded-full border border-border px-3 py-1.5 text-muted-foreground">
-                {index + 1}. {label}
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
-
-      {!isReviewStep ? (
+        Complete each section in order. Later sections unlock when the required
+        information above is complete.
+      </p>
+      {blockedFieldMessage ? (
         <p
-          className="mt-5 text-sm leading-6 text-muted-foreground"
-          id="learner-form-note"
+          className="mt-4 flex items-center gap-3 rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-muted-foreground"
+          role="status"
         >
-          {currentStep.hint}
+          <Info aria-hidden="true" className="size-4 shrink-0" />
+          {blockedFieldMessage}
         </p>
-      ) : (
-        <p
-          className="mt-5 text-sm leading-6 text-muted-foreground"
-          id="learner-form-note"
-        >
-          Check every answer. Submitting saves the application on the server and
-          closes any saved draft.
-        </p>
-      )}
+      ) : null}
 
       <div className="mt-7 space-y-5">
-        {!isReviewStep && stepIndex === 0 ? (
-          <>
-            <div>
-              <label
-                className="mb-2 block text-sm font-medium"
-                htmlFor="ll-fullName"
+        <>
+          <div className="scroll-mt-24" id="learner-personal-details">
+            <label
+              className="mb-2 block text-sm font-medium"
+              htmlFor="ll-fullName"
+            >
+              {fieldLabels.fullName}
+            </label>
+            <input
+              aria-describedby={
+                errors.fullName ? "ll-fullName-error" : undefined
+              }
+              aria-invalid={errors.fullName ? true : undefined}
+              autoComplete="off"
+              className={inputClassName}
+              id="ll-fullName"
+              maxLength={80}
+              name="fullName"
+              onChange={(event) => updateValue("fullName", event.target.value)}
+              type="text"
+              value={values.fullName}
+            />
+            {errors.fullName ? (
+              <p
+                className="mt-2 text-sm text-destructive"
+                id="ll-fullName-error"
+                role="alert"
               >
-                {fieldLabels.fullName}
-              </label>
-              <input
-                aria-describedby={
-                  errors.fullName ? "ll-fullName-error" : undefined
-                }
-                aria-invalid={errors.fullName ? true : undefined}
-                autoComplete="off"
-                className={inputClassName}
-                id="ll-fullName"
-                maxLength={80}
-                name="fullName"
-                onChange={(event) =>
-                  updateValue("fullName", event.target.value)
-                }
-                type="text"
-                value={values.fullName}
-              />
-              {errors.fullName ? (
-                <p
-                  className="mt-2 text-sm text-destructive"
-                  id="ll-fullName-error"
-                  role="alert"
-                >
-                  {errors.fullName}
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <label
-                className="mb-2 block text-sm font-medium"
-                htmlFor="ll-dateOfBirth"
-              >
-                {fieldLabels.dateOfBirth}
-              </label>
+                {errors.fullName}
+              </p>
+            ) : null}
+          </div>
+          <Field>
+            <FieldLabel htmlFor="ll-dateOfBirth">
+              {fieldLabels.dateOfBirth}
+            </FieldLabel>
+            <div className="mt-2 flex gap-3">
               <input
                 aria-describedby={
                   errors.dateOfBirth ? "ll-dateOfBirth-error" : undefined
                 }
                 aria-invalid={errors.dateOfBirth ? true : undefined}
+                autoComplete="bday"
                 className={inputClassName}
                 id="ll-dateOfBirth"
-                max={new Date().toISOString().slice(0, 10)}
-                name="dateOfBirth"
-                onChange={(event) =>
-                  updateValue("dateOfBirth", event.target.value)
-                }
-                type="date"
-                value={values.dateOfBirth}
-              />
-              {errors.dateOfBirth ? (
-                <p
-                  className="mt-2 text-sm text-destructive"
-                  id="ll-dateOfBirth-error"
-                  role="alert"
-                >
-                  {errors.dateOfBirth}
-                </p>
-              ) : null}
-            </div>
-          </>
-        ) : null}
+                inputMode="numeric"
+                onChange={(event) => {
+                  const nextValue = event.target.value
+                  setDateOfBirthInput(nextValue)
+                  const date = parseDateInput(nextValue)
 
-        {!isReviewStep && stepIndex === 1 ? (
-          <>
+                  updateValue("dateOfBirth", date ? dateToInputValue(date) : "")
+                  if (date) setCalendarMonth(date)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault()
+                    setIsDatePickerOpen(true)
+                  }
+                }}
+                placeholder="DD/MM/YYYY"
+                value={dateOfBirthInput}
+              />
+              <Popover
+                modal
+                onOpenChange={setIsDatePickerOpen}
+                open={isDatePickerOpen}
+              >
+                <PopoverTrigger
+                  render={
+                    <Button
+                      aria-label="Select date of birth"
+                      className="size-11 shrink-0"
+                      type="button"
+                      variant="outline"
+                    >
+                      <CalendarIcon />
+                      <span className="sr-only">Select date of birth</span>
+                    </Button>
+                  }
+                />
+                <PopoverContent
+                  align="end"
+                  className="w-auto overflow-hidden p-0"
+                  sideOffset={10}
+                >
+                  <Calendar
+                    captionLayout="dropdown"
+                    disabled={{ after: new Date() }}
+                    endMonth={new Date()}
+                    month={calendarMonth}
+                    mode="single"
+                    onMonthChange={setCalendarMonth}
+                    startMonth={new Date(new Date().getFullYear() - 100, 0)}
+                    onSelect={(date) => {
+                      if (!date) return
+                      const nextDate = dateToInputValue(date)
+                      updateValue("dateOfBirth", nextDate)
+                      setDateOfBirthInput(formatDateInput(nextDate))
+                      setCalendarMonth(date)
+                      setIsDatePickerOpen(false)
+                    }}
+                    selected={
+                      values.dateOfBirth
+                        ? new Date(`${values.dateOfBirth}T00:00:00`)
+                        : undefined
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             {errors.dateOfBirth ? (
-              <div
-                className="rounded-xl border border-destructive/40 p-4 text-sm leading-6 text-destructive"
+              <p
+                className="mt-2 text-sm text-destructive"
+                id="ll-dateOfBirth-error"
                 role="alert"
               >
                 {errors.dateOfBirth}
-                <button
-                  className="ml-2 underline hover:no-underline"
-                  onClick={() => goToStep(0)}
-                  type="button"
-                >
-                  Correct your date of birth
-                </button>
-              </div>
+              </p>
             ) : null}
-            <fieldset>
-              <legend className="mb-2 block text-sm font-medium">
-                {fieldLabels.vehicleClass}
-              </legend>
-              <div className="space-y-2">
-                {vehicleClasses.map((option) => (
-                  <label
-                    className="flex min-h-11 items-center gap-3 rounded-lg border border-input px-3 text-base has-checked:border-ring"
-                    key={option.value}
-                  >
-                    <input
-                      checked={values.vehicleClass === option.value}
-                      name="vehicleClass"
-                      onChange={() => updateValue("vehicleClass", option.value)}
-                      type="radio"
-                      value={option.value}
-                    />
-                    <span>{option.label}</span>
-                    <span className="ml-auto text-sm text-muted-foreground">
-                      Minimum age {option.minimumAgeYears}
+          </Field>
+        </>
+
+        <>
+          {errors.dateOfBirth ? (
+            <div
+              className="rounded-xl border border-destructive/40 p-4 text-sm leading-6 text-destructive"
+              role="alert"
+            >
+              {errors.dateOfBirth}
+            </div>
+          ) : null}
+          <fieldset
+            aria-disabled={!isPersonalComplete}
+            className={`scroll-mt-24 ${!isPersonalComplete ? "opacity-60" : ""}`}
+            id="learner-vehicle-and-zone"
+          >
+            <legend className="mb-2 block text-sm font-medium">
+              {fieldLabels.vehicleClass}
+            </legend>
+            <div className="space-y-2">
+              {vehicleClasses.map((option) => (
+                <label
+                  className="flex min-h-11 items-center gap-3 rounded-lg border border-input px-3 text-base has-checked:border-ring"
+                  key={option.value}
+                >
+                  <input
+                    aria-disabled={!isPersonalComplete}
+                    checked={values.vehicleClass === option.value}
+                    name="vehicleClass"
+                    onChange={() => {
+                      if (!isPersonalComplete) {
+                        explainLockedField(
+                          "Complete your full name and date of birth before choosing a vehicle class."
+                        )
+                        return
+                      }
+
+                      updateValue("vehicleClass", option.value)
+                    }}
+                    type="radio"
+                    value={option.value}
+                  />
+                  <span>{option.label}</span>
+                  <span className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="rounded-md bg-muted px-2 py-0.5 font-medium text-foreground">
+                      {option.code}
                     </span>
-                  </label>
-                ))}
-              </div>
-              {errors.vehicleClass ? (
-                <p className="mt-2 text-sm text-destructive" role="alert">
-                  {errors.vehicleClass}
-                </p>
-              ) : null}
-            </fieldset>
-            <div>
-              <label
-                className="mb-2 block text-sm font-medium"
-                htmlFor="ll-zone"
-              >
-                {fieldLabels.zone}
-              </label>
-              <select
-                className={inputClassName}
-                id="ll-zone"
-                name="zone"
-                onChange={(event) => updateValue("zone", event.target.value)}
-                value={values.zone}
-              >
-                <option value="">Select an option</option>
-                {delhiZones.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors.zone ? (
-                <p className="mt-2 text-sm text-destructive" role="alert">
-                  {errors.zone}
-                </p>
-              ) : null}
+                    <span>Minimum age {option.minimumAgeYears}</span>
+                  </span>
+                </label>
+              ))}
             </div>
-          </>
-        ) : null}
-
-        {!isReviewStep && stepIndex === 2 ? (
-          <>
-            <div>
-              <label
-                className="mb-2 block text-sm font-medium"
-                htmlFor="ll-identityProofType"
-              >
-                {fieldLabels.identityProofType}
-              </label>
-              <select
-                className={inputClassName}
-                id="ll-identityProofType"
-                name="identityProofType"
-                onChange={(event) =>
-                  updateValue("identityProofType", event.target.value)
+            {errors.vehicleClass ? (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {errors.vehicleClass}
+              </p>
+            ) : null}
+          </fieldset>
+          <div>
+            <label className="mb-2 block text-sm font-medium" htmlFor="ll-zone">
+              {fieldLabels.zone}
+            </label>
+            <select
+              aria-disabled={!isPersonalComplete}
+              className={inputClassName}
+              id="ll-zone"
+              name="zone"
+              onChange={(event) => {
+                if (!isPersonalComplete) {
+                  explainLockedField(
+                    "Complete your full name and date of birth before choosing a Delhi zone."
+                  )
+                  return
                 }
-                value={values.identityProofType}
-              >
-                <option value="">Select an option</option>
-                {identityProofOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors.identityProofType ? (
-                <p className="mt-2 text-sm text-destructive" role="alert">
-                  {errors.identityProofType}
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <label
-                className="mb-2 block text-sm font-medium"
-                htmlFor="ll-addressProofType"
-              >
-                {fieldLabels.addressProofType}
-              </label>
-              <select
-                className={inputClassName}
-                id="ll-addressProofType"
-                name="addressProofType"
-                onChange={(event) =>
-                  updateValue("addressProofType", event.target.value)
-                }
-                value={values.addressProofType}
-              >
-                <option value="">Select an option</option>
-                {addressProofOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors.addressProofType ? (
-                <p className="mt-2 text-sm text-destructive" role="alert">
-                  {errors.addressProofType}
-                </p>
-              ) : null}
-            </div>
-          </>
-        ) : null}
 
-        {isReviewStep ? (
-          <>
-            <dl className="space-y-4 rounded-2xl border border-border p-5">
-              {(Object.keys(fieldLabels) as FieldName[]).map((field) => (
-                <div key={field}>
-                  <dt className="text-sm font-medium text-muted-foreground">
-                    {fieldLabels[field]}
-                  </dt>
-                  <dd className="mt-1">
-                    {field === "identityProofType"
-                      ? (identityProofOptions.find(
+                updateValue("zone", event.target.value)
+              }}
+              value={values.zone}
+            >
+              <option value="">Select an option</option>
+              {delhiZones.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {errors.zone ? (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {errors.zone}
+              </p>
+            ) : null}
+          </div>
+        </>
+
+        <>
+          <div
+            aria-disabled={!isRequestComplete}
+            className={!isRequestComplete ? "opacity-60" : undefined}
+            id="learner-proof-selections"
+          >
+            <label
+              className="mb-2 block text-sm font-medium"
+              htmlFor="ll-identityProofType"
+            >
+              {fieldLabels.identityProofType}
+            </label>
+            <select
+              aria-disabled={!isRequestComplete}
+              className={inputClassName}
+              id="ll-identityProofType"
+              name="identityProofType"
+              onChange={(event) => {
+                if (!isRequestComplete) {
+                  explainLockedField(
+                    "Choose a vehicle class and Delhi zone before selecting identity proof."
+                  )
+                  return
+                }
+
+                updateValue("identityProofType", event.target.value)
+              }}
+              value={values.identityProofType}
+            >
+              <option value="">Select an option</option>
+              {identityProofOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {errors.identityProofType ? (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {errors.identityProofType}
+              </p>
+            ) : null}
+          </div>
+          <div className={!isRequestComplete ? "opacity-60" : undefined}>
+            <label
+              className="mb-2 block text-sm font-medium"
+              htmlFor="ll-addressProofType"
+            >
+              {fieldLabels.addressProofType}
+            </label>
+            <select
+              aria-disabled={!isRequestComplete}
+              className={inputClassName}
+              id="ll-addressProofType"
+              name="addressProofType"
+              onChange={(event) => {
+                if (!isRequestComplete) {
+                  explainLockedField(
+                    "Choose a vehicle class and Delhi zone before selecting address proof."
+                  )
+                  return
+                }
+
+                updateValue("addressProofType", event.target.value)
+              }}
+              value={values.addressProofType}
+            >
+              <option value="">Select an option</option>
+              {addressProofOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {errors.addressProofType ? (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {errors.addressProofType}
+              </p>
+            ) : null}
+          </div>
+        </>
+
+        <>
+          <dl
+            className="scroll-mt-24 space-y-4 rounded-2xl border border-border p-5"
+            id="learner-review"
+          >
+            {(Object.keys(fieldLabels) as FieldName[]).map((field) => (
+              <div key={field}>
+                <dt className="text-sm font-medium text-muted-foreground">
+                  {fieldLabels[field]}
+                </dt>
+                <dd className="mt-1">
+                  {field === "identityProofType"
+                    ? (identityProofOptions.find(
+                        (option) => option.value === values[field]
+                      )?.label ?? "Not provided")
+                    : field === "addressProofType"
+                      ? (addressProofOptions.find(
                           (option) => option.value === values[field]
                         )?.label ?? "Not provided")
-                      : field === "addressProofType"
-                        ? (addressProofOptions.find(
-                            (option) => option.value === values[field]
-                          )?.label ?? "Not provided")
-                        : field === "vehicleClass"
-                          ? (getVehicleClass(values[field])?.label ??
-                            "Not provided")
-                          : field === "zone"
-                            ? (delhiZones.find(
-                                (option) => option.value === values[field]
-                              )?.label ?? "Not provided")
-                            : values[field] || "Not provided"}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <label className="flex items-start gap-3 rounded-xl border border-border p-4">
-              <input
-                checked={declarationAccepted}
-                className="mt-1 size-5"
-                onChange={(event) =>
-                  setDeclarationAccepted(event.target.checked)
+                      : field === "vehicleClass"
+                        ? (getVehicleClass(values[field])?.label ??
+                          "Not provided")
+                        : field === "zone"
+                          ? (delhiZones.find(
+                              (option) => option.value === values[field]
+                            )?.label ?? "Not provided")
+                          : values[field] || "Not provided"}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <label className="flex items-start gap-3 rounded-xl border border-border p-4">
+            <input
+              aria-disabled={!isDocumentsComplete}
+              checked={declarationAccepted}
+              className={`mt-1 size-5 ${!isDocumentsComplete ? "opacity-60" : ""}`}
+              onChange={(event) => {
+                if (!isDocumentsComplete) {
+                  explainLockedField(
+                    "Select both proof types before confirming the declaration."
+                  )
+                  return
                 }
-                type="checkbox"
-              />
-              <span className="leading-6">
-                I confirm these are the details for this application, and I
-                understand nothing is sent to a government service.
-              </span>
-            </label>
-          </>
-        ) : null}
+
+                setBlockedFieldMessage(undefined)
+                setDeclarationAccepted(event.target.checked)
+              }}
+              type="checkbox"
+            />
+            <span className="leading-6">
+              I confirm these are the details for this application, and I
+              understand nothing is sent to a government service.
+            </span>
+          </label>
+        </>
       </div>
 
       {draftSavedAt ? (
@@ -873,15 +979,6 @@ function LearnerLicenceForm() {
           role="alert"
         >
           <p className="font-medium">{submitError.message}</p>
-          {submitError.kind === "eligibility-not-met" ? (
-            <button
-              className="mt-1 underline hover:no-underline"
-              onClick={() => goToStep(0)}
-              type="button"
-            >
-              Correct your date of birth
-            </button>
-          ) : null}
           {submitError.kind === "rate-limited" ? (
             <p className="mt-1 text-destructive/80">
               Your answers are still here. Try again once the wait passes.
@@ -891,45 +988,24 @@ function LearnerLicenceForm() {
       ) : null}
 
       <div className="mt-7 flex flex-col gap-3 sm:flex-row-reverse">
-        {isReviewStep ? (
-          <Button
-            aria-describedby="learner-form-note"
-            className="h-11 flex-1 text-base"
-            disabled={isSubmitting || !declarationAccepted}
-            type="submit"
-          >
-            {isSubmitting ? "Submitting..." : "Submit application"}
-          </Button>
-        ) : (
-          <Button
-            className="h-11 flex-1 text-base"
-            onClick={() => handleContinue()}
-            type="button"
-          >
-            Continue
-          </Button>
-        )}
-        {!isReviewStep && stepIndex > 0 ? (
-          <Button
-            className="h-11 px-5 text-base"
-            onClick={() => goToStep(stepIndex - 1)}
-            type="button"
-            variant="outline"
-          >
-            Back
-          </Button>
-        ) : null}
-        {!isReviewStep ? (
-          <Button
-            className="h-11 px-5 text-base"
-            disabled={isSavingDraft}
-            onClick={() => void handleSaveDraft()}
-            type="button"
-            variant="outline"
-          >
-            {isSavingDraft ? "Saving..." : "Save draft"}
-          </Button>
-        ) : null}
+        <Button
+          aria-describedby="learner-form-note"
+          aria-disabled={isSubmitting || !declarationAccepted}
+          className={`h-11 flex-1 text-base ${!declarationAccepted ? "opacity-60" : ""}`}
+          disabled={isSubmitting}
+          type="submit"
+        >
+          {isSubmitting ? "Submitting..." : "Submit application"}
+        </Button>
+        <Button
+          className="h-11 px-5 text-base"
+          disabled={isSavingDraft}
+          onClick={() => void handleSaveDraft()}
+          type="button"
+          variant="outline"
+        >
+          {isSavingDraft ? "Saving..." : "Save draft"}
+        </Button>
       </div>
     </form>
   )

@@ -1,13 +1,11 @@
 import { z } from "zod"
 
+import { vehicleClassValues } from "../lib/learner-licence"
+
 const permanentLicenceSubmissionSchema = z
   .object({
     idempotencyKey: z.string().uuid(),
-    vehicleClass: z.enum([
-      "MOTORCYCLE_WITHOUT_GEAR",
-      "MOTORCYCLE_WITH_GEAR",
-      "LIGHT_MOTOR_VEHICLE",
-    ]),
+    vehicleClass: z.enum(vehicleClassValues),
   })
   .strict()
 

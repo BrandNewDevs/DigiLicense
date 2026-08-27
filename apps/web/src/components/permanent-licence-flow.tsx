@@ -3,7 +3,9 @@ import { useServerFn } from "@tanstack/react-start"
 import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { vehicleClasses } from "../lib/learner-licence"
 import {
   readPermanentLicenceState,
   submitPermanentLicenceApplication,
@@ -12,12 +14,6 @@ import {
 type PermanentState =
   | Awaited<ReturnType<typeof readPermanentLicenceState>>
   | Awaited<ReturnType<typeof submitPermanentLicenceApplication>>
-
-const vehicleClasses = [
-  { value: "MOTORCYCLE_WITHOUT_GEAR", label: "Motorcycle without gear" },
-  { value: "MOTORCYCLE_WITH_GEAR", label: "Motorcycle with gear" },
-  { value: "LIGHT_MOTOR_VEHICLE", label: "Car" },
-] as const
 
 function PermanentLicenceFlow() {
   const readState = useServerFn(readPermanentLicenceState)
@@ -55,16 +51,26 @@ function PermanentLicenceFlow() {
     })
   }, [form, readState])
 
-  if (!state)
-    return <p className="text-muted-foreground">Checking your eligibility...</p>
+  if (!state) {
+    return (
+      <section
+        aria-busy="true"
+        aria-label="Checking permanent-licence eligibility"
+        className="rounded-lg border bg-card p-6 sm:p-8"
+      >
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="mt-4 h-4 w-full max-w-xl" />
+        <Skeleton className="mt-2 h-4 w-3/4 max-w-lg" />
+        <Skeleton className="mt-8 h-10 w-40" />
+      </section>
+    )
+  }
 
   if (state.kind === "eligible") {
     return (
-      <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
-        <p className="text-sm font-semibold text-[#b9550d]">
-          You can apply now
-        </p>
-        <h2 className="mt-2 font-heading text-3xl font-semibold tracking-[-0.04em]">
+      <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
+        <p className="text-sm font-semibold text-primary">You can apply now</p>
+        <h2 className="mt-2 font-sans text-3xl font-semibold">
           Continue to your driving test
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
@@ -105,7 +111,7 @@ function PermanentLicenceFlow() {
                 >
                   {vehicleClasses.map((item) => (
                     <option key={item.value} value={item.value}>
-                      {item.label}
+                      {item.label} ({item.code})
                     </option>
                   ))}
                 </select>
@@ -115,7 +121,7 @@ function PermanentLicenceFlow() {
           <form.Subscribe selector={(formState) => formState.isSubmitting}>
             {(isSubmitting) => (
               <Button
-                className="h-12 w-full rounded-full bg-black text-white hover:bg-black/80"
+                className="h-11 w-full rounded-lg"
                 disabled={isSubmitting}
                 type="submit"
                 variant="solid"
@@ -159,10 +165,8 @@ function PermanentLicenceFlow() {
 
 function StateCard({ detail, title }: { detail: string; title: string }) {
   return (
-    <section className="rounded-3xl border border-border bg-card p-6 sm:p-8">
-      <h2 className="font-heading text-2xl font-semibold tracking-[-0.04em]">
-        {title}
-      </h2>
+    <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
+      <h2 className="font-sans text-2xl font-semibold">{title}</h2>
       <p className="mt-3 leading-7 text-muted-foreground">{detail}</p>
     </section>
   )

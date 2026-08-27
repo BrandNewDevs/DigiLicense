@@ -3,6 +3,7 @@ import type { FormEvent } from "react"
 import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
 import { scheduleMobileUpdateExpiry } from "../lib/mobile-update-expiry"
 import type {
@@ -252,9 +253,15 @@ function MobileUpdateFlow() {
 
   if (phase === "loading") {
     return (
-      <p className="rounded-3xl border border-border p-6 text-muted-foreground">
-        Loading your mobile-update request…
-      </p>
+      <section
+        aria-busy="true"
+        aria-label="Loading mobile-update request"
+        className="rounded-lg border bg-card p-6"
+      >
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="mt-4 h-4 w-full max-w-lg" />
+        <Skeleton className="mt-8 h-11 w-full max-w-md" />
+      </section>
     )
   }
 
@@ -262,10 +269,10 @@ function MobileUpdateFlow() {
     return (
       <section
         aria-live="polite"
-        className="rounded-3xl border border-border p-6"
+        className="rounded-xl border border-border p-6"
       >
         <h2
-          className="font-heading text-2xl font-medium"
+          className="font-sans text-2xl font-medium"
           ref={headingRef}
           tabIndex={-1}
         >
@@ -280,10 +287,10 @@ function MobileUpdateFlow() {
     return (
       <section
         aria-live="polite"
-        className="rounded-3xl border border-border p-6"
+        className="rounded-xl border border-border p-6"
       >
         <h2
-          className="font-heading text-2xl font-medium"
+          className="font-sans text-2xl font-medium"
           ref={headingRef}
           tabIndex={-1}
         >
@@ -310,13 +317,13 @@ function MobileUpdateFlow() {
   if (phase === "otp" && activeRequest) {
     return (
       <form
-        className="rounded-3xl border border-border p-6"
+        className="rounded-xl border border-border p-6"
         onSubmit={handleOtpVerification}
       >
         <p className="text-sm text-muted-foreground">
           Synthetic OTP verification
         </p>
-        <h2 className="mt-2 font-heading text-2xl font-medium">
+        <h2 className="mt-2 font-sans text-2xl font-medium">
           Confirm the number ending in {activeRequest.targetMobileLastFour}
         </h2>
         <p className="mt-3 text-muted-foreground">
@@ -355,12 +362,12 @@ function MobileUpdateFlow() {
     return (
       <section
         aria-live="polite"
-        className="rounded-3xl border border-border p-6"
+        className="rounded-xl border border-border p-6"
       >
         <p className="text-sm text-muted-foreground">
           Mock Aadhaar verification
         </p>
-        <h2 className="mt-2 font-heading text-2xl font-medium">
+        <h2 className="mt-2 font-sans text-2xl font-medium">
           Confirm the number ending in {activeRequest.targetMobileLastFour}
         </h2>
         <p className="mt-3 text-muted-foreground">
@@ -394,11 +401,11 @@ function MobileUpdateFlow() {
 
   return (
     <form
-      className="rounded-3xl border border-border p-6"
+      className="rounded-xl border border-border p-6"
       onSubmit={handleStart}
     >
       <p className="text-sm text-muted-foreground">Synthetic contact update</p>
-      <h2 className="mt-2 font-heading text-2xl font-medium">
+      <h2 className="mt-2 font-sans text-2xl font-medium">
         Update your mobile number
       </h2>
       <p className="mt-3 text-muted-foreground">

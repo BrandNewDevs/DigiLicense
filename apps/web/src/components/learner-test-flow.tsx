@@ -3,11 +3,9 @@ import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 
 import { Button } from "@workspace/ui/components/button"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
-import {
-  learnerTestLanguages,
-  learnerTestPassMark,
-} from "../lib/learner-test"
+import { learnerTestLanguages, learnerTestPassMark } from "../lib/learner-test"
 import type { LearnerTestLanguage } from "../lib/learner-test"
 import { getApplicationStatusLabel } from "../lib/application-status"
 import type { LearnerTestReadResult } from "../server/learner-test.server"
@@ -100,7 +98,13 @@ function LearnerTestFlow() {
           return
         }
 
-        setPhase(result.kind === "authentication-required" ? "authentication-required" : result.kind === "no-application" ? "no-application" : "unavailable")
+        setPhase(
+          result.kind === "authentication-required"
+            ? "authentication-required"
+            : result.kind === "no-application"
+              ? "no-application"
+              : "unavailable"
+        )
       } catch {
         if (!cancelled) setPhase("unavailable")
       }
@@ -238,20 +242,24 @@ function LearnerTestFlow() {
 
   if (phase === "loading") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <p className="text-base leading-7 text-muted-foreground" role="status">
-          Loading your learner's-test progress...
-        </p>
+      <section
+        aria-busy="true"
+        aria-label="Loading learner's-test progress"
+        className="rounded-lg border bg-card p-6 sm:p-8"
+      >
+        <Skeleton className="h-7 w-52" />
+        <Skeleton className="mt-4 h-4 w-full max-w-xl" />
+        <Skeleton className="mt-8 h-12 w-full" />
+        <Skeleton className="mt-3 h-12 w-full" />
+        <Skeleton className="mt-3 h-12 w-full" />
       </section>
     )
   }
 
   if (phase === "authentication-required") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <h2 className="font-heading text-2xl font-medium tracking-[-0.04em]">
-          Sign in required
-        </h2>
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="font-sans text-2xl font-medium">Sign in required</h2>
         <p className="mt-3 leading-7 text-muted-foreground">
           Your applicant session ended. Sign in again to take the learner's
           test.
@@ -269,13 +277,13 @@ function LearnerTestFlow() {
 
   if (phase === "unavailable") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="mt-5 font-sans text-2xl font-medium">
           Service unavailable
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          The learner's-test service could not be loaded. Reload the page to
-          try again.
+          The learner's-test service could not be loaded. Reload the page to try
+          again.
         </p>
       </section>
     )
@@ -283,13 +291,13 @@ function LearnerTestFlow() {
 
   if (phase === "no-application") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="mt-5 font-sans text-2xl font-medium">
           No application is ready for the test
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          The learner's test opens once a learner's-licence application has
-          been submitted and its automatic checks are complete.
+          The learner's test opens once a learner's-licence application has been
+          submitted and its automatic checks are complete.
         </p>
         <Link
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
@@ -304,14 +312,14 @@ function LearnerTestFlow() {
 
   if (phase === "already-passed") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
-        <h2 className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]">
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="mt-5 font-sans text-2xl font-medium">
           Learner's test already passed
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
           Your learner's test has already been passed and recorded on your
-          application. The next step is the permanent-licence application,
-          which opens after the waiting period.
+          application. The next step is the permanent-licence application, which
+          opens after the waiting period.
         </p>
         <Link
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
@@ -328,18 +336,20 @@ function LearnerTestFlow() {
     return (
       <section
         aria-labelledby="test-result-title"
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
       >
         <p className="mt-6 text-sm font-medium text-muted-foreground">
           Test result for {outcome.applicationNumber}
         </p>
         <h2
-          className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
+          className="mt-2 font-sans text-2xl font-medium"
           id="test-result-title"
           ref={headingRef}
           tabIndex={-1}
         >
-          {outcome.passed ? "Learner's test passed" : "Learner's test not passed"}
+          {outcome.passed
+            ? "Learner's test passed"
+            : "Learner's test not passed"}
         </h2>
         <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
           <div>
@@ -388,10 +398,10 @@ function LearnerTestFlow() {
     return (
       <section
         aria-labelledby="learner-test-intro-title"
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
       >
         <h2
-          className="mt-5 font-heading text-2xl font-medium tracking-[-0.04em]"
+          className="mt-5 font-sans text-2xl font-medium"
           id="learner-test-intro-title"
         >
           Your test is ready
@@ -418,8 +428,8 @@ function LearnerTestFlow() {
               Format
             </dt>
             <dd className="mt-1">
-              {state?.questionCount} questions; pass mark{" "}
-              {state?.passMark}. Road signs and road rules.
+              {state?.questionCount} questions; pass mark {state?.passMark}.
+              Road signs and road rules.
             </dd>
           </div>
           {latestAttempt ? (
@@ -436,7 +446,10 @@ function LearnerTestFlow() {
         </dl>
 
         <div className="mt-7">
-          <label className="mb-2 block text-sm font-medium" htmlFor="lt-language">
+          <label
+            className="mb-2 block text-sm font-medium"
+            htmlFor="lt-language"
+          >
             Test language
           </label>
           <select
@@ -481,7 +494,7 @@ function LearnerTestFlow() {
   return (
     <form
       aria-describedby="learner-test-note"
-      className="rounded-3xl border border-border p-6 sm:p-8"
+      className="rounded-xl border border-border p-6 sm:p-8"
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
@@ -492,16 +505,16 @@ function LearnerTestFlow() {
         {announcement}
       </div>
 
-      <p className="text-sm font-medium text-muted-foreground">
-        Questions: {state.questionCount} · Pass mark: {state.passMark}
-      </p>
       <h2
-        className="mt-2 font-heading text-2xl font-medium tracking-[-0.04em]"
+        className="font-sans text-2xl font-medium"
         ref={headingRef}
         tabIndex={-1}
       >
         Learner's test
       </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Questions: {state.questionCount} · Pass mark: {state.passMark}
+      </p>
       <p
         className="mt-5 text-sm leading-6 text-muted-foreground"
         id="learner-test-note"
@@ -516,9 +529,12 @@ function LearnerTestFlow() {
           const name = `lt-q-${question.id}`
 
           return (
-            <li className="rounded-2xl border border-border p-5" key={question.id}>
+            <li
+              className="rounded-2xl border border-border p-5"
+              key={question.id}
+            >
               <fieldset>
-                <legend className="text-base font-medium leading-6">
+                <legend className="text-base leading-6 font-medium">
                   {questionIndex + 1}. {promptText(question)}
                 </legend>
                 <div className="mt-4 space-y-2">
