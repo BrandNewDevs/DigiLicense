@@ -10,6 +10,7 @@ import { consumeRateLimit } from "./rate-limit.server"
 type DashboardResult =
   | {
       kind: "found"
+      applicationCount: number
       applications: Array<{
         applicationNumber: string
         nextAction: string
@@ -18,6 +19,7 @@ type DashboardResult =
         statusDeadlineAt: string | null
         unreadNotifications: number
       }>
+      unreadNotificationCount: number
     }
   | { kind: "authentication-required"; message: string }
   | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
@@ -51,26 +53,34 @@ async function readApplicantDashboard(): Promise<DashboardResult> {
       }
     }
 
-    const applications = await prisma.application.findMany({
-      where: { applicantId },
-      orderBy: { updatedAt: "desc" },
-      take: 20,
-      select: {
-        applicationNumber: true,
-        nextAction: true,
-        service: true,
-        status: true,
-        statusDeadlineAt: true,
-        _count: {
+    const [applications, applicationCount, unreadNotificationCount] =
+      await Promise.all([
+        prisma.application.findMany({
+          where: { applicantId },
+          orderBy: { updatedAt: "desc" },
+          take: 20,
           select: {
-            notifications: { where: { applicantId, status: "UNREAD" } },
+            applicationNumber: true,
+            nextAction: true,
+            service: true,
+            status: true,
+            statusDeadlineAt: true,
+            _count: {
+              select: {
+                notifications: { where: { applicantId, status: "UNREAD" } },
+              },
+            },
           },
-        },
-      },
-    })
+        }),
+        prisma.application.count({ where: { applicantId } }),
+        prisma.notificationRecord.count({
+          where: { applicantId, status: "UNREAD" },
+        }),
+      ])
 
     return {
       kind: "found",
+      applicationCount,
       applications: applications.map((application) => ({
         applicationNumber: application.applicationNumber,
         nextAction: application.nextAction,
@@ -79,6 +89,7 @@ async function readApplicantDashboard(): Promise<DashboardResult> {
         statusDeadlineAt: application.statusDeadlineAt?.toISOString() ?? null,
         unreadNotifications: application._count.notifications,
       })),
+      unreadNotificationCount,
     }
   } catch (error) {
     recordDependencyFailure(error, {

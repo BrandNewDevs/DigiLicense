@@ -109,7 +109,11 @@ function DashboardContent() {
       </p>
       {isLoading && !dashboard ? <DashboardSkeleton /> : null}
       {dashboard ? (
-        <DashboardApplications applications={dashboard.applications} />
+        <DashboardApplications
+          applicationCount={dashboard.applicationCount}
+          applications={dashboard.applications}
+          unreadNotificationCount={dashboard.unreadNotificationCount}
+        />
       ) : null}
     </main>
   )
@@ -118,9 +122,13 @@ function DashboardContent() {
 type DashboardApplication = Dashboard["applications"][number]
 
 function DashboardApplications({
+  applicationCount,
   applications,
+  unreadNotificationCount,
 }: {
+  applicationCount: number
   applications: DashboardApplication[]
+  unreadNotificationCount: number
 }) {
   if (!applications.length)
     return (
@@ -140,25 +148,23 @@ function DashboardApplications({
         </Link>
       </section>
     )
-  const unreadNotifications = applications.reduce(
-    (total, application) => total + application.unreadNotifications,
-    0
-  )
   return (
     <>
       <section className="mt-8 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-5">
           <ClipboardList aria-hidden="true" className="size-5 text-primary" />
-          <p className="mt-3 text-2xl font-semibold">{applications.length}</p>
+          <p className="mt-3 text-2xl font-semibold">{applicationCount}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Application{applications.length === 1 ? "" : "s"} in your account
+            Application{applicationCount === 1 ? "" : "s"} in your account
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <Bell aria-hidden="true" className="size-5 text-primary" />
-          <p className="mt-3 text-2xl font-semibold">{unreadNotifications}</p>
+          <p className="mt-3 text-2xl font-semibold">
+            {unreadNotificationCount}
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Unread notification{unreadNotifications === 1 ? "" : "s"}
+            Unread notification{unreadNotificationCount === 1 ? "" : "s"}
           </p>
         </div>
       </section>
