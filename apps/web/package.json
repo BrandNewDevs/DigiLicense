@@ -10,6 +10,7 @@
     "start": "srvx --prod -s ../client dist/server/server.js",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:ai-integration": "vitest run --config vitest.ai-integration.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "lint": "eslint",

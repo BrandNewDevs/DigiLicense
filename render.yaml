@@ -22,6 +22,19 @@ services:
         sync: false
       - key: DIGILICENSE_PUBLIC_ORIGIN
         sync: false
+      # Render copies the AI service's managed HTTPS URL and generated bearer
+      # credential directly into the web server. Neither value is exposed to
+      # browser bundles or duplicated by an operator.
+      - key: DIGILICENSE_AI_BASE_URL
+        fromService:
+          name: digilicense-ai
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: DIGILICENSE_AI_SERVICE_BEARER_TOKEN
+        fromService:
+          name: digilicense-ai
+          type: web
+          envVarKey: DIGILICENSE_AI_SERVICE_BEARER_TOKEN
       - key: NODE_ENV
         value: production
 
@@ -37,3 +50,40 @@ services:
         sync: false
       - key: NODE_ENV
         value: production
+
+  # Render-managed HTTPS protects the server-to-server AI hop. The AI service
+  # has no product database credentials and is never called by browser code.
+  - type: web
+    name: digilicense-ai
+    runtime: docker
+    dockerContext: packages/ai-service
+    dockerfilePath: packages/ai-service/Dockerfile
+    plan: starter
+    healthCheckPath: /health/ready
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: DIGILICENSE_AI_PROFILE
+        value: production
+      - key: DIGILICENSE_AI_PROVIDER_BACKEND
+        value: openai
+      - key: DIGILICENSE_AI_RETRIEVAL_BACKEND
+        value: bm25
+      - key: DIGILICENSE_AI_DLP_BACKEND
+        value: local
+      - key: DIGILICENSE_AI_CONTEXT_BACKEND
+        value: local
+      - key: DIGILICENSE_AI_INTENT_BACKEND
+        value: local
+      - key: DIGILICENSE_AI_SERVICE_BEARER_TOKEN
+        generateValue: true
+      - key: DIGILICENSE_AI_CONTEXT_SIGNING_CURRENT_KEY
+        generateValue: true
+      - key: DIGILICENSE_AI_REQUIRE_TLS
+        value: "true"
+      - key: DIGILICENSE_AI_OPENAI_BUDGET_CONTROLS_CONFIRMED
+        value: "true"
+      - key: DIGILICENSE_AI_OPENAI_API_KEY
+        sync: false
+      - key: DIGILICENSE_AI_OPENAI_PROJECT_ID
+        sync: false

@@ -8,6 +8,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
 import { vehicleClasses } from "../lib/learner-licence"
+import { useAssistantPublicContextOverride } from "../lib/assistant-public-context"
 import {
   readPermanentLicenceState,
   submitPermanentLicenceApplication,
@@ -21,6 +22,17 @@ function PermanentLicenceFlow() {
   const readState = useServerFn(readPermanentLicenceState)
   const submit = useServerFn(submitPermanentLicenceApplication)
   const [state, setState] = useState<PermanentState>()
+  useAssistantPublicContextOverride({
+    reasonCode:
+      state?.kind === "waiting-period"
+        ? "WAITING_PERIOD_ACTIVE"
+        : state &&
+            state.kind !== "eligible" &&
+            state.kind !== "active-application" &&
+            state.kind !== "submitted"
+          ? "ACTION_LOCKED"
+          : "NONE",
+  })
   const idempotencyKeyRef = useRef(crypto.randomUUID())
   const form = useForm({
     defaultValues: {

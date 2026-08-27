@@ -140,7 +140,8 @@ requires both values, an HTTPS origin, and a 32+ character rotated credential
 that matches the private AI service. Timeout, service unavailability, malformed
 responses, and rate limits return deterministic bilingual guidance without
 exposing error details. The applicant assistant calls this boundary; see
-[the assistant handoff](docs/frontend-assistant-handoff.md).
+[the assistant handoff](docs/frontend-assistant-handoff.md) and the complete
+[AI chatbot guide](docs/ai/README.md).
 
 ### Browser request security
 
@@ -496,39 +497,44 @@ see the private AI service boundary below.
 1. Push `main` to GitHub.
 2. In the [Render dashboard](https://dashboard.render.com), click **New** →
    **Blueprint** and connect the repository.
-3. Render detects `render.yaml` and provisions a web service and a scheduled
-   maintenance job.
-4. During Blueprint creation, provide these secret values for both services
-   when Render prompts for them:
-   - **DATABASE_URL** — a Neon direct connection string with
-     `sslmode=require`; use the same value for the web and maintenance services
+3. Render detects `render.yaml` and provisions the web app, maintenance job,
+   and private AI service.
+4. During Blueprint creation, provide these server-only values:
+   - **DATABASE_URL**: a Neon direct connection string with `sslmode=require`,
+     shared by the web and maintenance services
+   - **DIGILICENSE_AI_OPENAI_API_KEY**: a credential from the dedicated,
+     budget-controlled OpenAI project
+   - **DIGILICENSE_AI_OPENAI_PROJECT_ID**: that dedicated project ID
 5. Set the following web-service values in the Render dashboard:
    - **DIGILICENSE_PUBLIC_ORIGIN** — your Render service URL (for example
      `https://digilicense.onrender.com`)
    - **DIGILICENSE_DEMO_APPLICANT_OTP** — a random 6-digit sign-in passcode
      (rotate by updating the value and redeploying)
 6. On every deploy, Render runs `prisma migrate deploy` as the web service's
-   pre-deploy command. A failed migration leaves the previous release serving
-   traffic. Render runs the synthetic seed as the initial deploy hook, once,
-   after the first successful deploy.
+   pre-deploy command. Render runs the synthetic seed once through the initial
+   deploy hook. Restarts do not reseed production data.
 7. Confirm that the `digilicense-maintenance` job completes successfully. It
    processes appointment offers, address reviews, and expired workflow records
-   once per minute. Configure an alert for failed or missing runs.
+   once per minute. Configure alerts for failed or missing runs.
 
-Use Neon's direct connection string for migrations and this hackathon-scale
-deployment. If the web service later moves to a pooled runtime connection,
-add a separate direct migration URL rather than sending migration traffic
-through the pooler.
+Use Neon's direct TLS connection string for migrations. If the web service later
+moves to a pooled runtime connection, add a separate direct migration URL.
 
 ### Private AI service boundary
 
-Do not set `DIGILICENSE_AI_BASE_URL` until a private AI deployment with
-service-to-service TLS is available. The web server requires an HTTPS AI origin
-in production, and the AI service requires TLS plus authenticated requests.
-Render private services use private HTTP networking by default, so deploying
-the AI container there without an internal TLS certificate would weaken the
-implemented boundary. Until that deployment exists, assistant requests fail
-closed and the application returns its deterministic bilingual guidance.
+Render supplies the AI service's managed HTTPS URL and generated bearer
+credential to the web server. The AI service has no product database access,
+rejects browser requests, and is called only by authenticated server code.
+
+The Blueprint deploys `digilicense-ai` separately from the web application.
+Render supplies its managed HTTPS URL to the web server as
+`DIGILICENSE_AI_BASE_URL`, generates one service bearer credential, and copies
+that same credential to the web server as
+`DIGILICENSE_AI_SERVICE_BEARER_TOKEN`. These values remain server-only. The AI
+service has no product database credential, rejects browser and preflight
+requests, and requires the bearer credential on its message endpoint. Its
+publicly routable Render address is an encrypted service perimeter, not a
+browser API.
 
 ### What gets built
 

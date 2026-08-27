@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "apps/web/**"
+      - "packages/ai-service/**"
       - "packages/db/**"
       - "compose.yaml"
       - "docker/postgres/**"
@@ -11,11 +12,13 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "turbo.json"
+      - "render.yaml"
       - ".github/workflows/web-backend.yml"
   push:
     branches: [main]
     paths:
       - "apps/web/**"
+      - "packages/ai-service/**"
       - "packages/db/**"
       - "compose.yaml"
       - "docker/postgres/**"
@@ -23,6 +26,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "turbo.json"
+      - "render.yaml"
       - ".github/workflows/web-backend.yml"
 
 permissions:
@@ -37,6 +41,9 @@ jobs:
       DIGILICENSE_IDENTIFIER_HMAC_KEY_VERSION: v1
       DIGILICENSE_IDENTIFIER_HMAC_SECRET: integration-only-hmac-secret-at-least-32-characters
       DIGILICENSE_INTEGRATION_TEST: "true"
+      DIGILICENSE_AI_BASE_URL: http://127.0.0.1:8000
+      DIGILICENSE_AI_INTEGRATION_TEST: "true"
+      DIGILICENSE_AI_SERVICE_BEARER_TOKEN: integration-only-ai-service-credential-12345
       DIGILICENSE_LOCAL_DB_PASSWORD: integration-only-password
       DIGILICENSE_MOCK_WORKFLOW_OTP: "123456"
       DIGILICENSE_POSTGRES_DB: digilicense_integration
@@ -56,6 +63,10 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.12"
+
       - name: Prepare Compose web environment
         # Compose validates declared env_file paths even when only the db
         # service is started. This file is created only in the CI workspace;
@@ -64,6 +75,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install private AI fixture
+        working-directory: packages/ai-service
+        run: uv sync --frozen --no-dev
 
       - name: Generate Prisma client
         run: pnpm --filter @digilicense/db db:generate
@@ -81,6 +96,25 @@ jobs:
         env:
           NODE_ENV: production
         run: pnpm --filter web build
+
+      - name: Start private FastAPI fixture
+        working-directory: packages/ai-service
+        env:
+          DIGILICENSE_AI_PROFILE: test
+        run: |
+          .venv/bin/uvicorn digilicense_ai.main:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log > /tmp/digilicense-ai.log 2>&1 &
+          echo "$!" > /tmp/digilicense-ai.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "FastAPI fixture did not become ready within 30 seconds." >&2
+          exit 1
+
+      - name: Verify TanStack to FastAPI contract
+        run: pnpm test:ai-integration
 
       - name: Start TLS PostgreSQL integration database
         run: docker compose up --detach db
@@ -111,7 +145,7 @@ jobs:
 
       - name: Run browser accessibility and responsive smoke tests
         env:
-          DIGILICENSE_PUBLIC_ORIGIN: http://127.0.0.1:3000
+          DIGILICENSE_PUBLIC_ORIGIN: http://localhost:3000
         run: pnpm test:e2e
 
       - name: Upload browser diagnostics after failure
@@ -128,6 +162,14 @@ jobs:
       - name: Show PostgreSQL logs after failure
         if: failure()
         run: docker compose logs db
+
+      - name: Show private AI logs after failure
+        if: failure()
+        run: test ! -f /tmp/digilicense-ai.log || sed -n '1,240p' /tmp/digilicense-ai.log
+
+      - name: Stop private AI fixture
+        if: always()
+        run: test ! -f /tmp/digilicense-ai.pid || kill "$(cat /tmp/digilicense-ai.pid)" 2>/dev/null || true
 
       - name: Tear down integration database
         if: always()
