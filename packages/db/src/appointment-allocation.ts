@@ -7,8 +7,8 @@ import {
   isEligibleForAppointment,
   rankAppointmentCandidate,
 } from "./appointment-ranking.ts"
+import { permanentLicenceServiceName } from "./licence-workflow.ts"
 
-const permanentLicenceServiceName = "Permanent driving licence"
 const offerLifetimeMilliseconds = 30 * 60 * 1_000
 const expiryCooldownMilliseconds = 24 * 60 * 60 * 1_000
 const allocationBatchSize = 25

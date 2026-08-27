@@ -2,7 +2,14 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
-import { Prisma, prisma } from "@digilicense/db/server"
+import {
+  addUtcDays,
+  learnerLicenceServiceName,
+  permanentLicenceServiceName,
+  permanentLicenceWaitingPeriodDays,
+  Prisma,
+  prisma,
+} from "@digilicense/db/server"
 
 import type {
   LeaveAppointmentWaitlistInput,
@@ -14,9 +21,6 @@ import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
 import { hashIdentity } from "./rate-limit.shared"
 
-const permanentLicenceService = "Permanent driving licence"
-const learnerLicenceService = "Learner's licence"
-const waitingPeriodDays = 30
 const unavailableMessage = "Appointment service is temporarily unavailable."
 const notFoundMessage = "No appointment journey was found for this account."
 
@@ -87,12 +91,6 @@ type LockedOffer = {
   slotId: string
 }
 
-function eligibilityDate(passedAt: Date): Date {
-  const value = new Date(passedAt)
-  value.setUTCDate(value.getUTCDate() + waitingPeriodDays)
-  return value
-}
-
 function getLearnerVehicleClass(formPayload: string): string | null {
   try {
     const parsed: unknown = JSON.parse(formPayload)
@@ -157,7 +155,11 @@ async function assertOwnedEligiblePermanentApplication(
   now: Date
 ): Promise<{ applicationId: string } | AppointmentFailure> {
   const application = await client.application.findFirst({
-    where: { applicantId, applicationNumber, service: permanentLicenceService },
+    where: {
+      applicantId,
+      applicationNumber,
+      service: permanentLicenceServiceName,
+    },
     select: {
       id: true,
       permanentLicenceDetail: {
@@ -175,12 +177,15 @@ async function assertOwnedEligiblePermanentApplication(
     where: {
       applicantId,
       id: application.permanentLicenceDetail.learnerApplicationId,
-      service: learnerLicenceService,
+      service: learnerLicenceServiceName,
       status: "TEST_PASSED",
     },
     select: { draft: { select: { formPayload: true } }, updatedAt: true },
   })
-  if (!learner || eligibilityDate(learner.updatedAt) > now) {
+  if (
+    !learner ||
+    addUtcDays(learner.updatedAt, permanentLicenceWaitingPeriodDays) > now
+  ) {
     return {
       kind: "ineligible",
       message:
@@ -220,7 +225,7 @@ async function readAppointmentJourney(
       const candidates = await prisma.application.findMany({
         where: {
           applicantId: authorization.applicantId,
-          service: permanentLicenceService,
+          service: permanentLicenceServiceName,
         },
         orderBy: { updatedAt: "desc" },
         select: { applicationNumber: true },
@@ -258,7 +263,7 @@ async function readAppointmentJourney(
       where: {
         applicantId: authorization.applicantId,
         applicationNumber: selectedApplicationNumber,
-        service: permanentLicenceService,
+        service: permanentLicenceServiceName,
       },
       orderBy: { updatedAt: "desc" },
       select: {
@@ -487,7 +492,7 @@ async function saveAppointmentPreferences(
           application: {
             applicantId: authorization.applicantId,
             applicationNumber: input.applicationNumber,
-            service: permanentLicenceService,
+            service: permanentLicenceServiceName,
           },
         },
         select: { id: true },
@@ -610,7 +615,7 @@ async function leaveAppointmentWaitlist(
           application: {
             applicantId: authorization.applicantId,
             applicationNumber: input.applicationNumber,
-            service: permanentLicenceService,
+            service: permanentLicenceServiceName,
           },
         },
         select: { id: true },
@@ -640,7 +645,7 @@ async function lockActiveOwnedOffer(
       AND offer."status" = 'ACTIVE'::"AppointmentOfferStatus"
       AND application."applicantId" = ${applicantId}
       AND application."applicationNumber" = ${input.applicationNumber}
-      AND application."service" = ${permanentLicenceService}
+      AND application."service" = ${permanentLicenceServiceName}
     FOR UPDATE OF offer, entry, application, slot
   `
   return rows[0] ?? null

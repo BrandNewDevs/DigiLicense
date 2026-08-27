@@ -2,17 +2,21 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
-import { Prisma, prisma, WorkflowActor } from "@digilicense/db/server"
+import {
+  addUtcDays,
+  learnerLicenceServiceName,
+  learnerLicenceValidityDays,
+  permanentLicenceServiceName,
+  permanentLicenceWaitingPeriodDays,
+  Prisma,
+  prisma,
+  WorkflowActor,
+} from "@digilicense/db/server"
 
 import type { PermanentLicenceSubmission } from "../validation/permanent-licence"
 import { requireApplicant } from "./demo-session.server"
 import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
-
-const learnerLicenceService = "Learner's licence"
-const permanentLicenceService = "Permanent driving licence"
-const waitingPeriodDays = 30
-const learnerEligibilityValidityDays = 180
 
 type PermanentLicenceReadResult =
   | { kind: "authentication-required"; message: string }
@@ -41,20 +45,6 @@ type PermanentLicenceSubmitResult =
       message: string
       vehicleClass: PermanentLicenceSubmission["vehicleClass"]
     }
-
-function eligibilityDate(passedAt: Date) {
-  const date = new Date(passedAt)
-  date.setUTCDate(date.getUTCDate() + waitingPeriodDays)
-  return date
-}
-
-// This DigiLicense-only deadline is derived from the recorded learner-test
-// result. Applicants never provide it and it is not a government record.
-function learnerEligibilityDeadline(passedAt: Date) {
-  const date = new Date(passedAt)
-  date.setUTCDate(date.getUTCDate() + learnerEligibilityValidityDays)
-  return date
-}
 
 function getLearnerVehicleClass(formPayload: string): string | null {
   try {
@@ -85,7 +75,7 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
       prisma.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
-          service: permanentLicenceService,
+          service: permanentLicenceServiceName,
           status: { notIn: ["APPROVED", "REJECTED"] },
         },
         orderBy: { submittedAt: "desc" },
@@ -94,7 +84,7 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
       prisma.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
-          service: learnerLicenceService,
+          service: learnerLicenceServiceName,
           status: "TEST_PASSED",
         },
         orderBy: { updatedAt: "desc" },
@@ -135,7 +125,10 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
       }
     }
 
-    const eligibleOn = eligibilityDate(learner.updatedAt)
+    const eligibleOn = addUtcDays(
+      learner.updatedAt,
+      permanentLicenceWaitingPeriodDays
+    )
     if (eligibleOn > new Date()) {
       return {
         kind: "waiting-period",
@@ -232,7 +225,7 @@ async function submitPermanentLicenceApplication(
       const learner = await transaction.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
-          service: learnerLicenceService,
+          service: learnerLicenceServiceName,
           status: "TEST_PASSED",
         },
         orderBy: { updatedAt: "desc" },
@@ -257,8 +250,9 @@ async function submitPermanentLicenceApplication(
         data: {
           applicantId: applicant.applicantId,
           learnerApplicationId: learner.id,
-          learnerEligibilityDeadlineAt: learnerEligibilityDeadline(
-            learner.updatedAt
+          learnerEligibilityDeadlineAt: addUtcDays(
+            learner.updatedAt,
+            learnerLicenceValidityDays
           ),
           vehicleClass: learnerVehicleClass,
           idempotencyKey: input.idempotencyKey,
@@ -273,7 +267,7 @@ async function submitPermanentLicenceApplication(
           applicantId: applicant.applicantId,
           applicationNumber: number,
           blockingReasonCode: "APPOINTMENT_PREFERENCES_REQUIRED",
-          service: permanentLicenceService,
+          service: permanentLicenceServiceName,
           status: "WAITLISTED",
           nextAction:
             "Choose driving-test appointment preferences to join the waitlist.",
@@ -344,7 +338,7 @@ async function submitPermanentLicenceApplication(
       const competingApplication = await prisma.application.findFirst({
         where: {
           applicantId: applicant.applicantId,
-          service: permanentLicenceService,
+          service: permanentLicenceServiceName,
           status: { notIn: ["APPROVED", "REJECTED"] },
         },
         orderBy: { submittedAt: "desc" },
