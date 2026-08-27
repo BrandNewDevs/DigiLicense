@@ -1,0 +1,397 @@
+import { Menu } from "@base-ui/react/menu"
+import { Link, useRouterState } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { Bot, Check, ChevronDown, ExternalLink, Send, X } from "lucide-react"
+import { useId, useState } from "react"
+
+import { Button } from "@workspace/ui/components/button"
+import { Textarea } from "@workspace/ui/components/textarea"
+
+import { askAssistant } from "../server-functions/assistant"
+import type { AskAssistantInput } from "../validation/assistant"
+
+type AssistantResult = Awaited<ReturnType<typeof askAssistant>>
+type Locale = AskAssistantInput["locale"]
+type Service = AskAssistantInput["service"]
+type ChatMessage =
+  | { id: string; kind: "question"; text: string }
+  | { id: string; kind: "answer"; result: AssistantResult }
+
+const serviceOptions: ReadonlyArray<{ label: string; value: Service }> = [
+  { label: "Learner's licence", value: "learner-licence" },
+  { label: "Learner's test", value: "learner-test" },
+  { label: "Permanent driving licence", value: "permanent-driving-licence" },
+  { label: "Renewal", value: "renewal" },
+  { label: "Replacement", value: "duplicate-replacement" },
+  { label: "Address change", value: "change-address" },
+  { label: "Mobile update", value: "mobile-update" },
+  { label: "Application status", value: "application-status" },
+  { label: "Fees and payment", value: "fees-payment" },
+  { label: "Driving-test appointment", value: "appointment-waitlist" },
+]
+
+const suggestedQuestions = [
+  "What should I do next?",
+  "Why is this action unavailable?",
+  "How does the appointment waitlist work?",
+] as const
+
+function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
+  const ask = useServerFn(askAssistant)
+  const questionId = useId()
+  const [locale, setLocale] = useState<Locale>("en")
+  const [service, setService] = useState<Service>("appointment-waitlist")
+  const [question, setQuestion] = useState("")
+  const [contextToken, setContextToken] = useState<string>()
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function submitQuestion(value: string) {
+    const trimmedQuestion = value.trim()
+    if (!trimmedQuestion || isSubmitting) return
+
+    setIsSubmitting(true)
+    setMessages((current) => [
+      ...current,
+      { id: crypto.randomUUID(), kind: "question", text: trimmedQuestion },
+    ])
+    setQuestion("")
+    try {
+      const next = await ask({
+        data: {
+          ...(contextToken ? { contextToken } : {}),
+          locale,
+          page: "assistant",
+          question: trimmedQuestion,
+          reasonCode: "NONE",
+          service,
+        },
+      })
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), kind: "answer", result: next },
+      ])
+      if (next.kind !== "authentication-required") {
+        setContextToken(next.response.contextToken ?? undefined)
+      }
+      onAnswered?.()
+    } catch {
+      const fallback: AssistantResult = {
+        kind: "fallback",
+        reason: "unavailable",
+        response: {
+          answer:
+            "Guidance is temporarily unavailable. Review the information on this page and try again later.",
+          blockedReason: "PROVIDER_UNAVAILABLE",
+          contextToken: null,
+          escalation: null,
+          fallbackUsed: true,
+          intent: "UNSUPPORTED_QUESTION",
+          sources: [],
+          uncertain: true,
+        },
+      }
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), kind: "answer", result: fallback },
+      ])
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center justify-between gap-3">
+        <Menu.Root>
+          <Menu.Trigger
+            aria-label="Choose guidance topic"
+            className="inline-flex h-10 max-w-56 min-w-0 items-center gap-2 rounded-full border border-border bg-background px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <span className="truncate">
+              {serviceOptions.find((option) => option.value === service)?.label}
+            </span>
+            <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner
+              align="start"
+              className="z-50"
+              side="bottom"
+              sideOffset={8}
+            >
+              <Menu.Popup className="z-50 max-h-56 w-60 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-lg outline-none">
+                {serviceOptions.map((option) => (
+                  <Menu.Item
+                    className="flex min-h-9 cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-sm outline-none hover:bg-accent focus:bg-accent"
+                    key={option.value}
+                    onClick={() => {
+                      setContextToken(undefined)
+                      setService(option.value)
+                    }}
+                  >
+                    {option.label}
+                    {service === option.value ? (
+                      <Check aria-hidden="true" className="size-4 shrink-0" />
+                    ) : null}
+                  </Menu.Item>
+                ))}
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
+        <div
+          className="flex h-11 items-center rounded-full border border-border bg-background p-1"
+          role="group"
+        >
+          <Button
+            aria-label="English"
+            aria-pressed={locale === "en"}
+            className="h-9 rounded-full px-3"
+            onClick={() => setLocale("en")}
+            size="sm"
+            type="button"
+            variant={locale === "en" ? "solid" : "ghost"}
+          >
+            EN
+          </Button>
+          <Button
+            aria-label="Hindi"
+            aria-pressed={locale === "hi"}
+            className="h-9 rounded-full px-3"
+            onClick={() => setLocale("hi")}
+            size="sm"
+            type="button"
+            variant={locale === "hi" ? "solid" : "ghost"}
+          >
+            हिं
+          </Button>
+        </div>
+      </div>
+
+      {messages.length ? (
+        <section
+          aria-live="polite"
+          className="scrollbar-hidden mt-5 space-y-4 overflow-y-auto"
+        >
+          {messages.map((message) =>
+            message.kind === "question" ? (
+              <p
+                className="ml-auto max-w-[85%] rounded-2xl bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground"
+                key={message.id}
+              >
+                {message.text}
+              </p>
+            ) : (
+              <AssistantAnswer key={message.id} result={message.result} />
+            )
+          )}
+          {isSubmitting ? <AssistantThinkingIndicator /> : null}
+        </section>
+      ) : (
+        <div className="mt-8">
+          <p className="text-center text-sm text-muted-foreground">
+            Try one of these questions
+          </p>
+          <div
+            className="mt-3 flex flex-wrap justify-center gap-2"
+            aria-label="Suggested questions"
+          >
+            {suggestedQuestions.map((suggestion) => (
+              <Button
+                key={suggestion}
+                onClick={() => void submitQuestion(suggestion)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {suggestion}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <form
+        className="mt-auto pt-5"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void submitQuestion(question)
+        }}
+      >
+        <label className="sr-only" htmlFor={questionId}>
+          Your question
+        </label>
+        <div className="flex items-center gap-2 rounded-2xl border border-input bg-background p-2">
+          <Textarea
+            className="min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0"
+            id={questionId}
+            maxLength={500}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="Ask a guidance question..."
+            rows={1}
+            value={question}
+          />
+          <Button
+            aria-label="Send question"
+            className="shrink-0 rounded-full p-0"
+            disabled={!question.trim() || isSubmitting}
+            size="icon-lg"
+            type="submit"
+          >
+            <Send aria-hidden="true" className="size-4" />
+          </Button>
+        </div>
+        <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
+          Do not enter application, identity, contact, document, or payment
+          details.
+        </p>
+      </form>
+    </div>
+  )
+}
+
+function AssistantThinkingIndicator() {
+  return (
+    <div
+      aria-label="Checking guidance"
+      className="flex w-fit items-center gap-2 rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground"
+      role="status"
+    >
+      <Bot aria-hidden="true" className="size-4" />
+      Checking guidance
+      <span aria-hidden="true" className="flex gap-1">
+        <span className="size-1.5 rounded-full bg-muted-foreground motion-safe:animate-bounce" />
+        <span className="size-1.5 rounded-full bg-muted-foreground [animation-delay:150ms] motion-safe:animate-bounce" />
+        <span className="size-1.5 rounded-full bg-muted-foreground [animation-delay:300ms] motion-safe:animate-bounce" />
+      </span>
+    </div>
+  )
+}
+
+function AssistantAnswer({ result }: { result: AssistantResult }) {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const returnTo =
+    pathname === "/" ||
+    pathname === "/dashboard" ||
+    pathname.startsWith("/services")
+      ? pathname
+      : "/services"
+
+  if (result.kind === "authentication-required") {
+    return (
+      <section
+        className="mt-6 rounded-xl border border-border p-4"
+        role="status"
+      >
+        <p>{result.message}</p>
+        <Link
+          className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
+          search={{ returnTo }}
+          to="/applicant/login"
+        >
+          Sign in
+        </Link>
+      </section>
+    )
+  }
+
+  const { response } = result
+  return (
+    <section aria-live="polite" className="mt-6 rounded-xl bg-muted p-5">
+      <p className="text-sm font-semibold text-primary">
+        {response.fallbackUsed ? "Guidance" : "Answer"}
+      </p>
+      <p className="mt-2 leading-7">{response.answer}</p>
+      {response.uncertain ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          This guidance may not cover your situation fully.
+        </p>
+      ) : null}
+      {response.escalation ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          {response.escalation.message}
+        </p>
+      ) : null}
+      {response.sources.length ? (
+        <section aria-labelledby="guidance-sources" className="mt-5">
+          <h3 className="text-sm font-semibold" id="guidance-sources">
+            Sources
+          </h3>
+          <ul className="mt-2 space-y-2 text-sm">
+            {response.sources.map((source) => (
+              <li key={source.id}>
+                <a
+                  className="inline-flex items-center gap-1 underline"
+                  href={source.url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {source.title}
+                  <ExternalLink aria-hidden="true" className="size-3" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </section>
+  )
+}
+
+function ApplicantAssistantLauncher() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <>
+      {isOpen ? (
+        <aside
+          aria-label="DigiLicense guidance assistant"
+          className="fixed inset-0 z-40 flex flex-col border-border bg-background p-6 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Bot aria-hidden="true" className="size-5 text-primary" />
+              DigiLicense guidance
+            </p>
+            <Button
+              aria-label="Close guidance assistant"
+              onClick={() => setIsOpen(false)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <X aria-hidden="true" className="size-6" />
+            </Button>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-5">
+            <div className="mx-auto w-full max-w-xl text-center">
+              <h2 className="text-3xl font-semibold tracking-tight">
+                How can we help?
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Ask about a DigiLicense service in English or Hindi.
+              </p>
+            </div>
+            <div className="mx-auto mt-auto w-full max-w-xl pt-6">
+              <AssistantForm />
+            </div>
+          </div>
+        </aside>
+      ) : null}
+      <Button
+        aria-label="Open guidance assistant"
+        className="fixed right-4 bottom-4 z-30 min-h-12 rounded-full px-4 shadow-lg sm:right-6 sm:bottom-6"
+        onClick={() => setIsOpen(true)}
+        type="button"
+      >
+        <Bot aria-hidden="true" className="size-5" />
+        Get guidance
+      </Button>
+    </>
+  )
+}
+
+export { ApplicantAssistantLauncher }

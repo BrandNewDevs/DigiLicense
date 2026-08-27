@@ -6,7 +6,7 @@ import { MockLoginPage } from "../components/mock-login-page"
 const applicantLoginSearchSchema = z.object({
   returnTo: z
     .string()
-    .regex(/^\/(?:services(?:\/[a-z0-9-]+)?)?$/)
+    .regex(/^\/(?:dashboard|services(?:\/[a-z0-9-]+)?)?$/)
     .catch("/services"),
 })
 
