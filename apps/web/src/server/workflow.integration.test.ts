@@ -157,10 +157,12 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     })
     expect(started.kind).toBe("started")
     if (started.kind !== "started") return
+    expect(started.syntheticOtp).toMatch(/^\d{6}$/)
+    if (!started.syntheticOtp) return
 
     const verified = await verifyAddressChangeOtp({
       idempotencyKey: "00000000-0000-4000-8000-000000000202",
-      otp: "123456",
+      otp: started.syntheticOtp,
       verificationId: started.verificationId,
     })
     expect(verified.kind).toBe("verified")
