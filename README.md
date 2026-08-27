@@ -465,6 +465,38 @@ stylesheet rather than hard-coded colors wherever possible.
 - Replace the placeholder service-page text and client-only tracking redirect
   when the real application and status APIs are available.
 
+## Deploying to Render
+
+DigiLicense includes a Render Blueprint (`render.yaml`) and a production
+Dockerfile (`Dockerfile.render`).
+
+### Steps
+
+1. Push `main` to GitHub.
+2. In the [Render dashboard](https://dashboard.render.com), click **New** →
+   **Blueprint** and connect the repository.
+3. Render detects `render.yaml` and provisions a web service and a free
+   PostgreSQL database.
+4. After the first deploy, set **DIGILICENSE_PUBLIC_ORIGIN** to your Render
+   service URL (for example `https://digilicense.onrender.com`).
+5. Migrations and seed data run automatically on first boot.
+
+### What gets built
+
+`Dockerfile.render` uses a multi-stage build:
+
+| Stage | Purpose |
+| --- | --- |
+| `base` | Install all dependencies, run Prisma generate, build the Vite production bundle |
+| `production` | Install only production dependencies, copy the built `dist/` and generated Prisma client, run `node apps/web/dist/server/server.js` |
+
+### Free tier notes
+
+- Render's free tier spins down after 15 minutes of inactivity. The first
+  request after spin-down takes 30–60 seconds.
+- The free PostgreSQL database is deleted after 90 days of inactivity.
+- For a persistent deployment, upgrade to a paid plan or migrate to Railway.
+
 ## Project status
 
 The current implementation includes server-issued synthetic applicant sessions
