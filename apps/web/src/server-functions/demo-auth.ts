@@ -165,7 +165,10 @@ const readDemoSession = createServerFn({ method: "POST" })
     try {
       const { consumeRateLimit, getRateLimitClientIp } =
         await import("../server/rate-limit.server")
-      const limit = await consumeRateLimit("login-ip", getRateLimitClientIp())
+      const limit = await consumeRateLimit(
+        "session-read-ip",
+        getRateLimitClientIp()
+      )
       if (!limit.allowed) return { authenticated: false }
     } catch {
       return { authenticated: false }
