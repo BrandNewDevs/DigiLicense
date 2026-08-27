@@ -46,6 +46,19 @@ type ApplicationStatusProjection = {
     reference: string | null
     status: PaymentStatus
   } | null
+  serviceOutcome:
+    | {
+        disclosure: string
+        kind: "RENEWAL"
+        previousValidUntil: string
+        renewedValidUntil: string | null
+      }
+    | {
+        disclosure: string
+        kind: "REPLACEMENT"
+        replacementReference: string | null
+      }
+    | null
   appointment: {
     confirmed: {
       confirmedAt: string
@@ -237,6 +250,12 @@ async function lookupAuthorizedApplicationStatus(
           where: { applicantId: authorization.applicantId, status: "UNREAD" },
         },
         service: true,
+        renewalDetail: {
+          select: { previousValidUntil: true, renewedValidUntil: true },
+        },
+        replacementDetail: {
+          select: { replacementReference: true },
+        },
         payments: {
           orderBy: { createdAt: "desc" },
           select: {
@@ -320,6 +339,25 @@ async function lookupAuthorizedApplicationStatus(
             status: payment.status,
           }
         : null,
+      serviceOutcome: record.renewalDetail
+        ? {
+            disclosure:
+              "Recorded by DigiLicense only; no government service was contacted.",
+            kind: "RENEWAL",
+            previousValidUntil:
+              record.renewalDetail.previousValidUntil.toISOString(),
+            renewedValidUntil:
+              record.renewalDetail.renewedValidUntil?.toISOString() ?? null,
+          }
+        : record.replacementDetail
+          ? {
+              disclosure:
+                "Recorded by DigiLicense only; no government service was contacted.",
+              kind: "REPLACEMENT",
+              replacementReference:
+                record.replacementDetail.replacementReference,
+            }
+          : null,
       appointment:
         record.service === "Permanent driving licence"
           ? {
