@@ -3,6 +3,13 @@ import "@tanstack/react-start/server-only"
 export { prisma } from "./db.ts"
 export { processDueAddressChangeReviews } from "./address-change-review.ts"
 export {
+  addUtcDays,
+  learnerLicenceServiceName,
+  learnerLicenceValidityDays,
+  permanentLicenceServiceName,
+  permanentLicenceWaitingPeriodDays,
+} from "./licence-workflow.ts"
+export {
   allocateAvailableAppointmentOffers,
   expireDueAppointmentOffers,
   processAppointmentOfferLifecycle,
