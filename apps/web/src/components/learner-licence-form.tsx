@@ -603,10 +603,7 @@ function LearnerLicenceForm() {
         information above is complete.
       </p>
       {blockedFieldMessage ? (
-        <p
-          className="mt-4 flex items-center gap-3 rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-muted-foreground"
-          role="status"
-        >
+        <p className="mt-4 flex items-center gap-3 rounded-lg bg-muted px-4 py-3 text-sm leading-6 text-muted-foreground">
           <Info aria-hidden="true" className="size-4 shrink-0" />
           {blockedFieldMessage}
         </p>
@@ -737,14 +734,6 @@ function LearnerLicenceForm() {
         </>
 
         <>
-          {errors.dateOfBirth ? (
-            <div
-              className="rounded-xl border border-destructive/40 p-4 text-sm leading-6 text-destructive"
-              role="alert"
-            >
-              {errors.dateOfBirth}
-            </div>
-          ) : null}
           <fieldset
             aria-disabled={!isPersonalComplete}
             className={`scroll-mt-24 ${!isPersonalComplete ? "opacity-60" : ""}`}
