@@ -6,6 +6,7 @@ import { CalendarCheck, Clock, MapPin } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { useAssistantPublicContextOverride } from "../lib/assistant-public-context"
 
 import {
   acceptAppointmentOffer,
@@ -121,6 +122,24 @@ function AppointmentFlow({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isEditingPreferences, setIsEditingPreferences] = useState(false)
   const [actionMessage, setActionMessage] = useState("")
+  useAssistantPublicContextOverride({
+    page:
+      phase === "offer"
+        ? "appointment-offer"
+        : phase === "waitlisted" || phase === "cooldown"
+          ? "appointment-waitlist"
+          : "appointment-booking",
+    reasonCode:
+      phase === "offer"
+        ? "OFFER_PENDING"
+        : phase === "waitlisted"
+          ? "WAITLIST_ACTIVE"
+          : phase === "cooldown"
+            ? "OFFER_EXPIRED"
+            : phase === "preferences"
+              ? "PREPARATION_REQUIRED"
+              : "NONE",
+  })
 
   useEffect(() => {
     let cancelled = false

@@ -2,12 +2,13 @@ import { Menu } from "@base-ui/react/menu"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Bot, Check, ChevronDown, ExternalLink, Send, X } from "lucide-react"
-import { useId, useState } from "react"
+import { useEffect, useId, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
 
 import { questionContainsSensitiveData } from "../lib/assistant-safety"
+import { useAssistantPublicContext } from "../lib/assistant-public-context"
 import { askAssistant } from "../server-functions/assistant"
 import type { AskAssistantInput } from "../validation/assistant"
 
@@ -69,13 +70,22 @@ function clientFallback(
 
 function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
   const ask = useServerFn(askAssistant)
+  const publicContext = useAssistantPublicContext()
   const questionId = useId()
   const [locale, setLocale] = useState<Locale>("en")
-  const [service, setService] = useState<Service>("appointment-waitlist")
+  const [selectedService, setSelectedService] = useState<Service>()
   const [question, setQuestion] = useState("")
   const [contextToken, setContextToken] = useState<string>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const service = selectedService ?? publicContext.service
+  const usesRouteContext =
+    selectedService === undefined || selectedService === publicContext.service
+
+  useEffect(() => {
+    setSelectedService(undefined)
+    setContextToken(undefined)
+  }, [publicContext.page, publicContext.reasonCode, publicContext.service])
 
   async function submitQuestion(value: string) {
     const trimmedQuestion = value.trim()
@@ -103,9 +113,9 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
         data: {
           ...(contextToken ? { contextToken } : {}),
           locale,
-          page: "assistant",
+          page: usesRouteContext ? publicContext.page : "assistant",
           question: trimmedQuestion,
-          reasonCode: "NONE",
+          reasonCode: usesRouteContext ? publicContext.reasonCode : "NONE",
           service,
         },
       })
@@ -155,7 +165,7 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
                     key={option.value}
                     onClick={() => {
                       setContextToken(undefined)
-                      setService(option.value)
+                      setSelectedService(option.value)
                     }}
                   >
                     {option.label}
@@ -176,7 +186,10 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
             aria-label="English"
             aria-pressed={locale === "en"}
             className="h-9 rounded-full px-3"
-            onClick={() => setLocale("en")}
+            onClick={() => {
+              setContextToken(undefined)
+              setLocale("en")
+            }}
             size="sm"
             type="button"
             variant={locale === "en" ? "solid" : "ghost"}
@@ -187,7 +200,10 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
             aria-label="Hindi"
             aria-pressed={locale === "hi"}
             className="h-9 rounded-full px-3"
-            onClick={() => setLocale("hi")}
+            onClick={() => {
+              setContextToken(undefined)
+              setLocale("hi")
+            }}
             size="sm"
             type="button"
             variant={locale === "hi" ? "solid" : "ghost"}
@@ -341,6 +357,11 @@ function AssistantAnswer({ result }: { result: AssistantResult }) {
       {response.escalation ? (
         <p className="mt-3 text-sm text-muted-foreground">
           {response.escalation.message}
+        </p>
+      ) : null}
+      {result.kind === "fallback" && result.retryAfterSeconds ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Try again in about {result.retryAfterSeconds} seconds.
         </p>
       ) : null}
       {response.sources.length ? (

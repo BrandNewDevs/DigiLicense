@@ -11,6 +11,10 @@ import {
   markApplicationNotificationRead,
 } from "../server-functions/application-status"
 import { applicationLookupSchema } from "../validation/application-status"
+import {
+  getAssistantReasonForBlockingCode,
+  useAssistantPublicContextOverride,
+} from "../lib/assistant-public-context"
 
 type StatusResult = {
   application: {
@@ -55,6 +59,9 @@ function ApplicationStatusFlow() {
   const [notificationMessage, setNotificationMessage] = useState("")
   const [authenticationRequired, setAuthenticationRequired] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  useAssistantPublicContextOverride({
+    reasonCode: getAssistantReasonForBlockingCode(result?.blockingReason?.code),
+  })
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
