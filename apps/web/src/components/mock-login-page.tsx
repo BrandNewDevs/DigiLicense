@@ -47,7 +47,9 @@ function MockLoginPage({ onOpenChange, open, returnTo }: MockLoginPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [otp, setOtp] = useState<string>(mockCredentials.applicant.otp)
   const destination =
-    returnTo === "/" || returnTo?.startsWith("/services")
+    returnTo === "/" ||
+    returnTo === "/dashboard" ||
+    returnTo?.startsWith("/services")
       ? returnTo
       : "/services"
 

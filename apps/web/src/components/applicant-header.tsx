@@ -132,7 +132,7 @@ function ApplicantHeader() {
             </Link>
 
             <Button
-              className="hidden h-10 w-80 justify-start rounded-lg border-border bg-muted px-3 text-muted-foreground hover:bg-accent hover:text-foreground md:flex"
+              className="hidden h-10 w-72 justify-start rounded-lg border-border bg-muted px-3 text-muted-foreground hover:bg-accent hover:text-foreground md:flex"
               onClick={openSearch}
               type="button"
               variant="outline"
