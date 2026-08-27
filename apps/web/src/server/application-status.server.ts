@@ -6,6 +6,7 @@ import type {
   ApplicationStatus,
   DocumentStatus,
   DocumentType,
+  PaymentStatus,
 } from "@digilicense/db/server"
 
 import {
@@ -36,6 +37,28 @@ type ApplicationStatusProjection = {
   }
   deadline: { kind: "EXPECTED_REVIEW_BY"; at: string; overdue: boolean } | null
   blockingReason: { code: ApplicationBlockingReason; message: string } | null
+  payment: {
+    amountPaise: number
+    catalogueCode: string
+    catalogueVersion: string
+    completedAt: string | null
+    disclosure: string
+    reference: string | null
+    status: PaymentStatus
+  } | null
+  serviceOutcome:
+    | {
+        disclosure: string
+        kind: "RENEWAL"
+        previousValidUntil: string
+        renewedValidUntil: string | null
+      }
+    | {
+        disclosure: string
+        kind: "REPLACEMENT"
+        replacementReference: string | null
+      }
+    | null
   appointment: {
     confirmed: {
       confirmedAt: string
@@ -227,6 +250,24 @@ async function lookupAuthorizedApplicationStatus(
           where: { applicantId: authorization.applicantId, status: "UNREAD" },
         },
         service: true,
+        renewalDetail: {
+          select: { previousValidUntil: true, renewedValidUntil: true },
+        },
+        replacementDetail: {
+          select: { replacementReference: true },
+        },
+        payments: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            amountPaise: true,
+            completedAt: true,
+            feeSchedule: { select: { code: true } },
+            feeScheduleVersion: true,
+            reference: true,
+            status: true,
+          },
+          take: 1,
+        },
         status: true,
         statusDeadlineAt: true,
         submittedAt: true,
@@ -264,6 +305,7 @@ async function lookupAuthorizedApplicationStatus(
     const waitlistEntry = record.appointmentWaitlistEntries.at(0)
     const activeOffer = waitlistEntry?.offers.at(0)
     const confirmedAppointment = record.confirmedAppointment
+    const payment = record.payments.at(0)
 
     return {
       kind: "found",
@@ -285,6 +327,37 @@ async function lookupAuthorizedApplicationStatus(
             message: getBlockingReasonMessage(record.blockingReasonCode),
           }
         : null,
+      payment: payment
+        ? {
+            amountPaise: payment.amountPaise,
+            catalogueCode: payment.feeSchedule?.code ?? "LEGACY-PAYMENT",
+            catalogueVersion: payment.feeScheduleVersion ?? "legacy",
+            completedAt: payment.completedAt?.toISOString() ?? null,
+            disclosure:
+              "Recorded by DigiLicense only; no government service or payment provider was contacted.",
+            reference: payment.reference,
+            status: payment.status,
+          }
+        : null,
+      serviceOutcome: record.renewalDetail
+        ? {
+            disclosure:
+              "Recorded by DigiLicense only; no government service was contacted.",
+            kind: "RENEWAL",
+            previousValidUntil:
+              record.renewalDetail.previousValidUntil.toISOString(),
+            renewedValidUntil:
+              record.renewalDetail.renewedValidUntil?.toISOString() ?? null,
+          }
+        : record.replacementDetail
+          ? {
+              disclosure:
+                "Recorded by DigiLicense only; no government service was contacted.",
+              kind: "REPLACEMENT",
+              replacementReference:
+                record.replacementDetail.replacementReference,
+            }
+          : null,
       appointment:
         record.service === "Permanent driving licence"
           ? {

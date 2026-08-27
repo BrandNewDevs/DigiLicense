@@ -52,6 +52,8 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
   it("persists an owned learner application with all workflow records", async () => {
     const { submitLearnerLicenceApplication } =
       await import("./learner-licence.server")
+    const { resolveApplicationPayment, startApplicationPayment } =
+      await import("./payment.server")
     const { prisma } = await import("@digilicense/db/server")
 
     const result = await submitLearnerLicenceApplication(validLearnerSubmission)
@@ -59,7 +61,7 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     expect(result.kind).toBe("submitted")
     if (result.kind !== "submitted") return
 
-    const application = await prisma.application.findUniqueOrThrow({
+    const submitted = await prisma.application.findUniqueOrThrow({
       where: { applicationNumber: result.applicationNumber },
       include: {
         auditEvents: true,
@@ -69,11 +71,44 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
       },
     })
 
-    expect(application.applicantId).toBe(getIntegrationApplicantId("a"))
-    expect(application.documents).toHaveLength(3)
-    expect(application.workflowEvents).toHaveLength(2)
-    expect(application.notifications).toHaveLength(1)
-    expect(application.auditEvents).toHaveLength(1)
+    expect(submitted.applicantId).toBe(getIntegrationApplicantId("a"))
+    expect(submitted.status).toBe("PAYMENT_REVIEW")
+    expect(submitted.documents).toHaveLength(3)
+    expect(submitted.workflowEvents).toHaveLength(1)
+
+    const payment = await startApplicationPayment({
+      applicationNumber: result.applicationNumber,
+      idempotencyKey: "00000000-0000-4000-8000-000000000010",
+    })
+    if (payment.kind !== "started") throw new Error("Expected payment start")
+    await expect(
+      resolveApplicationPayment({
+        applicationNumber: result.applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000011",
+        outcome: "SUCCESS",
+        paymentId: payment.payment.id,
+      })
+    ).resolves.toMatchObject({
+      applicationStatus: "DOCUMENTS_VERIFIED",
+      kind: "paid",
+    })
+
+    const completed = await prisma.application.findUniqueOrThrow({
+      where: { applicationNumber: result.applicationNumber },
+      include: {
+        auditEvents: true,
+        documents: true,
+        notifications: true,
+        workflowEvents: true,
+      },
+    })
+    expect(completed.status).toBe("DOCUMENTS_VERIFIED")
+    expect(
+      completed.documents.every((record) => record.status === "ACCEPTED")
+    ).toBe(true)
+    expect(completed.workflowEvents).toHaveLength(3)
+    expect(completed.notifications).toHaveLength(2)
+    expect(completed.auditEvents).toHaveLength(3)
   })
 
   it("enforces the active-application guard when submits race", async () => {
@@ -137,7 +172,10 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
       method: "OTP",
       targetMobileNumber: "9000000009",
     })
-    expect(replayed).toMatchObject({ kind: "started", requestId: start.requestId })
+    expect(replayed).toMatchObject({
+      kind: "started",
+      requestId: start.requestId,
+    })
     if (replayed.kind !== "started") return
     expect(replayed.syntheticOtp).toMatch(/^\d{6}$/)
 
@@ -178,6 +216,8 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
       submitAddressChangeApplication,
       verifyAddressChangeOtp,
     } = await import("./address-change.server")
+    const { resolveApplicationPayment, startApplicationPayment } =
+      await import("./payment.server")
     const licence = await prisma.drivingLicenceRecord.findUniqueOrThrow({
       where: { licenceNumber: integrationApplicants.a.licenceNumber },
     })
@@ -226,6 +266,23 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     expect(submission.kind).toBe("submitted")
     if (submission.kind !== "submitted") return
 
+    const payment = await startApplicationPayment({
+      applicationNumber: submission.applicationNumber,
+      idempotencyKey: "00000000-0000-4000-8000-000000000204",
+    })
+    if (payment.kind !== "started") throw new Error("Expected payment start")
+    await expect(
+      resolveApplicationPayment({
+        applicationNumber: submission.applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000205",
+        outcome: "SUCCESS",
+        paymentId: payment.payment.id,
+      })
+    ).resolves.toMatchObject({
+      applicationStatus: "DOCUMENT_REVIEW",
+      kind: "paid",
+    })
+
     await prisma.application.update({
       where: { applicationNumber: submission.applicationNumber },
       data: { statusDeadlineAt: new Date(Date.now() - 1_000) },
@@ -253,9 +310,9 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
     expect(application.statusDeadlineAt).toBeNull()
     expect(application.documents).toHaveLength(1)
     expect(application.documents[0]?.status).toBe("ACCEPTED")
-    expect(application.workflowEvents).toHaveLength(3)
-    expect(application.notifications).toHaveLength(2)
-    expect(application.auditEvents).toHaveLength(2)
+    expect(application.workflowEvents).toHaveLength(5)
+    expect(application.notifications).toHaveLength(3)
+    expect(application.auditEvents).toHaveLength(4)
     expect(refreshedLicence.currentAddressSummary).toBe("DWARKA, Delhi 110075")
   })
 
