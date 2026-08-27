@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { ArrowUpRight } from "lucide-react"
+import { ArrowLeft, ArrowUpRight } from "lucide-react"
 
 import { services } from "../lib/services"
 import type { ServiceDefinition, ServiceId } from "../lib/services"
@@ -13,7 +13,15 @@ function ServicesPage() {
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       <main className="flex-1" id="main-content">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div className="max-w-2xl">
+          <Link
+            className="inline-flex min-h-11 items-center gap-2 text-base text-muted-foreground underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            to="/"
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            Back to home
+          </Link>
+
+          <div className="mt-8 max-w-2xl">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               Services
             </h1>

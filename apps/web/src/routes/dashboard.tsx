@@ -1,6 +1,12 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Bell, CalendarDays, ChevronRight, ClipboardList } from "lucide-react"
+import {
+  ArrowLeft,
+  Bell,
+  CalendarDays,
+  ChevronRight,
+  ClipboardList,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -64,7 +70,15 @@ function DashboardContent() {
       className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 sm:py-14"
       id="main-content"
     >
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <Link
+        className="inline-flex min-h-11 items-center gap-2 text-base text-muted-foreground underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+        to="/"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" />
+        Back to home
+      </Link>
+
+      <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">
             Applicant account
@@ -155,7 +169,7 @@ function DashboardApplications({
           </h2>
           <Link
             className="text-sm font-medium underline"
-            params={{ serviceId: "application-status" }}
+            params={{ serviceId: "track-application" }}
             to="/services/$serviceId"
           >
             Track an application

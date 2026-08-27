@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   ChevronDown,
   CircleUserRound,
+  LayoutDashboard,
   House,
   LogOut,
   Menu,
@@ -85,16 +86,17 @@ function ApplicantHeader() {
           Account
           <ChevronDown aria-hidden="true" className="size-4" />
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-52 p-1.5">
+        <PopoverContent align="end" className="w-44 p-1">
           <Link
-            className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="flex min-h-9 items-center gap-2 rounded-md px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             onClick={() => setIsMenuOpen(false)}
             to="/dashboard"
           >
+            <LayoutDashboard aria-hidden="true" className="size-4" />
             Dashboard
           </Link>
           <button
-            className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
+            className="flex min-h-9 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
             disabled={isSigningOut}
             onClick={() => void signOut()}
             type="button"
