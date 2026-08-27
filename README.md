@@ -496,14 +496,28 @@ Dockerfile (`Dockerfile.render`).
    **Blueprint** and connect the repository.
 3. Render detects `render.yaml` and provisions a web service and a Starter
    PostgreSQL database.
-4. After the first deploy, set the following in the Render dashboard:
+4. During Blueprint creation, provide the following server-only values:
+   - **DIGILICENSE_AI_OPENAI_API_KEY** — a credential from the dedicated,
+     budget-controlled OpenAI project
+   - **DIGILICENSE_AI_OPENAI_PROJECT_ID** — that dedicated project ID
+5. After the first deploy, set the following in the Render dashboard:
    - **DIGILICENSE_PUBLIC_ORIGIN** — your Render service URL (for example
      `https://digilicense.onrender.com`)
    - **DIGILICENSE_DEMO_APPLICANT_OTP** — a random 6-digit sign-in passcode
      (rotate by updating the value and redeploying)
-5. On every deploy, `docker/render-start.sh` runs `prisma migrate deploy` and
+6. On every deploy, `docker/render-start.sh` runs `prisma migrate deploy` and
    then seeds the idempotent synthetic records before starting the server. The
    server does not start until both commands complete without error.
+
+The Blueprint deploys `digilicense-ai` separately from the web application.
+Render supplies its managed HTTPS URL to the web server as
+`DIGILICENSE_AI_BASE_URL`, generates one service bearer credential, and copies
+that same credential to the web server as
+`DIGILICENSE_AI_SERVICE_BEARER_TOKEN`. These values remain server-only. The AI
+service has no product database credential, rejects browser and preflight
+requests, and requires the bearer credential on its message endpoint. Its
+publicly routable Render address is an encrypted service perimeter, not a
+browser API.
 
 ### What gets built
 

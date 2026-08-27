@@ -227,10 +227,11 @@ All variables use the `DIGILICENSE_AI_` prefix.
 | `evaluation` | Controlled OpenAI comparison with fake upstream fixtures available |
 | `production` | Validates the final safe backend combination |
 
-Production configuration is accepted only when it selects local DLP, local semantic context,
-local intent routing, local BM25 retrieval, OpenAI, dedicated project credentials, and confirmed
-provider budget controls. The current container still fails honestly for the not-yet-implemented
-local semantic-context and intent components rather than silently substituting fake behavior.
+Production configuration is accepted only when it selects local DLP, signed local semantic
+context, local intent routing, local BM25 retrieval, OpenAI, dedicated project credentials, and
+confirmed provider budget controls. The root Render Blueprint deploys this container separately,
+uses Render-managed HTTPS, generates the service credential once, and injects the same credential
+into the TanStack Start server without exposing it to the browser.
 The prototype deployment runs one Uvicorn worker because the Phase 7 rate-limit and daily-budget
 guards are process-local; multiple workers require a shared atomic quota store before scaling out.
 When TLS terminates at a reverse proxy, that proxy must be the trusted component that sets the
