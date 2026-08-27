@@ -11,34 +11,34 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [x] Keep the demo focused on a single synthetic applicant login
 - [x] Add server-side sessions, rate limits, CSRF/origin enforcement, and security headers through TanStack Start server code
 - [x] Configure PostgreSQL with Prisma 7.9.1, define the Prisma schema, generate and apply migrations, and create synthetic seed data. Provide a reproducible local Docker PostgreSQL setup with a browser-based Adminer viewer.
-- [ ] Define shared application, workflow, document, payment, appointment, notification, and audit models (application, workflow-event, audit-event, draft, document, payment, and notification models exist; the appointment inventory model remains)
+- [x] Define shared application, workflow, document, payment, appointment, notification, and audit models
 
 ## Ten core capabilities
 
 - [x] 1. New learner's-licence application (guided multi-step form, server-validated eligibility, persisted drafts with seven-day retention, transactional submission with duplicate-application guard)
 - [x] 2. Simulated learner's test, result, and retest flow
-- [ ] 3. New permanent driving-licence application with waiting-period eligibility
+- [x] 3. New permanent driving-licence application with waiting-period eligibility
 - [ ] 4. Driving-licence renewal application
 - [ ] 5. Duplicate or replacement driving-licence application
 - [x] 6. Driving-licence address-change application (owned licence verification, short-lived OTP challenge, persisted submission, and automatic DigiLicense-only proof review)
 - [x] 7. Mobile-number update with simulated OTP and optional mock Aadhaar authentication
 - [x] 8. Application status, deadlines, blocking reasons, history, document states, and application-scoped unread notifications
 - [ ] 9. Fee schedule, calculated fees, simulated payment, and payment status
-- [ ] 10. Appointment booking for applicable services, including the driving-test waitlist
+- [x] 10. Appointment booking for applicable services, including the driving-test waitlist
 
 ## Featured appointment workflow
 
-- [ ] Add appointment inventory, Delhi zones, vehicle classes, dates, and time preferences
-- [ ] Add waitlist joining, editing, leaving, and status views
-- [ ] Rank matching applicants by licence-expiry urgency and waitlist join time
-- [ ] Create temporary offers with a 30-minute expiry and in-app notification
-- [ ] Support offer acceptance, rejection, expiry, slot release, and reallocation
-- [ ] Prevent active-offer conflicts and appointment double booking with transactions and constraints
+- [x] Add appointment inventory, Delhi zones, vehicle classes, dates, and time preferences
+- [x] Add waitlist joining, editing, leaving, and status views
+- [x] Rank matching applicants by licence-expiry urgency and waitlist join time
+- [x] Create temporary offers with a 30-minute expiry and in-app notification
+- [x] Support offer acceptance, rejection, expiry, slot release, and reallocation
+- [x] Prevent active-offer conflicts and appointment double booking with transactions and constraints
 - [ ] Show the confirmed appointment and preparation checklist
 
 ## Applicant frontend
 
-- [ ] Build a dashboard centered on current status and one primary next action
+- [x] Build a dashboard centered on current status and one primary next action
 - [ ] Build reusable guided-form, validation, document, payment, status, and appointment components
 - [ ] Add clear mock labels, deadlines, locked-state explanations, notifications, and completed-step history
 - [ ] Support keyboard navigation, visible focus, screen-reader status announcements, and reduced motion
@@ -56,7 +56,7 @@ DigiLicense is a Delhi-only, independent driving-licence service prototype. The 
 - [ ] Implement reusable server-validated workflow definitions for all ten capabilities (the learner's-licence submission flow currently records automatic simulated checks)
 - [x] Persist drafts, submissions, status changes, application blockers/deadlines, and immutable workflow events (validation-result persistence remains service-specific)
 - [ ] Add document checks, payments, notifications, and government-action markers across every remaining service (learner, mobile, address, and status records cover the implemented workflows)
-- [ ] Implement transactional appointment allocation, offer expiry, and confirmation
+- [x] Implement transactional appointment allocation, offer expiry, and confirmation
 - [x] Add append-only workflow and application-submission audit events
 - [x] Add safe logs, CSRF protection, input validation, secure cookies, and secret isolation (CSRF/origin enforcement, input validation, secure cookies, secret isolation, TLS-required database URLs, security headers, and structured dependency/security-failure logging done)
 - [ ] Add broader metrics and alerts (the address-review worker currently emits sanitized completion/failure telemetry and exits non-zero on failure)
@@ -117,7 +117,7 @@ keys, and is not published to browser clients.
 - [ ] Test valid, invalid, and unauthorized workflow transitions (serial PostgreSQL integration coverage now exercises learner persistence, applicant isolation, mobile OTP locking, and concurrent address-review completion; remaining service and failure-path coverage is outstanding)
 - [ ] Test learner-licence waiting-period and expiry boundaries
 - [ ] Test drafts, validation, payments, notifications, and audit-event creation
-- [ ] Test waitlist matching, priority ordering, offer lifecycle, and concurrent booking attempts
+- [x] Test waitlist matching, priority ordering, offer lifecycle, and concurrent booking attempts
 - [x] Test AI citations, Hindi/English responses, privacy filtering, injection attempts, timeouts,
   fallback, retrieval allowlists, context tampering, provider payload safety, output safety, and
   concurrent fake-provider behavior.
@@ -130,7 +130,7 @@ keys, and is not published to browser clients.
 
 - [ ] Deploy the TanStack Start app to an SSR and server-function capable runtime, along with the Neon database and private AI service
 - [ ] Verify production security settings, mock labels, and independent-prototype disclosures
-- [ ] Seed safe demo credentials and resettable synthetic scenarios
+- [x] Seed safe demo credentials and resettable synthetic scenarios
 - [ ] Verify all public links and the complete demo flow while signed out
 - [ ] Document what is functional, what is simulated, current limitations, and safe scale-up design
 - [ ] Record the submission video around the learner-to-driving-test appointment journey
