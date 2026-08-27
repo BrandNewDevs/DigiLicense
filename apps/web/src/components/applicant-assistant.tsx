@@ -2,12 +2,14 @@ import { Menu } from "@base-ui/react/menu"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Bot, Check, ChevronDown, ExternalLink, Send, X } from "lucide-react"
-import { useId, useState } from "react"
+import { useEffect, useId, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
 
+import { formatAssistantRetryMessage } from "../lib/assistant-copy"
 import { questionContainsSensitiveData } from "../lib/assistant-safety"
+import { useAssistantPublicContext } from "../lib/assistant-public-context"
 import { askAssistant } from "../server-functions/assistant"
 import type { AskAssistantInput } from "../validation/assistant"
 
@@ -16,7 +18,12 @@ type Locale = AskAssistantInput["locale"]
 type Service = AskAssistantInput["service"]
 type ChatMessage =
   | { id: string; kind: "question"; text: string }
-  | { id: string; kind: "answer"; result: AssistantResult }
+  | {
+      id: string
+      kind: "answer"
+      locale: Locale
+      result: AssistantResult
+    }
 
 const serviceOptions: ReadonlyArray<{ label: string; value: Service }> = [
   { label: "Learner's licence", value: "learner-licence" },
@@ -69,13 +76,24 @@ function clientFallback(
 
 function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
   const ask = useServerFn(askAssistant)
+  const publicContext = useAssistantPublicContext()
   const questionId = useId()
   const [locale, setLocale] = useState<Locale>("en")
-  const [service, setService] = useState<Service>("appointment-waitlist")
+  const [selectedService, setSelectedService] = useState<Service>()
   const [question, setQuestion] = useState("")
   const [contextToken, setContextToken] = useState<string>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const service = selectedService ?? publicContext.service
+  // Re-selecting the visible route topic is a no-op. Only a different topic
+  // discards the route's known page and blocking reason.
+  const usesRouteContext =
+    selectedService === undefined || selectedService === publicContext.service
+
+  useEffect(() => {
+    setSelectedService(undefined)
+    setContextToken(undefined)
+  }, [publicContext.page, publicContext.reasonCode, publicContext.service])
 
   async function submitQuestion(value: string) {
     const trimmedQuestion = value.trim()
@@ -86,7 +104,12 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
       setMessages((current) => [
         ...current,
         { id: crypto.randomUUID(), kind: "question", text: trimmedQuestion },
-        { id: crypto.randomUUID(), kind: "answer", result: fallback },
+        {
+          id: crypto.randomUUID(),
+          kind: "answer",
+          locale,
+          result: fallback,
+        },
       ])
       setQuestion("")
       return
@@ -103,15 +126,15 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
         data: {
           ...(contextToken ? { contextToken } : {}),
           locale,
-          page: "assistant",
+          page: usesRouteContext ? publicContext.page : "assistant",
           question: trimmedQuestion,
-          reasonCode: "NONE",
+          reasonCode: usesRouteContext ? publicContext.reasonCode : "NONE",
           service,
         },
       })
       setMessages((current) => [
         ...current,
-        { id: crypto.randomUUID(), kind: "answer", result: next },
+        { id: crypto.randomUUID(), kind: "answer", locale, result: next },
       ])
       if (next.kind !== "authentication-required") {
         setContextToken(next.response.contextToken ?? undefined)
@@ -121,7 +144,7 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
       const fallback = clientFallback(locale, "unavailable")
       setMessages((current) => [
         ...current,
-        { id: crypto.randomUUID(), kind: "answer", result: fallback },
+        { id: crypto.randomUUID(), kind: "answer", locale, result: fallback },
       ])
     } finally {
       setIsSubmitting(false)
@@ -155,7 +178,7 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
                     key={option.value}
                     onClick={() => {
                       setContextToken(undefined)
-                      setService(option.value)
+                      setSelectedService(option.value)
                     }}
                   >
                     {option.label}
@@ -176,7 +199,10 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
             aria-label="English"
             aria-pressed={locale === "en"}
             className="h-9 rounded-full px-3"
-            onClick={() => setLocale("en")}
+            onClick={() => {
+              setContextToken(undefined)
+              setLocale("en")
+            }}
             size="sm"
             type="button"
             variant={locale === "en" ? "solid" : "ghost"}
@@ -187,7 +213,10 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
             aria-label="Hindi"
             aria-pressed={locale === "hi"}
             className="h-9 rounded-full px-3"
-            onClick={() => setLocale("hi")}
+            onClick={() => {
+              setContextToken(undefined)
+              setLocale("hi")
+            }}
             size="sm"
             type="button"
             variant={locale === "hi" ? "solid" : "ghost"}
@@ -211,7 +240,11 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
                 {message.text}
               </p>
             ) : (
-              <AssistantAnswer key={message.id} result={message.result} />
+              <AssistantAnswer
+                key={message.id}
+                locale={message.locale}
+                result={message.result}
+              />
             )
           )}
           {isSubmitting ? <AssistantThinkingIndicator /> : null}
@@ -297,7 +330,13 @@ function AssistantThinkingIndicator() {
   )
 }
 
-function AssistantAnswer({ result }: { result: AssistantResult }) {
+function AssistantAnswer({
+  locale,
+  result,
+}: {
+  locale: Locale
+  result: AssistantResult
+}) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -341,6 +380,11 @@ function AssistantAnswer({ result }: { result: AssistantResult }) {
       {response.escalation ? (
         <p className="mt-3 text-sm text-muted-foreground">
           {response.escalation.message}
+        </p>
+      ) : null}
+      {result.kind === "fallback" && result.retryAfterSeconds ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          {formatAssistantRetryMessage(locale, result.retryAfterSeconds)}
         </p>
       ) : null}
       {response.sources.length ? (

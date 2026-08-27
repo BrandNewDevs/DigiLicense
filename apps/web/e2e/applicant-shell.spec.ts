@@ -40,6 +40,7 @@ test("an applicant can establish a server session and open the dashboard", async
   page,
 }) => {
   await page.goto("/dashboard")
+  await page.waitForLoadState("networkidle")
   await expect(
     page.getByRole("heading", { name: "Sign in", exact: true })
   ).toBeVisible()
@@ -52,4 +53,42 @@ test("an applicant can establish a server session and open the dashboard", async
   await expect(
     page.getByText("Your dashboard is temporarily unavailable.")
   ).toHaveCount(0)
+})
+
+test("a signed-in applicant receives cited guidance through FastAPI", async ({
+  page,
+}) => {
+  await page.goto("/dashboard")
+  await page.waitForLoadState("networkidle")
+  await page.getByRole("button", { name: "Sign in", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Your dashboard" })
+  ).toBeVisible()
+
+  await page.goto("/services/appointments")
+  await page.waitForLoadState("networkidle")
+  await page.getByRole("button", { name: "Open guidance assistant" }).click()
+  await expect(
+    page.getByRole("complementary", {
+      name: "DigiLicense guidance assistant",
+    })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Choose guidance topic" })
+  ).toContainText("Driving-test appointment")
+
+  await page
+    .getByRole("textbox", { name: "Your question" })
+    .fill("How does the appointment waitlist work?")
+  await page.getByRole("button", { name: "Send question" }).click()
+
+  await expect(page.getByText("Answer", { exact: true })).toBeVisible()
+  await expect(
+    page.getByText(
+      "This is deterministic guidance. No external AI service was called. This is simulated prototype behavior."
+    )
+  ).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: /DigiLicense prototype behavior/ })
+  ).toBeVisible()
 })
