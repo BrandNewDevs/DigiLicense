@@ -62,25 +62,38 @@ const feeSchedules = [
   },
 ] as const
 
-for (const fee of feeSchedules) {
-  await prisma.feeSchedule.upsert({
+await prisma.$transaction(async (transaction) => {
+  // Integration and local environments can already contain a different
+  // active catalogue version. Retain those rows as fee history while making
+  // the resettable seed catalogue the sole active version for each service.
+  await transaction.feeSchedule.updateMany({
     where: {
-      code_version: { code: fee.code, version: feeCatalogueVersion },
-    },
-    update: {
       active: true,
-      amountPaise: fee.amountPaise,
-      effectiveFrom: feeCatalogueEffectiveFrom,
-      service: fee.service,
+      service: { in: feeSchedules.map((fee) => fee.service) },
     },
-    create: {
-      ...fee,
-      active: true,
-      effectiveFrom: feeCatalogueEffectiveFrom,
-      version: feeCatalogueVersion,
-    },
+    data: { active: false },
   })
-}
+
+  for (const fee of feeSchedules) {
+    await transaction.feeSchedule.upsert({
+      where: {
+        code_version: { code: fee.code, version: feeCatalogueVersion },
+      },
+      update: {
+        active: true,
+        amountPaise: fee.amountPaise,
+        effectiveFrom: feeCatalogueEffectiveFrom,
+        service: fee.service,
+      },
+      create: {
+        ...fee,
+        active: true,
+        effectiveFrom: feeCatalogueEffectiveFrom,
+        version: feeCatalogueVersion,
+      },
+    })
+  }
+})
 
 const applicantAccounts = [
   { id: "demo-applicant-001", mobileNumber: "9000000001" },
