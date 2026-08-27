@@ -162,4 +162,123 @@ describe.sequential("PostgreSQL permanent appointment workflow", () => {
       })
     ).resolves.toBe(1)
   })
+
+  it("does not disclose or mutate another applicant's appointment journey", async () => {
+    const { allocateAvailableAppointmentOffers, prisma } =
+      await import("@digilicense/db/server")
+    const {
+      acceptAppointmentOffer,
+      readAppointmentJourney,
+      saveAppointmentPreferences,
+    } = await import("./appointment.server")
+    const applicationNumber = await createPermanentApplication()
+    await saveAppointmentPreferences({
+      applicationNumber,
+      idempotencyKey: "00000000-0000-4000-8000-000000000711",
+      notificationChannels: ["SMS"],
+      zones: ["CENTRAL_DELHI"],
+    })
+    await prisma.appointmentSlot.create({
+      data: {
+        endsAt: new Date(Date.now() + 26 * 60 * 60_000),
+        inventoryKey: "integration-authorization-slot",
+        startsAt: new Date(Date.now() + 25 * 60 * 60_000),
+        vehicleClass: "LIGHT_MOTOR_VEHICLE",
+        zone: "CENTRAL_DELHI",
+      },
+    })
+    await allocateAvailableAppointmentOffers()
+    const ownerJourney = await readAppointmentJourney(applicationNumber)
+    if (ownerJourney.kind !== "found" || !ownerJourney.offer)
+      throw new Error("Expected an offer owned by applicant A")
+
+    authenticatedApplicant = getIntegrationApplicantId("b")
+    await expect(readAppointmentJourney(applicationNumber)).resolves.toMatchObject(
+      { kind: "not-found" }
+    )
+    await expect(
+      saveAppointmentPreferences({
+        applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000712",
+        notificationChannels: ["EMAIL"],
+        zones: ["EAST_DELHI"],
+      })
+    ).resolves.toMatchObject({ kind: "not-found" })
+    await expect(
+      acceptAppointmentOffer({
+        applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000713",
+        offerId: ownerJourney.offer.id,
+      })
+    ).resolves.toMatchObject({ kind: "not-found" })
+
+    await expect(
+      prisma.confirmedAppointment.count({
+        where: { application: { applicationNumber } },
+      })
+    ).resolves.toBe(0)
+    await expect(
+      prisma.appointmentOffer.findUniqueOrThrow({
+        where: { id: ownerJourney.offer.id },
+      })
+    ).resolves.toMatchObject({ status: "ACTIVE" })
+  })
+
+  it("leaves an offer either confirmed or expired when acceptance races expiry", async () => {
+    const {
+      allocateAvailableAppointmentOffers,
+      createFixedAppointmentClock,
+      expireDueAppointmentOffers,
+      prisma,
+    } = await import("@digilicense/db/server")
+    const {
+      acceptAppointmentOffer,
+      readAppointmentJourney,
+      saveAppointmentPreferences,
+    } = await import("./appointment.server")
+    const applicationNumber = await createPermanentApplication()
+    await saveAppointmentPreferences({
+      applicationNumber,
+      idempotencyKey: "00000000-0000-4000-8000-000000000721",
+      notificationChannels: ["SMS"],
+      zones: ["CENTRAL_DELHI"],
+    })
+    await prisma.appointmentSlot.create({
+      data: {
+        endsAt: new Date(Date.now() + 26 * 60 * 60_000),
+        inventoryKey: "integration-accept-expiry-slot",
+        startsAt: new Date(Date.now() + 25 * 60 * 60_000),
+        vehicleClass: "LIGHT_MOTOR_VEHICLE",
+        zone: "CENTRAL_DELHI",
+      },
+    })
+    await allocateAvailableAppointmentOffers()
+    const journey = await readAppointmentJourney(applicationNumber)
+    if (journey.kind !== "found" || !journey.offer)
+      throw new Error("Expected an active appointment offer")
+
+    const offer = await prisma.appointmentOffer.findUniqueOrThrow({
+      where: { id: journey.offer.id },
+    })
+    const results = await Promise.all([
+      acceptAppointmentOffer({
+        applicationNumber,
+        idempotencyKey: "00000000-0000-4000-8000-000000000722",
+        offerId: offer.id,
+      }),
+      expireDueAppointmentOffers(
+        createFixedAppointmentClock(new Date(offer.expiresAt.getTime() + 1))
+      ),
+    ])
+    const refreshedOffer = await prisma.appointmentOffer.findUniqueOrThrow({
+      where: { id: offer.id },
+    })
+    const confirmationCount = await prisma.confirmedAppointment.count({
+      where: { application: { applicationNumber } },
+    })
+
+    expect(["ACCEPTED", "EXPIRED"]).toContain(refreshedOffer.status)
+    expect(confirmationCount).toBe(refreshedOffer.status === "ACCEPTED" ? 1 : 0)
+    expect(results[0].kind).toMatch(/confirmed|offer-unavailable/)
+  })
 })
