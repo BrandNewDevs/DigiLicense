@@ -80,6 +80,22 @@ describe("askAssistant", () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  it("rejects email addresses before calling the private service", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+
+    await expect(
+      askAssistant({
+        ...input,
+        question: "Please send guidance to applicant@example.com",
+      })
+    ).resolves.toMatchObject({
+      kind: "fallback",
+      reason: "sensitive-input",
+      response: { blockedReason: "PII_DETECTED", fallbackUsed: true },
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it("does not call the private service after a local rate limit", async () => {
     mocks.consumeRateLimit.mockResolvedValue({
       allowed: false,
