@@ -18,7 +18,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm dev -- --host 127.0.0.1",
+    command: "pnpm exec vite dev --host 127.0.0.1 --port 3000",
     env: {
       ...process.env,
       DIGILICENSE_PUBLIC_ORIGIN: "http://127.0.0.1:3000",
