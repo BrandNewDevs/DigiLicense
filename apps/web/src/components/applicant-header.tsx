@@ -1,16 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import {
-  ArrowUpRight,
-  ChevronDown,
-  CircleUserRound,
-  LayoutDashboard,
-  House,
-  LogOut,
-  Menu,
-  Search,
-  X,
-} from "lucide-react"
+import { ArrowUpRight, House, LogOut, Menu, Search, X } from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -82,9 +72,7 @@ function ApplicantHeader() {
         <PopoverTrigger
           className={`inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 ${className ?? ""}`}
         >
-          <CircleUserRound aria-hidden="true" className="size-4" />
           Account
-          <ChevronDown aria-hidden="true" className="size-4" />
         </PopoverTrigger>
         <PopoverContent align="end" className="w-44 p-1">
           <Link
@@ -92,7 +80,6 @@ function ApplicantHeader() {
             onClick={() => setIsMenuOpen(false)}
             to="/dashboard"
           >
-            <LayoutDashboard aria-hidden="true" className="size-4" />
             Dashboard
           </Link>
           <button

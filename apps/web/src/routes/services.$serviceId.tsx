@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { AddressChangeFlow } from "../components/address-change-flow"
 import { ApplicationStatusFlow } from "../components/application-status-flow"
+import { AppointmentFlow } from "../components/appointment-flow"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
 import { LearnerLicenceForm } from "../components/learner-licence-form"
 import { LearnerTestFlow } from "../components/learner-test-flow"
@@ -38,12 +39,14 @@ function ServicePage() {
       <PermanentLicenceFlow />
     ) : workflow === "address-change" ? (
       <AddressChangeFlow />
+    ) : service.id === "appointments" ? (
+      <AppointmentFlow />
     ) : (
       <ServicePrototypeForm service={service} />
     )
 
   return (
-    <div className="min-h-svh text-foreground">
+    <div className="flex-1 text-foreground">
       <main id="main-content">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
           <Link
@@ -173,7 +176,7 @@ function ServicePage() {
 function UnknownService() {
   return (
     <main
-      className="mx-auto min-h-svh w-full max-w-4xl px-4 py-20 sm:px-6"
+      className="mx-auto w-full max-w-4xl px-4 py-20 sm:px-6"
       id="main-content"
     >
       <Link

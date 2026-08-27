@@ -1,6 +1,8 @@
-import { useServerFn } from "@tanstack/react-start"
 import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
+import { Link } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { CalendarCheck, Clock, MapPin } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
@@ -13,454 +15,690 @@ import {
   saveAppointmentPreferences,
 } from "../server-functions/appointment"
 
-const zones = [
+type AppointmentJourney = {
+  applicationNumber: string
+  confirmedAppointment: {
+    confirmedAt: string
+    endsAt: string
+    startsAt: string
+    zone: string
+  } | null
+  kind: "found"
+  offer: {
+    expiresAt: string
+    id: string
+    ranking: {
+      breakdown: {
+        preferencePoints: number
+        urgencyPoints: number
+        waitTimePoints: number
+      } | null
+      policyVersion: string
+      score: number
+    }
+    slot: { endsAt: string; startsAt: string; zone: string }
+  } | null
+  preferences: { notificationChannels: Array<"SMS" | "EMAIL">; zones: string[] }
+  state:
+    | "CONFIRMED"
+    | "COOLDOWN"
+    | "OFFERED"
+    | "PREFERENCES_REQUIRED"
+    | "WAITLISTED"
+    | "LEFT"
+}
+
+type FailureResult = {
+  kind: string
+  message: string
+  retryAfterSeconds?: number
+}
+
+type Phase =
+  | "authentication-required"
+  | "confirmation"
+  | "cooldown"
+  | "left"
+  | "loading"
+  | "offer"
+  | "preferences"
+  | "unavailable"
+  | "waitlisted"
+
+const zoneLabels: Record<string, string> = {
+  CENTRAL_DELHI: "Central Delhi",
+  EAST_DELHI: "East Delhi",
+  NORTH_DELHI: "North Delhi",
+  SOUTH_DELHI: "South Delhi",
+}
+
+const zoneOptions = [
   { value: "CENTRAL_DELHI", label: "Central Delhi" },
   { value: "EAST_DELHI", label: "East Delhi" },
   { value: "NORTH_DELHI", label: "North Delhi" },
   { value: "SOUTH_DELHI", label: "South Delhi" },
-] as const
+]
 
-type Zone = (typeof zones)[number]["value"]
-type Journey = Extract<
-  Awaited<ReturnType<typeof readAppointmentJourney>>,
-  { kind: "found" }
->
+const channelOptions = [
+  { value: "SMS", label: "SMS" },
+  { value: "EMAIL", label: "Email" },
+]
 
-type AppointmentFlowProps = {
-  applicationNumber?: string
+function createIdempotencyKey(): string | null {
+  if (typeof crypto === "undefined") return null
+
+  if ("randomUUID" in crypto && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("")
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-IN", {
-    dateStyle: "long",
-    timeStyle: "short",
-  })
-}
-
-function AppointmentFlow({
-  applicationNumber: initialNumber = "",
-}: AppointmentFlowProps) {
-  const readJourney = useServerFn(readAppointmentJourney)
+function AppointmentFlow() {
+  const loadJourney = useServerFn(readAppointmentJourney)
   const savePreferences = useServerFn(saveAppointmentPreferences)
   const leaveWaitlist = useServerFn(leaveAppointmentWaitlist)
   const acceptOffer = useServerFn(acceptAppointmentOffer)
   const rejectOffer = useServerFn(rejectAppointmentOffer)
-  const [applicationNumber, setApplicationNumber] = useState(initialNumber)
-  const [journey, setJourney] = useState<Journey>()
-  const [message, setMessage] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [selectedZones, setSelectedZones] = useState<Zone[]>([])
-  const [channels, setChannels] = useState<Array<"SMS" | "EMAIL">>(["SMS"])
 
-  async function refresh(reference = applicationNumber) {
-    const normalizedReference = reference.trim().toUpperCase()
-    if (!normalizedReference) {
-      setMessage("Enter your permanent-licence application reference.")
-      return
-    }
-    setIsLoading(true)
-    try {
-      const response = await readJourney({
-        data: { applicationNumber: normalizedReference },
-      })
-      if (response.kind === "found") {
-        setJourney(response)
-        setSelectedZones(response.preferences.zones as Zone[])
-        setChannels(response.preferences.notificationChannels)
-        setMessage("")
-      } else {
-        setJourney(undefined)
-        setMessage(response.message)
-      }
-    } catch {
-      setJourney(undefined)
-      setMessage("Appointment service is temporarily unavailable.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const [phase, setPhase] = useState<Phase>("loading")
+  const [journey, setJourney] = useState<AppointmentJourney | null>(null)
+  const [failure, setFailure] = useState<FailureResult | null>(null)
+  const [selectedZones, setSelectedZones] = useState<string[]>([])
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(["SMS"])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [actionMessage, setActionMessage] = useState("")
 
   useEffect(() => {
-    if (!journey?.offer) return
-    const refreshOnFocus = () => void refresh()
-    const interval = window.setInterval(refreshOnFocus, 60_000)
-    window.addEventListener("focus", refreshOnFocus)
-    return () => {
-      window.clearInterval(interval)
-      window.removeEventListener("focus", refreshOnFocus)
+    let cancelled = false
+
+    async function load() {
+      try {
+        const result = await loadJourney()
+        if (cancelled) return
+
+        if (result.kind === "found") {
+          setJourney(result)
+          mapStateToPhase(result.state)
+          return
+        }
+
+        if (result.kind === "authentication-required") {
+          setPhase("authentication-required")
+          return
+        }
+
+        setFailure({ kind: result.kind, message: result.message })
+        setPhase("unavailable")
+      } catch {
+        if (!cancelled) setPhase("unavailable")
+      }
     }
-  }, [journey?.offer, applicationNumber])
 
-  function updateZone(index: number, value: string) {
-    setSelectedZones((current) => {
-      const next = [...current]
-      if (value) next[index] = value as Zone
-      else next.splice(index, 1)
-      return [...new Set(next)].slice(0, 3)
-    })
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [loadJourney])
+
+  function mapStateToPhase(state: AppointmentJourney["state"]) {
+    switch (state) {
+      case "CONFIRMED":
+        setPhase("confirmation")
+        break
+      case "COOLDOWN":
+        setPhase("cooldown")
+        break
+      case "OFFERED":
+        setPhase("offer")
+        break
+      case "PREFERENCES_REQUIRED":
+        setPhase("preferences")
+        break
+      case "WAITLISTED":
+        setPhase("waitlisted")
+        break
+      case "LEFT":
+        setPhase("left")
+        break
+    }
   }
 
-  function toggleChannel(channel: "SMS" | "EMAIL") {
-    setChannels((current) =>
-      current.includes(channel)
-        ? current.filter((item) => item !== channel)
-        : [...current, channel]
-    )
-  }
-
-  async function handlePreferenceSave(event: FormEvent<HTMLFormElement>) {
+  async function handleSavePreferences(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!journey || selectedZones.length === 0 || channels.length === 0) {
-      setMessage("Choose at least one zone and one notification preference.")
+
+    if (selectedZones.length === 0 || selectedChannels.length === 0) {
+      setActionMessage("Select at least one zone and one notification channel.")
       return
     }
-    setIsSaving(true)
+
+    const key = createIdempotencyKey()
+    if (!key) {
+      setActionMessage(
+        "This browser cannot submit securely. Update your browser or use HTTPS."
+      )
+      return
+    }
+
+    setIsSubmitting(true)
+    setActionMessage("")
+
     try {
       const result = await savePreferences({
         data: {
-          applicationNumber: journey.applicationNumber,
-          idempotencyKey: crypto.randomUUID(),
-          notificationChannels: channels,
-          zones: selectedZones,
+          applicationNumber: journey?.applicationNumber ?? "",
+          idempotencyKey: key,
+          notificationChannels: selectedChannels as Array<"SMS" | "EMAIL">,
+          zones: selectedZones as Array<
+            | "CENTRAL_DELHI"
+            | "EAST_DELHI"
+            | "NORTH_DELHI"
+            | "SOUTH_DELHI"
+          >,
         },
       })
+
       if (result.kind === "saved") {
-        setMessage("Your appointment preferences were saved.")
-        await refresh(journey.applicationNumber)
+        setActionMessage("Preferences saved. You are now on the waitlist.")
+        const refreshed = await loadJourney()
+        if (refreshed.kind === "found") {
+          setJourney(refreshed)
+          mapStateToPhase(refreshed.state)
+        }
       } else {
-        setMessage(result.message)
+        setActionMessage(result.message)
       }
     } catch {
-      setMessage("Appointment service is temporarily unavailable.")
+      setActionMessage("Could not save preferences. Try again.")
     } finally {
-      setIsSaving(false)
+      setIsSubmitting(false)
     }
   }
 
-  async function handleWaitlistAction(action: "leave" | "accept" | "reject") {
-    if (!journey) return
-    setIsSaving(true)
+  async function handleLeaveWaitlist() {
+    const key = createIdempotencyKey()
+    if (!key) return
+
+    setIsSubmitting(true)
+    setActionMessage("")
+
     try {
-      if (action === "leave") {
-        const result = await leaveWaitlist({
-          data: {
-            applicationNumber: journey.applicationNumber,
-            idempotencyKey: crypto.randomUUID(),
-          },
-        })
-        setMessage(
-          result.kind === "left"
-            ? "You left the appointment waitlist."
-            : result.message
-        )
-      } else if (journey.offer) {
-        const respond = action === "accept" ? acceptOffer : rejectOffer
-        const result = await respond({
-          data: {
-            applicationNumber: journey.applicationNumber,
-            idempotencyKey: crypto.randomUUID(),
-            offerId: journey.offer.id,
-          },
-        })
-        setMessage(
-          result.kind === "confirmed"
-            ? "Your driving-test appointment is confirmed."
-            : result.kind === "rejected"
-              ? "The appointment offer was declined."
-              : result.message
-        )
+      const result = await leaveWaitlist({
+        data: {
+          applicationNumber: journey?.applicationNumber ?? "",
+          idempotencyKey: key,
+        },
+      })
+
+      if (result.kind === "left") {
+        setPhase("left")
+        setActionMessage("You have left the waitlist.")
+      } else {
+        setActionMessage(result.message)
       }
-      await refresh(journey.applicationNumber)
     } catch {
-      setMessage("Appointment service is temporarily unavailable.")
+      setActionMessage("Could not leave the waitlist. Try again.")
     } finally {
-      setIsSaving(false)
+      setIsSubmitting(false)
     }
   }
 
-  return (
-    <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
-      <h2 className="font-sans text-2xl font-semibold">
-        Your driving-test appointment
-      </h2>
-      <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-        Enter the reference from your permanent-licence application to choose
-        appointment preferences or respond to an offer.
-      </p>
+  async function handleAcceptOffer() {
+    if (!journey?.offer) return
 
-      <form
-        className="mt-6 flex flex-col gap-3 sm:flex-row"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void refresh()
-        }}
+    const key = createIdempotencyKey()
+    if (!key) return
+
+    setIsSubmitting(true)
+    setActionMessage("")
+
+    try {
+      const result = await acceptOffer({
+        data: {
+          applicationNumber: journey.applicationNumber,
+          idempotencyKey: key,
+          offerId: journey.offer.id,
+        },
+      })
+
+      if (result.kind === "confirmed") {
+        setPhase("confirmation")
+        const refreshed = await loadJourney()
+        if (refreshed.kind === "found") {
+          setJourney(refreshed)
+          mapStateToPhase(refreshed.state)
+        }
+      } else {
+        setActionMessage(result.message)
+      }
+    } catch {
+      setActionMessage("Could not accept the offer. Try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleRejectOffer() {
+    if (!journey?.offer) return
+
+    const key = createIdempotencyKey()
+    if (!key) return
+
+    setIsSubmitting(true)
+    setActionMessage("")
+
+    try {
+      const result = await rejectOffer({
+        data: {
+          applicationNumber: journey.applicationNumber,
+          idempotencyKey: key,
+          offerId: journey.offer.id,
+        },
+      })
+
+      if (result.kind === "rejected") {
+        setActionMessage("Offer declined. You remain on the waitlist.")
+        const refreshed = await loadJourney()
+        if (refreshed.kind === "found") {
+          setJourney(refreshed)
+          mapStateToPhase(refreshed.state)
+        }
+      } else {
+        setActionMessage(result.message)
+      }
+    } catch {
+      setActionMessage("Could not decline the offer. Try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  function toggleZone(zone: string) {
+    setSelectedZones((current) =>
+      current.includes(zone)
+        ? current.filter((z) => z !== zone)
+        : current.length < 3
+          ? [...current, zone]
+          : current
+    )
+  }
+
+  function toggleChannel(channel: string) {
+    setSelectedChannels((current) =>
+      current.includes(channel)
+        ? current.filter((c) => c !== channel)
+        : current.length < 2
+          ? [...current, channel]
+          : current
+    )
+  }
+
+  if (phase === "loading") {
+    return (
+      <section
+        aria-busy="true"
+        aria-label="Loading appointment status"
+        className="rounded-xl border border-border p-6 sm:p-8"
       >
-        <label className="sr-only" htmlFor="appointment-reference">
-          Permanent-licence application reference
-        </label>
-        <input
-          className="h-11 flex-1 rounded-lg border border-input bg-background px-3 text-base"
-          id="appointment-reference"
-          onChange={(event) =>
-            setApplicationNumber(event.target.value.toUpperCase())
-          }
-          placeholder="Application reference"
-          value={applicationNumber}
-        />
-        <Button className="h-11" disabled={isLoading} type="submit">
-          {isLoading ? "Checking..." : "Check appointment"}
-        </Button>
-      </form>
+        <Skeleton className="h-7 w-52" />
+        <Skeleton className="mt-4 h-4 w-full max-w-xl" />
+        <Skeleton className="mt-8 h-12 w-full" />
+        <Skeleton className="mt-3 h-12 w-full" />
+      </section>
+    )
+  }
 
-      <p
-        aria-live="polite"
-        className="mt-4 text-sm text-muted-foreground"
-        role="status"
-      >
-        {message}
-      </p>
-
-      {isLoading && !journey ? <AppointmentSkeleton /> : null}
-      {journey ? (
-        <div className="mt-6 space-y-6">
-          <p className="text-sm text-muted-foreground">
-            Application reference: {journey.applicationNumber}
-          </p>
-          {journey.confirmedAppointment ? (
-            <ConfirmedAppointment journey={journey} />
-          ) : journey.offer ? (
-            <AppointmentOffer
-              disabled={isSaving}
-              journey={journey}
-              onRespond={handleWaitlistAction}
-            />
-          ) : (
-            <AppointmentPreferences
-              channels={channels}
-              disabled={isSaving}
-              journey={journey}
-              onSave={handlePreferenceSave}
-              onToggleChannel={toggleChannel}
-              onUpdateZone={updateZone}
-              selectedZones={selectedZones}
-            />
-          )}
-          {journey.state === "WAITLISTED" || journey.state === "COOLDOWN" ? (
-            <Button
-              disabled={isSaving}
-              onClick={() => void handleWaitlistAction("leave")}
-              type="button"
-              variant="outline"
-            >
-              Leave waitlist
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  )
-}
-
-function AppointmentPreferences({
-  channels,
-  disabled,
-  journey,
-  onSave,
-  onToggleChannel,
-  onUpdateZone,
-  selectedZones,
-}: {
-  channels: Array<"SMS" | "EMAIL">
-  disabled: boolean
-  journey: Journey
-  onSave: (event: FormEvent<HTMLFormElement>) => Promise<void>
-  onToggleChannel: (channel: "SMS" | "EMAIL") => void
-  onUpdateZone: (index: number, value: string) => void
-  selectedZones: Zone[]
-}) {
-  const waitingCopy =
-    journey.state === "WAITLISTED"
-      ? "You are on the waitlist. You can update your preferences below."
-      : "Choose up to three Delhi zones in order of preference."
-  return (
-    <form className="space-y-6" onSubmit={(event) => void onSave(event)}>
-      <div>
-        <h3 className="text-lg font-semibold">Appointment preferences</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {waitingCopy}
+  if (phase === "authentication-required") {
+    return (
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="font-sans text-2xl font-medium">Sign in required</h2>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          Sign in as an applicant to manage your driving-test appointment.
         </p>
-      </div>
-      <fieldset>
-        <legend className="text-sm font-semibold">Preferred test zones</legend>
-        <div className="mt-3 space-y-3">
-          {[0, 1, 2].map((index) => (
-            <label className="block" key={index}>
-              <span className="mb-1.5 block text-sm text-muted-foreground">
-                Preference {index + 1}
-                {index === 0 ? " (required)" : ""}
-              </span>
-              <select
-                className="h-11 w-full rounded-lg border border-input bg-background px-3"
-                disabled={disabled}
-                onChange={(event) => onUpdateZone(index, event.target.value)}
-                required={index === 0}
-                value={selectedZones[index] ?? ""}
-              >
-                <option value="">Select a zone</option>
-                {zones.map((zone) => (
-                  <option
-                    disabled={
-                      selectedZones.includes(zone.value) &&
-                      selectedZones[index] !== zone.value
-                    }
-                    key={zone.value}
-                    value={zone.value}
-                  >
-                    {zone.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend className="text-sm font-semibold">
-          Offer notification preference
-        </legend>
-        <div className="mt-3 flex flex-wrap gap-4">
-          {(["SMS", "EMAIL"] as const).map((channel) => (
-            <label className="flex min-h-11 items-center gap-2" key={channel}>
-              <input
-                checked={channels.includes(channel)}
-                disabled={disabled}
-                onChange={() => onToggleChannel(channel)}
-                type="checkbox"
-              />
-              {channel === "SMS" ? "SMS" : "Email"}
-            </label>
-          ))}
-        </div>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          DigiLicense records this notification only; no SMS, email, or
-          government service is contacted.
-        </p>
-      </fieldset>
-      <Button
-        className="h-11 w-full sm:w-auto"
-        disabled={disabled}
-        type="submit"
-      >
-        {disabled ? "Saving..." : "Save preferences"}
-      </Button>
-    </form>
-  )
-}
-
-function AppointmentOffer({
-  disabled,
-  journey,
-  onRespond,
-}: {
-  disabled: boolean
-  journey: Journey
-  onRespond: (action: "accept" | "reject") => Promise<void>
-}) {
-  const offer = journey.offer
-  if (!offer) return null
-  const expired = new Date(offer.expiresAt).getTime() <= Date.now()
-  return (
-    <div className="rounded-lg border border-primary/30 bg-primary/5 p-5">
-      <p className="text-sm font-semibold text-primary">
-        Appointment offer available
-      </p>
-      <h3 className="mt-2 text-xl font-semibold">
-        {zones.find((zone) => zone.value === offer.slot.zone)?.label ??
-          offer.slot.zone}
-      </h3>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        <time dateTime={offer.slot.startsAt}>
-          {formatDateTime(offer.slot.startsAt)}
-        </time>{" "}
-        to{" "}
-        <time dateTime={offer.slot.endsAt}>
-          {formatDateTime(offer.slot.endsAt)}
-        </time>
-      </p>
-      <p className="mt-4 text-sm">
-        Respond by{" "}
-        <time dateTime={offer.expiresAt}>
-          {formatDateTime(offer.expiresAt)}
-        </time>
-        .
-      </p>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        DigiLicense records this notification only; no SMS, email, or government
-        service is contacted.
-      </p>
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-        <Button
-          disabled={disabled || expired}
-          onClick={() => void onRespond("accept")}
-          type="button"
+        <Link
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
+          search={{ returnTo: "/services/appointments" }}
+          to="/applicant/login"
         >
-          Accept appointment
-        </Button>
+          Go to sign in
+        </Link>
+      </section>
+    )
+  }
+
+  if (phase === "unavailable") {
+    return (
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="font-sans text-2xl font-medium">
+          Service unavailable
+        </h2>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          {failure?.message ??
+            "The appointment service could not be loaded. Reload the page to try again."}
+        </p>
+      </section>
+    )
+  }
+
+  if (phase === "confirmation" && journey?.confirmedAppointment) {
+    const appt = journey.confirmedAppointment
+    return (
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <div className="flex items-center gap-3">
+          <CalendarCheck aria-hidden="true" className="size-6 text-primary" />
+          <h2 className="font-sans text-2xl font-medium">
+            Appointment confirmed
+          </h2>
+        </div>
+        <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
+          <div>
+            <dt className="text-sm font-medium text-muted-foreground">
+              Application number
+            </dt>
+            <dd className="mt-1 font-mono text-lg font-medium">
+              {journey.applicationNumber}
+            </dd>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin aria-hidden="true" className="size-4 text-muted-foreground" />
+            <dt className="sr-only">Zone</dt>
+            <dd>{zoneLabels[appt.zone] ?? appt.zone}</dd>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock aria-hidden="true" className="size-4 text-muted-foreground" />
+            <dt className="sr-only">Date and time</dt>
+            <dd>
+              <time dateTime={appt.startsAt}>
+                {new Date(appt.startsAt).toLocaleString()}
+              </time>
+              {" – "}
+              <time dateTime={appt.endsAt}>
+                {new Date(appt.endsAt).toLocaleTimeString()}
+              </time>
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-5 text-sm leading-6 text-muted-foreground">
+          This appointment was recorded by DigiLicense only. No government
+          service was contacted and no official booking exists.
+        </p>
+      </section>
+    )
+  }
+
+  if (phase === "cooldown") {
+    return (
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="font-sans text-2xl font-medium">
+          Appointment offer expired
+        </h2>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          Your previous offer was not accepted in time. You remain on the
+          waitlist and will be contacted when another slot opens.
+        </p>
+        <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
+          <div>
+            <dt className="text-sm font-medium text-muted-foreground">
+              Application number
+            </dt>
+            <dd className="mt-1 font-mono text-lg font-medium">
+              {journey?.applicationNumber}
+            </dd>
+          </div>
+        </dl>
+        {actionMessage ? (
+          <p aria-live="polite" className="mt-4 text-sm text-muted-foreground">
+            {actionMessage}
+          </p>
+        ) : null}
+      </section>
+    )
+  }
+
+  if (phase === "left") {
+    return (
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="font-sans text-2xl font-medium">
+          You left the waitlist
+        </h2>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          You are no longer on the waitlist for a driving-test appointment. If
+          you need an appointment later, you can rejoin.
+        </p>
+        {actionMessage ? (
+          <p aria-live="polite" className="mt-4 text-sm text-muted-foreground">
+            {actionMessage}
+          </p>
+        ) : null}
+      </section>
+    )
+  }
+
+  if (phase === "offer" && journey?.offer) {
+    const offer = journey.offer
+    return (
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <div className="flex items-center gap-3">
+          <CalendarCheck aria-hidden="true" className="size-6 text-primary" />
+          <h2 className="font-sans text-2xl font-medium">
+            A slot is available
+          </h2>
+        </div>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          Accept or decline this offer. If you decline, you stay on the
+          waitlist. The offer expires at{" "}
+          <time dateTime={offer.expiresAt}>
+            {new Date(offer.expiresAt).toLocaleString()}
+          </time>
+          .
+        </p>
+        <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
+          <div>
+            <dt className="text-sm font-medium text-muted-foreground">
+              Application number
+            </dt>
+            <dd className="mt-1 font-mono text-lg font-medium">
+              {journey.applicationNumber}
+            </dd>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin aria-hidden="true" className="size-4 text-muted-foreground" />
+            <dt className="sr-only">Zone</dt>
+            <dd>{zoneLabels[offer.slot.zone] ?? offer.slot.zone}</dd>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock aria-hidden="true" className="size-4 text-muted-foreground" />
+            <dt className="sr-only">Date and time</dt>
+            <dd>
+              <time dateTime={offer.slot.startsAt}>
+                {new Date(offer.slot.startsAt).toLocaleString()}
+              </time>
+              {" – "}
+              <time dateTime={offer.slot.endsAt}>
+                {new Date(offer.slot.endsAt).toLocaleTimeString()}
+              </time>
+            </dd>
+          </div>
+          {offer.ranking.breakdown ? (
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">
+                Ranking score
+              </dt>
+              <dd className="mt-1">
+                {offer.ranking.score} (policy {offer.ranking.policyVersion})
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+        {actionMessage ? (
+          <p aria-live="polite" className="mt-4 text-sm text-destructive">
+            {actionMessage}
+          </p>
+        ) : null}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button
+            disabled={isSubmitting}
+            onClick={handleAcceptOffer}
+            type="button"
+          >
+            {isSubmitting ? "Processing..." : "Accept appointment"}
+          </Button>
+          <Button
+            disabled={isSubmitting}
+            onClick={handleRejectOffer}
+            type="button"
+            variant="outline"
+          >
+            Decline
+          </Button>
+        </div>
+        <p className="mt-5 text-sm leading-6 text-muted-foreground">
+          This offer was generated by DigiLicense only. No government service
+          was contacted.
+        </p>
+      </section>
+    )
+  }
+
+  if (phase === "waitlisted") {
+    return (
+      <section className="rounded-xl border border-border p-6 sm:p-8">
+        <h2 className="font-sans text-2xl font-medium">You are on the waitlist</h2>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          When a slot matching your preferences opens, you will receive an
+          offer.
+        </p>
+        <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
+          <div>
+            <dt className="text-sm font-medium text-muted-foreground">
+              Application number
+            </dt>
+            <dd className="mt-1 font-mono text-lg font-medium">
+              {journey?.applicationNumber}
+            </dd>
+          </div>
+          {journey && journey.preferences.zones.length > 0 ? (
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">
+                Preferred zones
+              </dt>
+              <dd className="mt-1">
+                {journey.preferences.zones
+                  .map((z) => zoneLabels[z] ?? z)
+                  .join(", ")}
+              </dd>
+            </div>
+          ) : null}
+          {journey && journey.preferences.notificationChannels.length > 0 ? (
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">
+                Notification channels
+              </dt>
+              <dd className="mt-1">
+                {journey.preferences.notificationChannels.join(", ")}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+        {actionMessage ? (
+          <p aria-live="polite" className="mt-4 text-sm text-muted-foreground">
+            {actionMessage}
+          </p>
+        ) : null}
         <Button
-          disabled={disabled || expired}
-          onClick={() => void onRespond("reject")}
+          className="mt-6"
+          disabled={isSubmitting}
+          onClick={handleLeaveWaitlist}
           type="button"
           variant="outline"
         >
-          Decline offer
+          {isSubmitting ? "Processing..." : "Leave waitlist"}
         </Button>
-      </div>
-      {expired ? (
-        <p className="mt-3 text-sm text-muted-foreground">
-          This offer has expired. Checking for the latest appointment state.
-        </p>
-      ) : null}
-    </div>
-  )
-}
+      </section>
+    )
+  }
 
-function ConfirmedAppointment({ journey }: { journey: Journey }) {
-  const appointment = journey.confirmedAppointment
-  if (!appointment) return null
   return (
-    <div className="rounded-lg border border-primary/30 bg-primary/5 p-5">
-      <p className="text-sm font-semibold text-primary">
-        Appointment confirmed
+    <section className="rounded-xl border border-border p-6 sm:p-8">
+      <h2 className="font-sans text-2xl font-medium">
+        Set your appointment preferences
+      </h2>
+      <p className="mt-3 leading-7 text-muted-foreground">
+        Choose up to three Delhi test zones and how you would like to be
+        notified when a slot opens.
       </p>
-      <h3 className="mt-2 text-xl font-semibold">
-        {zones.find((zone) => zone.value === appointment.zone)?.label ??
-          appointment.zone}
-      </h3>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        <time dateTime={appointment.startsAt}>
-          {formatDateTime(appointment.startsAt)}
-        </time>{" "}
-        to{" "}
-        <time dateTime={appointment.endsAt}>
-          {formatDateTime(appointment.endsAt)}
-        </time>
-      </p>
-      <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        Bring the documents listed with your application and arrive before your
-        appointment time. DigiLicense recorded this appointment only; no
-        government service was contacted.
-      </p>
-    </div>
-  )
-}
+      <form className="mt-7" onSubmit={handleSavePreferences}>
+        <fieldset>
+          <legend className="text-sm font-medium">Test zones</legend>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {zoneOptions.map((zone) => (
+              <label
+                className={`flex min-h-11 items-center gap-2 rounded-lg border px-4 text-base has-checked:border-ring ${
+                  selectedZones.includes(zone.value)
+                    ? "border-ring bg-accent"
+                    : "border-input"
+                }`}
+                key={zone.value}
+              >
+                <input
+                  checked={selectedZones.includes(zone.value)}
+                  onChange={() => toggleZone(zone.value)}
+                  type="checkbox"
+                  value={zone.value}
+                />
+                {zone.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
-function AppointmentSkeleton() {
-  return (
-    <div aria-busy="true" className="mt-6 space-y-3">
-      <Skeleton className="h-6 w-48" />
-      <Skeleton className="h-16 w-full" />
-    </div>
+        <fieldset className="mt-6">
+          <legend className="text-sm font-medium">Notification channels</legend>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {channelOptions.map((channel) => (
+              <label
+                className={`flex min-h-11 items-center gap-2 rounded-lg border px-4 text-base has-checked:border-ring ${
+                  selectedChannels.includes(channel.value)
+                    ? "border-ring bg-accent"
+                    : "border-input"
+                }`}
+                key={channel.value}
+              >
+                <input
+                  checked={selectedChannels.includes(channel.value)}
+                  onChange={() => toggleChannel(channel.value)}
+                  type="checkbox"
+                  value={channel.value}
+                />
+                {channel.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {actionMessage ? (
+          <p aria-live="polite" className="mt-4 text-sm text-destructive">
+            {actionMessage}
+          </p>
+        ) : null}
+
+        <Button className="mt-6" disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Saving..." : "Save preferences and join waitlist"}
+        </Button>
+      </form>
+      <p className="mt-5 text-sm leading-6 text-muted-foreground">
+        Waitlist allocation is handled entirely within DigiLicense. No
+        government service is contacted.
+      </p>
+    </section>
   )
 }
 
