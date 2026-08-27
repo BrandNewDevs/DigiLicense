@@ -497,8 +497,8 @@ see the private AI service boundary below.
 1. Push `main` to GitHub.
 2. In the [Render dashboard](https://dashboard.render.com), click **New** →
    **Blueprint** and connect the repository.
-3. Render detects `render.yaml` and provisions the web app, maintenance job,
-   and private AI service.
+3. Render detects `render.yaml` and provisions the web app and maintenance
+   job. Deploy the private AI service separately as described below.
 4. During Blueprint creation, provide these server-only values:
    - **DATABASE_URL**: a Neon direct connection string with `sslmode=require`,
      shared by the web and maintenance services
