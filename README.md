@@ -488,27 +488,43 @@ stylesheet rather than hard-coded colors wherever possible.
 ## Deploying to Render
 
 DigiLicense includes a Render Blueprint (`render.yaml`) and a production
-Dockerfile (`Dockerfile.render`).
+Dockerfile (`Dockerfile.render`). Render runs the web app and its maintenance
+job. Neon supplies PostgreSQL. The AI service is not part of this Blueprint;
+see the private AI service boundary below.
 
 ### Steps
 
 1. Push `main` to GitHub.
 2. In the [Render dashboard](https://dashboard.render.com), click **New** →
    **Blueprint** and connect the repository.
-3. Render detects `render.yaml` and provisions a web service and a Starter
-   PostgreSQL database.
-4. During Blueprint creation, provide the following server-only values:
-   - **DIGILICENSE_AI_OPENAI_API_KEY** — a credential from the dedicated,
+3. Render detects `render.yaml` and provisions the web app and maintenance
+   job. Deploy the private AI service separately as described below.
+4. During Blueprint creation, provide these server-only values:
+   - **DATABASE_URL**: a Neon direct connection string with `sslmode=require`,
+     shared by the web and maintenance services
+   - **DIGILICENSE_AI_OPENAI_API_KEY**: a credential from the dedicated,
      budget-controlled OpenAI project
-   - **DIGILICENSE_AI_OPENAI_PROJECT_ID** — that dedicated project ID
-5. After the first deploy, set the following in the Render dashboard:
+   - **DIGILICENSE_AI_OPENAI_PROJECT_ID**: that dedicated project ID
+5. Set the following web-service values in the Render dashboard:
    - **DIGILICENSE_PUBLIC_ORIGIN** — your Render service URL (for example
      `https://digilicense.onrender.com`)
    - **DIGILICENSE_DEMO_APPLICANT_OTP** — a random 6-digit sign-in passcode
      (rotate by updating the value and redeploying)
-6. On every deploy, `docker/render-start.sh` runs `prisma migrate deploy` and
-   then seeds the idempotent synthetic records before starting the server. The
-   server does not start until both commands complete without error.
+6. On every deploy, Render runs `prisma migrate deploy` as the web service's
+   pre-deploy command. Render runs the synthetic seed once through the initial
+   deploy hook. Restarts do not reseed production data.
+7. Confirm that the `digilicense-maintenance` job completes successfully. It
+   processes appointment offers, address reviews, and expired workflow records
+   once per minute. Configure alerts for failed or missing runs.
+
+Use Neon's direct TLS connection string for migrations. If the web service later
+moves to a pooled runtime connection, add a separate direct migration URL.
+
+### Private AI service boundary
+
+Render supplies the AI service's managed HTTPS URL and generated bearer
+credential to the web server. The AI service has no product database access,
+rejects browser requests, and is called only by authenticated server code.
 
 The Blueprint deploys `digilicense-ai` separately from the web application.
 Render supplies its managed HTTPS URL to the web server as
@@ -527,12 +543,13 @@ browser API.
 | Stage | Purpose |
 | --- | --- |
 | `base` | Install all dependencies, run Prisma generate, build the Vite production bundle |
-| `production` | Install production dependencies, copy the built app, Prisma client, database source files, migrations, and startup script; run migrations and seed records before starting the server |
+| `production` | Install production dependencies and copy the built app, Prisma client, database source files, migrations, and runtime scripts; `srvx` serves static assets and the TanStack Start fetch handler |
 
-### PostgreSQL retention
+### PostgreSQL operations
 
-Render Starter databases do not expire. Free-tier databases are deleted 30
-days after creation and permanently removed 14 days later if not upgraded.
+Use a dedicated Neon project that contains only synthetic DigiLicense records.
+Enable Neon backups or point-in-time recovery before the first public demo.
+Keep the database credentials in Render and Neon, never in the repository.
 
 ## Project status
 

@@ -5,11 +5,11 @@ services:
     dockerfilePath: Dockerfile.render
     plan: starter
     healthCheckPath: /
+    preDeployCommand: cd /workspace/packages/db && ./node_modules/.bin/prisma migrate deploy
+    initialDeployHook: cd /workspace/packages/db && ./node_modules/.bin/tsx prisma/seed.ts
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: digilicense-db
-          property: connectionString
+        sync: false
       - key: DIGILICENSE_SESSION_SECRET
         generateValue: true
       - key: DIGILICENSE_IDENTIFIER_HMAC_SECRET
@@ -38,10 +38,21 @@ services:
       - key: NODE_ENV
         value: production
 
-  # Render-managed HTTPS is used so the server-to-server hop remains
-  # encrypted. The FastAPI perimeter rejects browsers and requires the shared
-  # bearer credential for its only message endpoint; it has no product DB
-  # credentials and is never called directly by browser code.
+  - type: cron
+    name: digilicense-maintenance
+    runtime: docker
+    dockerfilePath: Dockerfile.render
+    dockerCommand: sh /workspace/docker/render-maintenance.sh
+    schedule: "* * * * *"
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # Render-managed HTTPS protects the server-to-server AI hop. The AI service
+  # has no product database credentials and is never called by browser code.
   - type: web
     name: digilicense-ai
     runtime: docker
@@ -76,9 +87,3 @@ services:
         sync: false
       - key: DIGILICENSE_AI_OPENAI_PROJECT_ID
         sync: false
-
-databases:
-  - name: digilicense-db
-    plan: starter
-    databaseName: digilicense
-    user: digilicense
