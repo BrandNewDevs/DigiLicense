@@ -26,11 +26,11 @@
     "@tanstack/react-start": "latest",
     "dotenv": "^17.4.2",
     "pg": "^8.23.0",
+    "prisma": "^7.9.1",
     "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/node": "^22",
-    "prisma": "^7.9.1",
     "typescript": "^6",
     "vitest": "^4.1.11"
   },

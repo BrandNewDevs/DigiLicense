@@ -475,11 +475,16 @@ Dockerfile (`Dockerfile.render`).
 1. Push `main` to GitHub.
 2. In the [Render dashboard](https://dashboard.render.com), click **New** →
    **Blueprint** and connect the repository.
-3. Render detects `render.yaml` and provisions a web service and a free
+3. Render detects `render.yaml` and provisions a web service and a Starter
    PostgreSQL database.
-4. After the first deploy, set **DIGILICENSE_PUBLIC_ORIGIN** to your Render
-   service URL (for example `https://digilicense.onrender.com`).
-5. Migrations and seed data run automatically on first boot.
+4. After the first deploy, set the following in the Render dashboard:
+   - **DIGILICENSE_PUBLIC_ORIGIN** — your Render service URL (for example
+     `https://digilicense.onrender.com`)
+   - **DIGILICENSE_MOCK_WORKFLOW_OTP** — a random 6-digit number (rotate by
+     updating the value and redeploying)
+5. On every deploy, `docker/render-start.sh` runs `prisma migrate deploy` and
+   then seeds the idempotent synthetic records before starting the server. The
+   server does not start until both commands complete without error.
 
 ### What gets built
 
@@ -488,14 +493,12 @@ Dockerfile (`Dockerfile.render`).
 | Stage | Purpose |
 | --- | --- |
 | `base` | Install all dependencies, run Prisma generate, build the Vite production bundle |
-| `production` | Install only production dependencies, copy the built `dist/` and generated Prisma client, run `node apps/web/dist/server/server.js` |
+| `production` | Install production dependencies, copy the built app, Prisma client, database source files, migrations, and startup script; run migrations and seed records before starting the server |
 
-### Free tier notes
+### PostgreSQL retention
 
-- Render's free tier spins down after 15 minutes of inactivity. The first
-  request after spin-down takes 30–60 seconds.
-- The free PostgreSQL database is deleted after 90 days of inactivity.
-- For a persistent deployment, upgrade to a paid plan or migrate to Railway.
+Render Starter databases do not expire. Free-tier databases are deleted 30
+days after creation and permanently removed 14 days later if not upgraded.
 
 ## Project status
 
