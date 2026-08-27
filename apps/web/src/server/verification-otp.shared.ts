@@ -1,18 +1,19 @@
 import "@tanstack/react-start/server-only"
 
-import { createHmac, timingSafeEqual } from "node:crypto"
+import { createHmac, randomInt, timingSafeEqual } from "node:crypto"
 
-function getMockWorkflowOtp(): string {
-  const configuredOtp =
-    process.env.DIGILICENSE_MOCK_WORKFLOW_OTP?.trim() ??
-    process.env.DIGILICENSE_MOCK_MOBILE_UPDATE_OTP?.trim()
+// Each challenge receives an unpredictable code. The code is shown only to
+// the authenticated applicant because this prototype does not send SMS.
+function generateWorkflowOtp(): string {
+  return randomInt(0, 1_000_000).toString().padStart(6, "0")
+}
 
+function getDemoApplicantOtp(): string {
+  const configuredOtp = process.env.DIGILICENSE_DEMO_APPLICANT_OTP?.trim()
   if (configuredOtp && /^\d{6}$/.test(configuredOtp)) return configuredOtp
-
   if (process.env.NODE_ENV !== "production") return "123456"
-
   throw new Error(
-    "DIGILICENSE_MOCK_WORKFLOW_OTP must be a six-digit synthetic OTP in production."
+    "DIGILICENSE_DEMO_APPLICANT_OTP must be a six-digit synthetic OTP in production."
   )
 }
 
@@ -44,4 +45,9 @@ function workflowOtpMatches(
   )
 }
 
-export { getMockWorkflowOtp, hashWorkflowOtp, workflowOtpMatches }
+export {
+  generateWorkflowOtp,
+  getDemoApplicantOtp,
+  hashWorkflowOtp,
+  workflowOtpMatches,
+}

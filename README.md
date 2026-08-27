@@ -465,6 +465,41 @@ stylesheet rather than hard-coded colors wherever possible.
 - Replace the placeholder service-page text and client-only tracking redirect
   when the real application and status APIs are available.
 
+## Deploying to Render
+
+DigiLicense includes a Render Blueprint (`render.yaml`) and a production
+Dockerfile (`Dockerfile.render`).
+
+### Steps
+
+1. Push `main` to GitHub.
+2. In the [Render dashboard](https://dashboard.render.com), click **New** →
+   **Blueprint** and connect the repository.
+3. Render detects `render.yaml` and provisions a web service and a Starter
+   PostgreSQL database.
+4. After the first deploy, set the following in the Render dashboard:
+   - **DIGILICENSE_PUBLIC_ORIGIN** — your Render service URL (for example
+     `https://digilicense.onrender.com`)
+   - **DIGILICENSE_DEMO_APPLICANT_OTP** — a random 6-digit sign-in passcode
+     (rotate by updating the value and redeploying)
+5. On every deploy, `docker/render-start.sh` runs `prisma migrate deploy` and
+   then seeds the idempotent synthetic records before starting the server. The
+   server does not start until both commands complete without error.
+
+### What gets built
+
+`Dockerfile.render` uses a multi-stage build:
+
+| Stage | Purpose |
+| --- | --- |
+| `base` | Install all dependencies, run Prisma generate, build the Vite production bundle |
+| `production` | Install production dependencies, copy the built app, Prisma client, database source files, migrations, and startup script; run migrations and seed records before starting the server |
+
+### PostgreSQL retention
+
+Render Starter databases do not expire. Free-tier databases are deleted 30
+days after creation and permanently removed 14 days later if not upgraded.
+
 ## Project status
 
 The current implementation includes server-issued synthetic applicant sessions

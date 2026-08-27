@@ -13,7 +13,7 @@ import {
 import { requireApplicant } from "./demo-session.server"
 import { recordDependencyFailure } from "./logger.server"
 import {
-  getMockMobileUpdateOtp,
+  generateMobileUpdateOtp,
   hashMobileUpdateOtp,
   otpMatches,
 } from "./mobile-update.shared"
@@ -50,6 +50,8 @@ type MobileUpdateStartResult =
       expiresAt: string
       nextStep: "OTP_REQUIRED" | "AADHAAR_REQUIRED"
       requestId: string
+      // Present for OTP requests. Retrying an active OTP request reissues it.
+      syntheticOtp?: string
       targetMobileLastFour: string
     }
 
@@ -237,11 +239,23 @@ async function startMobileUpdate(input: {
           return { kind: "active-expired" as const }
         }
 
+        const syntheticOtp =
+          previous.method === "OTP" ? generateMobileUpdateOtp() : undefined
+        if (syntheticOtp) {
+          await transaction.mobileChangeOtpChallenge.update({
+            where: { requestId: previous.id },
+            data: {
+              attemptCount: 0,
+              codeHash: hashMobileUpdateOtp(syntheticOtp),
+            },
+          })
+        }
         return {
           kind: "started" as const,
           expiresAt: previous.expiresAt,
           method: previous.method,
           requestId: previous.id,
+          syntheticOtp,
           targetMobileLastFour: previous.targetMobileLastFour,
         }
       }
@@ -280,6 +294,33 @@ async function startMobileUpdate(input: {
         data: { status: "EXPIRED" },
       })
 
+      const activeRequest = await transaction.mobileChangeRequest.findFirst({
+        where: {
+          applicantId: applicant.applicantId,
+          expiresAt: { gt: new Date() },
+          status: "OTP_PENDING",
+        },
+        select: { expiresAt: true, id: true, targetMobileLastFour: true },
+      })
+      if (activeRequest) {
+        const syntheticOtp = generateMobileUpdateOtp()
+        await transaction.mobileChangeOtpChallenge.update({
+          where: { requestId: activeRequest.id },
+          data: {
+            attemptCount: 0,
+            codeHash: hashMobileUpdateOtp(syntheticOtp),
+          },
+        })
+        return {
+          kind: "started" as const,
+          expiresAt: activeRequest.expiresAt,
+          method: "OTP" as const,
+          requestId: activeRequest.id,
+          syntheticOtp,
+          targetMobileLastFour: activeRequest.targetMobileLastFour,
+        }
+      }
+
       const request = await transaction.mobileChangeRequest.create({
         data: {
           applicantId: applicant.applicantId,
@@ -294,10 +335,12 @@ async function startMobileUpdate(input: {
         select: { id: true },
       })
 
-      if (input.method === "OTP") {
+      const syntheticOtp =
+        input.method === "OTP" ? generateMobileUpdateOtp() : undefined
+      if (syntheticOtp) {
         await transaction.mobileChangeOtpChallenge.create({
           data: {
-            codeHash: hashMobileUpdateOtp(getMockMobileUpdateOtp()),
+            codeHash: hashMobileUpdateOtp(syntheticOtp),
             expiresAt,
             requestId: request.id,
           },
@@ -333,6 +376,7 @@ async function startMobileUpdate(input: {
         expiresAt,
         method: input.method,
         requestId: request.id,
+        syntheticOtp,
         targetMobileLastFour: input.targetMobileNumber.slice(-4),
       }
     })
@@ -368,6 +412,7 @@ async function startMobileUpdate(input: {
       expiresAt: outcome.expiresAt.toISOString(),
       nextStep: outcome.method === "OTP" ? "OTP_REQUIRED" : "AADHAAR_REQUIRED",
       requestId: outcome.requestId,
+      syntheticOtp: outcome.syntheticOtp,
       targetMobileLastFour: outcome.targetMobileLastFour,
     }
   } catch (error) {

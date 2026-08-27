@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: digilicense
+    runtime: docker
+    dockerfilePath: Dockerfile.render
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: digilicense-db
+          property: connectionString
+      - key: DIGILICENSE_SESSION_SECRET
+        generateValue: true
+      - key: DIGILICENSE_IDENTIFIER_HMAC_SECRET
+        generateValue: true
+      - key: DIGILICENSE_IDENTIFIER_HMAC_KEY_VERSION
+        value: v1
+      # Required only for synthetic applicant sign-in. Set a random 6-digit
+      # value in the Render dashboard and rotate it between demonstrations.
+      - key: DIGILICENSE_DEMO_APPLICANT_OTP
+        sync: false
+      - key: DIGILICENSE_PUBLIC_ORIGIN
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: digilicense-db
+    plan: starter
+    databaseName: digilicense
+    user: digilicense

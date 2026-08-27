@@ -67,6 +67,7 @@ function MobileUpdateFlow() {
   const [currentMobileLastFour, setCurrentMobileLastFour] = useState("")
   const [targetMobileNumber, setTargetMobileNumber] = useState("9000000004")
   const [method, setMethod] = useState<"MOCK_AADHAAR" | "OTP">("OTP")
+  const [issuedOtp, setIssuedOtp] = useState("")
   const [otp, setOtp] = useState("")
   const [message, setMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -88,13 +89,18 @@ function MobileUpdateFlow() {
 
         setCurrentMobileLastFour(result.currentMobileLastFour)
         setActiveRequest(result.activeRequest)
-        setPhase(
-          result.activeRequest?.method === "OTP"
-            ? "otp"
-            : result.activeRequest?.method === "MOCK_AADHAAR"
+        if (result.activeRequest?.method === "OTP") {
+          setMessage(
+            "Your verification is still open. Request a new one-time code to continue."
+          )
+          setPhase("ready")
+        } else {
+          setPhase(
+            result.activeRequest?.method === "MOCK_AADHAAR"
               ? "aadhaar"
               : "ready"
-        )
+          )
+        }
       } catch {
         if (!cancelled) {
           setMessage(
@@ -130,6 +136,7 @@ function MobileUpdateFlow() {
   function setRequestFromStart(
     result: Extract<MobileUpdateStartResult, { kind: "started" }>
   ) {
+    setIssuedOtp(result.syntheticOtp ?? "")
     const request = {
       expiresAt: result.expiresAt,
       id: result.requestId,
@@ -327,8 +334,8 @@ function MobileUpdateFlow() {
           Confirm the number ending in {activeRequest.targetMobileLastFour}
         </h2>
         <p className="mt-3 text-muted-foreground">
-          No SMS is sent. For local prototype use, enter the configured
-          synthetic six-digit OTP. This request expires at{" "}
+          No SMS is sent. DigiLicense generated this one-time code for this
+          request: <strong>{issuedOtp}</strong>. This request expires at{" "}
           {getExpiryLabel(activeRequest.expiresAt)}.
         </p>
         <label
@@ -452,7 +459,11 @@ function MobileUpdateFlow() {
         {message}
       </p>
       <Button className="mt-5" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Starting…" : "Start verification"}
+        {isSubmitting
+          ? "Starting…"
+          : activeRequest?.method === "OTP"
+            ? "Get a new one-time code"
+            : "Start verification"}
       </Button>
     </form>
   )

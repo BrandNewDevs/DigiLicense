@@ -1,0 +1,51 @@
+FROM node:22-alpine AS base
+
+WORKDIR /workspace
+
+RUN corepack enable
+
+# ── dependencies (full install for build) ─────────────────────────
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/ui/package.json packages/ui/package.json
+
+RUN pnpm install --frozen-lockfile
+
+# ── build ─────────────────────────────────────────────────────────
+COPY . .
+
+ENV DATABASE_URL='postgresql://placeholder:placeholder@localhost:5432/digilicense?sslmode=require'
+
+RUN pnpm --filter @digilicense/db build
+
+ENV NODE_ENV=production
+RUN pnpm --filter web build
+
+# ── production ────────────────────────────────────────────────────
+FROM node:22-alpine AS production
+
+WORKDIR /workspace
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/ui/package.json packages/ui/package.json
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=base /workspace/apps/web/dist ./apps/web/dist
+COPY --from=base /workspace/packages/db/src ./packages/db/src
+COPY --from=base /workspace/packages/db/prisma ./packages/db/prisma
+COPY --from=base /workspace/packages/db/prisma.config.ts ./packages/db/prisma.config.ts
+COPY --from=base /workspace/docker/render-start.sh ./docker/render-start.sh
+
+RUN chmod +x docker/render-start.sh && chown -R node:node /workspace
+
+USER node
+
+EXPOSE 3000
+
+CMD ["sh", "docker/render-start.sh"]
