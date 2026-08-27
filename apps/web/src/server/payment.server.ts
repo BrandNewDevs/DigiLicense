@@ -11,6 +11,7 @@ import {
 } from "@digilicense/db/server"
 import type { ApplicationStatus } from "@digilicense/db/server"
 
+import { addUtcYears, renewalValidityYears } from "../lib/renewal"
 import type {
   FeeQuoteInput,
   ResolveApplicationPaymentInput,
@@ -116,6 +117,7 @@ type PaymentCompletionTransition = {
     toStatus: ApplicationStatus
   }>
   nextAction: string
+  notification: { message: string; title: string }
   status: ApplicationStatus
   statusDeadlineAt: Date | null
 }
@@ -138,6 +140,10 @@ function getPaymentCompletionTransition(
         },
       ],
       nextAction: "Your application is ready for the learner's test.",
+      notification: {
+        message: "Your application is ready for the learner's test.",
+        title: "Learner application ready",
+      },
       status: "DOCUMENTS_VERIFIED",
       statusDeadlineAt: null,
     }
@@ -157,6 +163,11 @@ function getPaymentCompletionTransition(
       ],
       nextAction:
         "Choose driving-test appointment preferences to join the waitlist.",
+      notification: {
+        message:
+          "Choose driving-test appointment preferences to join the waitlist.",
+        title: "Appointment preferences available",
+      },
       status: "WAITLISTED",
       statusDeadlineAt: null,
     }
@@ -176,8 +187,42 @@ function getPaymentCompletionTransition(
       ],
       nextAction:
         "DigiLicense is reviewing the submitted proof. No government service was contacted.",
+      notification: {
+        message: "DigiLicense started the automatic address-proof review.",
+        title: "Address proof review started",
+      },
       status: "DOCUMENT_REVIEW",
       statusDeadlineAt: new Date(completedAt.getTime() + 60_000),
+    }
+  }
+  if (service === "Driving-licence renewal") {
+    return {
+      blockingReasonCode: null,
+      documentStatus: null,
+      events: [
+        {
+          description:
+            "DigiLicense rechecked the owned licence record and renewal window after payment.",
+          fromStatus: "PAYMENT_CONFIRMED",
+          title: "Renewal checks completed",
+          toStatus: "APPROVAL_PENDING",
+        },
+        {
+          description:
+            "The renewal is recorded by DigiLicense only under its ten-year validity rule; no government service was contacted.",
+          fromStatus: "APPROVAL_PENDING",
+          title: "Renewal recorded",
+          toStatus: "APPROVED",
+        },
+      ],
+      nextAction:
+        "No further action is required. The renewal is recorded by DigiLicense only; no government service was contacted.",
+      notification: {
+        message: "Your renewal has been recorded.",
+        title: "Renewal recorded",
+      },
+      status: "APPROVED",
+      statusDeadlineAt: null,
     }
   }
   return {
@@ -186,6 +231,10 @@ function getPaymentCompletionTransition(
     events: [],
     nextAction:
       "Payment is recorded by DigiLicense only. Continue with the service workflow.",
+    notification: {
+      message: "Your payment outcome was recorded.",
+      title: "Payment recorded",
+    },
     status: "PAYMENT_CONFIRMED",
     statusDeadlineAt: null,
   }
@@ -635,6 +684,46 @@ async function resolveApplicationPayment(
         },
         select: paymentProjectionSelect,
       })
+      if (paid && payment.application.service === "Driving-licence renewal") {
+        const renewal = await transaction.renewalDetail.findUniqueOrThrow({
+          where: { applicationId: payment.application.id },
+          select: {
+            id: true,
+            licenceRecord: { select: { id: true, validUntil: true } },
+          },
+        })
+        const validityBase =
+          renewal.licenceRecord.validUntil > completedAt
+            ? renewal.licenceRecord.validUntil
+            : completedAt
+        const renewedValidUntil = addUtcYears(
+          validityBase,
+          renewalValidityYears
+        )
+        await transaction.drivingLicenceRecord.update({
+          where: { id: renewal.licenceRecord.id },
+          data: {
+            lastRenewedAt: completedAt,
+            validUntil: renewedValidUntil,
+            version: { increment: 1 },
+          },
+        })
+        await transaction.renewalDetail.update({
+          where: { id: renewal.id },
+          data: { renewedValidUntil },
+        })
+        await transaction.auditEvent.create({
+          data: {
+            action: "AUTO_APPROVE_RENEWAL",
+            actorId: "digilicense-payment-workflow",
+            applicationId: payment.application.id,
+            entityId: renewal.id,
+            entityType: "RENEWAL",
+            reasonCode: "DIGILICENSE_RENEWAL_RULE_APPLIED",
+            requestId: randomUUID(),
+          },
+        })
+      }
       await transaction.application.update({
         where: { id: payment.application.id },
         data: {
@@ -683,9 +772,11 @@ async function resolveApplicationPayment(
           applicantId: authorization.applicantId,
           applicationId: payment.application.id,
           message: paid
-            ? `Your payment outcome was recorded. ${paymentBoundaryDisclosure}`
+            ? `${completion.notification.message} ${paymentBoundaryDisclosure}`
             : `Your payment was not completed. You can retry. ${paymentBoundaryDisclosure}`,
-          title: paid ? "Payment recorded" : "Payment retry available",
+          title: paid
+            ? completion.notification.title
+            : "Payment retry available",
         },
       })
       await transaction.auditEvent.create({
