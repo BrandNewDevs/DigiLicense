@@ -13,6 +13,8 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+apps/web/playwright-report/
+apps/web/test-results/
 
 # turbo
 .turbo

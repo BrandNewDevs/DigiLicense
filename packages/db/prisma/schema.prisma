@@ -101,6 +101,29 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentFailureReason {
+  RECORDED_FAILURE
+}
+
+enum FeeService {
+  LEARNER_LICENCE
+  PERMANENT_LICENCE
+  ADDRESS_CHANGE
+  RENEWAL
+  REPLACEMENT
+}
+
+enum RenewalReason {
+  EXPIRING_SOON
+  RECENTLY_EXPIRED
+}
+
+enum ReplacementReason {
+  LOST
+  DAMAGED
+  UNREADABLE
+}
+
 enum NotificationStatus {
   UNREAD
   READ
@@ -162,8 +185,11 @@ model Application {
   payments          PaymentRecord[]
   notifications     NotificationRecord[]
   learnerTestAttempts LearnerTestAttempt[]
+  learnerLicenceDetail LearnerLicenceDetail?
   addressChangeDetail AddressChangeDetail?
   permanentLicenceDetail PermanentLicenceDetail?
+  renewalDetail RenewalDetail?
+  replacementDetail ReplacementDetail?
   appointmentWaitlistEntries AppointmentWaitlistEntry[]
   confirmedAppointment ConfirmedAppointment?
 
@@ -222,6 +248,18 @@ model ApplicationDraft {
   @@index([expiresAt])
 }
 
+// Durable workflow data needed after the seven-day form draft expires. Keep
+// this deliberately minimal: identity and address form fields are not copied.
+model LearnerLicenceDetail {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  vehicleClass  String
+  createdAt     DateTime    @default(now())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleClass])
+}
+
 model DocumentRecord {
   id            String         @id @default(cuid())
   applicationId String
@@ -241,18 +279,46 @@ model DocumentRecord {
 model PaymentRecord {
   id             String        @id @default(cuid())
   applicationId  String
+  feeScheduleId  String?
+  feeScheduleVersion String?
   feeLines       String
   amountPaise    Int
   status         PaymentStatus @default(PENDING)
+  failureReason  PaymentFailureReason?
   idempotencyKey String        @unique
+  resolutionIdempotencyKey String? @unique
   reference      String?       @unique
   isSimulated    Boolean       @default(true)
+  completedAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   application    Application   @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  feeSchedule    FeeSchedule?  @relation(fields: [feeScheduleId], references: [id], onDelete: Restrict)
 
   @@index([applicationId, createdAt])
   @@index([applicationId, status])
+  @@index([feeScheduleId])
+  @@unique([applicationId], map: "payment_one_active_per_application_key", where: raw("\"status\" IN ('PENDING'::\"PaymentStatus\", 'PROCESSING'::\"PaymentStatus\")"))
+  @@unique([applicationId], map: "payment_one_paid_per_application_key", where: raw("\"status\" = 'PAID'::\"PaymentStatus\""))
+}
+
+// Versioned DigiLicense-only catalogue. Values are prototype records and are
+// never represented as government fee demands or payment-provider quotes.
+model FeeSchedule {
+  id            String      @id @default(cuid())
+  code          String
+  service       FeeService
+  version       String
+  amountPaise   Int
+  active        Boolean     @default(true)
+  effectiveFrom DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  payments      PaymentRecord[]
+
+  @@unique([code, version])
+  @@index([service, effectiveFrom])
+  @@unique([service], map: "fee_schedule_one_active_per_service_key", where: raw("\"active\" = true"))
 }
 
 model NotificationRecord {
@@ -317,13 +383,57 @@ model DrivingLicenceRecord {
   applicantId           String
   licenceNumber         String                      @unique
   currentAddressSummary String
+  vehicleClass          String                      @default("LIGHT_MOTOR_VEHICLE")
+  validUntil            DateTime
+  lastRenewedAt         DateTime?
+  lastReplacementAt     DateTime?
+  version               Int                         @default(1)
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @updatedAt
   applicant             ApplicantAccount            @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   addressVerifications  AddressChangeVerification[]
   addressChangeDetails  AddressChangeDetail[]
+  renewalDetails        RenewalDetail[]
+  replacementDetails    ReplacementDetail[]
 
   @@index([applicantId, licenceNumber])
+}
+
+// Renewal eligibility and outcome snapshots are application-scoped. The
+// expiry dates are copied from the owned DigiLicense licence record so the
+// applicant can never submit or rewrite the eligibility clock.
+model RenewalDetail {
+  id                       String               @id @default(cuid())
+  applicationId            String               @unique
+  licenceRecordId          String
+  reason                   RenewalReason
+  previousValidUntil       DateTime
+  renewedValidUntil        DateTime?
+  submissionIdempotencyKey String               @unique
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  application              Application          @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  licenceRecord            DrivingLicenceRecord @relation(fields: [licenceRecordId], references: [id], onDelete: Restrict)
+
+  @@index([licenceRecordId, createdAt])
+}
+
+// A replacement never changes the synthetic licence number. This record
+// preserves the applicant command and the DigiLicense-only completion
+// reference while the shared application history records state transitions.
+model ReplacementDetail {
+  id                       String               @id @default(cuid())
+  applicationId            String               @unique
+  licenceRecordId          String
+  reason                   ReplacementReason
+  replacementReference     String?              @unique
+  submissionIdempotencyKey String               @unique
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  application              Application          @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  licenceRecord            DrivingLicenceRecord @relation(fields: [licenceRecordId], references: [id], onDelete: Restrict)
+
+  @@index([licenceRecordId, createdAt])
 }
 
 // A short-lived step-up challenge authorizes a single address-change

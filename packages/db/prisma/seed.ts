@@ -9,6 +9,7 @@ import {
   AppointmentNotificationChannel,
   AppointmentSlotStatus,
   AppointmentWaitlistStatus,
+  FeeService,
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
 import { createDatabaseAdapter } from "../src/database-adapter.ts"
@@ -29,6 +30,69 @@ if (!databaseUrl) {
 
 const prisma = new PrismaClient({
   adapter: createDatabaseAdapter(databaseUrl),
+})
+
+const feeCatalogueVersion = "digilicense-2026-v1"
+const feeCatalogueEffectiveFrom = new Date("2026-01-01T00:00:00.000Z")
+const feeSchedules = [
+  {
+    amountPaise: 15_000,
+    code: "DL-FEE-LEARNER",
+    service: FeeService.LEARNER_LICENCE,
+  },
+  {
+    amountPaise: 20_000,
+    code: "DL-FEE-PERMANENT",
+    service: FeeService.PERMANENT_LICENCE,
+  },
+  {
+    amountPaise: 5_000,
+    code: "DL-FEE-ADDRESS",
+    service: FeeService.ADDRESS_CHANGE,
+  },
+  {
+    amountPaise: 20_000,
+    code: "DL-FEE-RENEWAL",
+    service: FeeService.RENEWAL,
+  },
+  {
+    amountPaise: 25_000,
+    code: "DL-FEE-REPLACEMENT",
+    service: FeeService.REPLACEMENT,
+  },
+] as const
+
+await prisma.$transaction(async (transaction) => {
+  // Integration and local environments can already contain a different
+  // active catalogue version. Retain those rows as fee history while making
+  // the resettable seed catalogue the sole active version for each service.
+  await transaction.feeSchedule.updateMany({
+    where: {
+      active: true,
+      service: { in: feeSchedules.map((fee) => fee.service) },
+    },
+    data: { active: false },
+  })
+
+  for (const fee of feeSchedules) {
+    await transaction.feeSchedule.upsert({
+      where: {
+        code_version: { code: fee.code, version: feeCatalogueVersion },
+      },
+      update: {
+        active: true,
+        amountPaise: fee.amountPaise,
+        effectiveFrom: feeCatalogueEffectiveFrom,
+        service: fee.service,
+      },
+      create: {
+        ...fee,
+        active: true,
+        effectiveFrom: feeCatalogueEffectiveFrom,
+        version: feeCatalogueVersion,
+      },
+    })
+  }
 })
 
 const applicantAccounts = [
@@ -100,6 +164,15 @@ await prisma.applicationDraft.upsert({
     applicationId: appointmentFixtureLearner.id,
     formPayload: JSON.stringify({ vehicleClass: "LIGHT_MOTOR_VEHICLE" }),
     service: "Learner's licence",
+  },
+})
+
+await prisma.learnerLicenceDetail.upsert({
+  where: { applicationId: appointmentFixtureLearner.id },
+  update: { vehicleClass: "LIGHT_MOTOR_VEHICLE" },
+  create: {
+    applicationId: appointmentFixtureLearner.id,
+    vehicleClass: "LIGHT_MOTOR_VEHICLE",
   },
 })
 
@@ -230,16 +303,19 @@ const drivingLicenceRecords = [
     applicantId: "demo-applicant-001",
     currentAddressSummary: "Synthetic Dwarka address",
     licenceNumber: "DL-DEMO-2020-0042",
+    validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1_000),
   },
   {
     applicantId: "demo-applicant-002",
     currentAddressSummary: "Synthetic Mayur Vihar address",
     licenceNumber: "DL-DEMO-2021-0043",
+    validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1_000),
   },
   {
     applicantId: "demo-applicant-003",
     currentAddressSummary: "Synthetic Rohini address",
     licenceNumber: "DL-DEMO-2022-0044",
+    validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1_000),
   },
 ] as const
 

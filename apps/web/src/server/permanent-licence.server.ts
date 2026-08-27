@@ -92,6 +92,7 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
           applicationNumber: true,
           updatedAt: true,
           draft: { select: { formPayload: true } },
+          learnerLicenceDetail: { select: { vehicleClass: true } },
         },
       }),
     ])
@@ -110,9 +111,9 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
           "Pass the learner's test before starting a permanent-licence application.",
       }
 
-    const vehicleClass = learner.draft
-      ? getLearnerVehicleClass(learner.draft.formPayload)
-      : null
+    const vehicleClass =
+      learner.learnerLicenceDetail?.vehicleClass ??
+      (learner.draft ? getLearnerVehicleClass(learner.draft.formPayload) : null)
     if (
       vehicleClass !== "MOTORCYCLE_WITHOUT_GEAR" &&
       vehicleClass !== "MOTORCYCLE_WITH_GEAR" &&
@@ -233,11 +234,14 @@ async function submitPermanentLicenceApplication(
           id: true,
           updatedAt: true,
           draft: { select: { formPayload: true } },
+          learnerLicenceDetail: { select: { vehicleClass: true } },
         },
       })
-      const learnerVehicleClass = learner?.draft
-        ? getLearnerVehicleClass(learner.draft.formPayload)
-        : null
+      const learnerVehicleClass =
+        learner?.learnerLicenceDetail?.vehicleClass ??
+        (learner?.draft
+          ? getLearnerVehicleClass(learner.draft.formPayload)
+          : null)
       if (!learner || learnerVehicleClass !== input.vehicleClass) {
         return {
           kind: "vehicle-class-mismatch" as const,
@@ -266,11 +270,10 @@ async function submitPermanentLicenceApplication(
         data: {
           applicantId: applicant.applicantId,
           applicationNumber: number,
-          blockingReasonCode: "APPOINTMENT_PREFERENCES_REQUIRED",
+          blockingReasonCode: "PAYMENT_CONFIRMATION_PENDING",
           service: permanentLicenceServiceName,
-          status: "WAITLISTED",
-          nextAction:
-            "Choose driving-test appointment preferences to join the waitlist.",
+          status: "PAYMENT_REVIEW",
+          nextAction: "Record the DigiLicense-only fee outcome to continue.",
         },
         select: { id: true, applicationNumber: true },
       })
@@ -284,8 +287,8 @@ async function submitPermanentLicenceApplication(
           actor: WorkflowActor.APPLICANT,
           actorId: applicant.applicantId,
           title: "Permanent-licence application submitted",
-          description: `Vehicle class selected: ${input.vehicleClass}. Recorded by DigiLicense only; no government service was contacted.`,
-          toStatus: "WAITLISTED",
+          description: `Vehicle class selected: ${input.vehicleClass}. Continue with the DigiLicense-only fee step; no government service was contacted.`,
+          toStatus: "PAYMENT_REVIEW",
         },
       })
       await transaction.notificationRecord.create({
@@ -294,7 +297,7 @@ async function submitPermanentLicenceApplication(
           applicationId: application.id,
           title: "Permanent-licence application received",
           message:
-            "Your application is ready for driving-test appointment preferences. No government service was contacted.",
+            "Your application is ready for the DigiLicense-only fee step. No government service was contacted.",
         },
       })
       await transaction.auditEvent.create({
