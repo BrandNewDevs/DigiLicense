@@ -17,7 +17,11 @@ const config = defineConfig(({ isPreview }) => {
     resolve: { tsconfigPaths: true },
     server: { cors: false, headers: assetSecurityHeaders },
     test: {
-      exclude: [...configDefaults.exclude, "src/**/*.integration.test.ts"],
+      exclude: [
+        ...configDefaults.exclude,
+        "e2e/**",
+        "src/**/*.integration.test.ts",
+      ],
     },
     plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
   }

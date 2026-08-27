@@ -11,6 +11,7 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "test:integration": "pnpm --filter web test:integration",
+    "test:e2e": "pnpm --filter web test:e2e",
     "test:clean-build": "node scripts/verify-clean-build.mjs",
     "format": "turbo format",
     "typecheck": "turbo typecheck"
