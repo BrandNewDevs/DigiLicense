@@ -113,6 +113,11 @@ enum FeeService {
   REPLACEMENT
 }
 
+enum RenewalReason {
+  EXPIRING_SOON
+  RECENTLY_EXPIRED
+}
+
 enum NotificationStatus {
   UNREAD
   READ
@@ -177,6 +182,7 @@ model Application {
   learnerLicenceDetail LearnerLicenceDetail?
   addressChangeDetail AddressChangeDetail?
   permanentLicenceDetail PermanentLicenceDetail?
+  renewalDetail RenewalDetail?
   appointmentWaitlistEntries AppointmentWaitlistEntry[]
   confirmedAppointment ConfirmedAppointment?
 
@@ -370,13 +376,37 @@ model DrivingLicenceRecord {
   applicantId           String
   licenceNumber         String                      @unique
   currentAddressSummary String
+  vehicleClass          String                      @default("LIGHT_MOTOR_VEHICLE")
+  validUntil            DateTime
+  lastRenewedAt         DateTime?
+  version               Int                         @default(1)
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @updatedAt
   applicant             ApplicantAccount            @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   addressVerifications  AddressChangeVerification[]
   addressChangeDetails  AddressChangeDetail[]
+  renewalDetails        RenewalDetail[]
 
   @@index([applicantId, licenceNumber])
+}
+
+// Renewal eligibility and outcome snapshots are application-scoped. The
+// expiry dates are copied from the owned DigiLicense licence record so the
+// applicant can never submit or rewrite the eligibility clock.
+model RenewalDetail {
+  id                       String               @id @default(cuid())
+  applicationId            String               @unique
+  licenceRecordId          String
+  reason                   RenewalReason
+  previousValidUntil       DateTime
+  renewedValidUntil        DateTime?
+  submissionIdempotencyKey String               @unique
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  application              Application          @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  licenceRecord            DrivingLicenceRecord @relation(fields: [licenceRecordId], references: [id], onDelete: Restrict)
+
+  @@index([licenceRecordId, createdAt])
 }
 
 // A short-lived step-up challenge authorizes a single address-change

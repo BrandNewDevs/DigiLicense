@@ -303,16 +303,19 @@ const drivingLicenceRecords = [
     applicantId: "demo-applicant-001",
     currentAddressSummary: "Synthetic Dwarka address",
     licenceNumber: "DL-DEMO-2020-0042",
+    validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1_000),
   },
   {
     applicantId: "demo-applicant-002",
     currentAddressSummary: "Synthetic Mayur Vihar address",
     licenceNumber: "DL-DEMO-2021-0043",
+    validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1_000),
   },
   {
     applicantId: "demo-applicant-003",
     currentAddressSummary: "Synthetic Rohini address",
     licenceNumber: "DL-DEMO-2022-0044",
+    validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1_000),
   },
 ] as const
 
