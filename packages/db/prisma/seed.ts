@@ -9,6 +9,7 @@ import {
   AppointmentNotificationChannel,
   AppointmentSlotStatus,
   AppointmentWaitlistStatus,
+  FeeService,
   WorkflowActor,
 } from "../src/generated/prisma/enums.ts"
 import { createDatabaseAdapter } from "../src/database-adapter.ts"
@@ -30,6 +31,56 @@ if (!databaseUrl) {
 const prisma = new PrismaClient({
   adapter: createDatabaseAdapter(databaseUrl),
 })
+
+const feeCatalogueVersion = "digilicense-2026-v1"
+const feeCatalogueEffectiveFrom = new Date("2026-08-28T00:00:00.000Z")
+const feeSchedules = [
+  {
+    amountPaise: 15_000,
+    code: "DL-FEE-LEARNER",
+    service: FeeService.LEARNER_LICENCE,
+  },
+  {
+    amountPaise: 20_000,
+    code: "DL-FEE-PERMANENT",
+    service: FeeService.PERMANENT_LICENCE,
+  },
+  {
+    amountPaise: 5_000,
+    code: "DL-FEE-ADDRESS",
+    service: FeeService.ADDRESS_CHANGE,
+  },
+  {
+    amountPaise: 20_000,
+    code: "DL-FEE-RENEWAL",
+    service: FeeService.RENEWAL,
+  },
+  {
+    amountPaise: 25_000,
+    code: "DL-FEE-REPLACEMENT",
+    service: FeeService.REPLACEMENT,
+  },
+] as const
+
+for (const fee of feeSchedules) {
+  await prisma.feeSchedule.upsert({
+    where: {
+      code_version: { code: fee.code, version: feeCatalogueVersion },
+    },
+    update: {
+      active: true,
+      amountPaise: fee.amountPaise,
+      effectiveFrom: feeCatalogueEffectiveFrom,
+      service: fee.service,
+    },
+    create: {
+      ...fee,
+      active: true,
+      effectiveFrom: feeCatalogueEffectiveFrom,
+      version: feeCatalogueVersion,
+    },
+  })
+}
 
 const applicantAccounts = [
   { id: "demo-applicant-001", mobileNumber: "9000000001" },
