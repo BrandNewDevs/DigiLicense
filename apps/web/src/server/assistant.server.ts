@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
+import { questionContainsSensitiveData } from "../lib/assistant-safety"
 import type { AskAssistantInput } from "../validation/assistant"
 import { readPrivateAiConfiguration } from "./assistant-config.server"
 import { requestPrivateAssistant } from "./assistant-client.server"
@@ -14,6 +15,7 @@ import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
 
 type AssistantFallbackReason =
+  | "sensitive-input"
   | "configuration"
   | AssistantDependencyFailureReason
   | "rate-limited"
@@ -32,6 +34,8 @@ type AskAssistantResult =
 
 const fallbackMessages = {
   en: {
+    "sensitive-input":
+      "For your privacy, remove personal, application, document, contact, or payment information before asking for guidance.",
     configuration:
       "Guidance is not available right now. Please review the information on this page and try again. DigiLicense cannot contact a government service.",
     malformed:
@@ -44,6 +48,8 @@ const fallbackMessages = {
       "Guidance is temporarily unavailable. Please review the information on this page and try again. DigiLicense cannot contact a government service.",
   },
   hi: {
+    "sensitive-input":
+      "आपकी गोपनीयता के लिए, मार्गदर्शन मांगने से पहले निजी, आवेदन, दस्तावेज़, संपर्क या भुगतान जानकारी हटा दें।",
     configuration:
       "मार्गदर्शन अभी उपलब्ध नहीं है। इस पेज की जानकारी देखें और फिर प्रयास करें। DigiLicense किसी सरकारी सेवा से संपर्क नहीं कर सकता।",
     malformed:
@@ -64,7 +70,11 @@ function fallbackResponse(
   return {
     answer: fallbackMessages[locale][reason],
     blockedReason:
-      reason === "rate-limited" ? "RATE_LIMITED" : "PROVIDER_UNAVAILABLE",
+      reason === "sensitive-input"
+        ? "PII_DETECTED"
+        : reason === "rate-limited"
+          ? "RATE_LIMITED"
+          : "PROVIDER_UNAVAILABLE",
     contextToken: null,
     escalation: {
       code: "REVIEW_PUBLIC_GUIDANCE",
@@ -83,6 +93,14 @@ function fallbackResponse(
 async function askAssistant(
   input: AskAssistantInput
 ): Promise<AskAssistantResult> {
+  if (questionContainsSensitiveData(input.question)) {
+    return {
+      kind: "fallback",
+      reason: "sensitive-input",
+      response: fallbackResponse(input.locale, "sensitive-input"),
+    }
+  }
+
   let applicant: Awaited<ReturnType<typeof requireApplicant>>
   try {
     applicant = await requireApplicant()

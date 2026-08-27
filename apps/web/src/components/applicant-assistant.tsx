@@ -7,6 +7,7 @@ import { useId, useState } from "react"
 import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
 
+import { questionContainsSensitiveData } from "../lib/assistant-safety"
 import { askAssistant } from "../server-functions/assistant"
 import type { AskAssistantInput } from "../validation/assistant"
 
@@ -36,6 +37,36 @@ const suggestedQuestions = [
   "How does the appointment waitlist work?",
 ] as const
 
+function clientFallback(
+  locale: Locale,
+  reason: "sensitive-input" | "unavailable"
+): AssistantResult {
+  const answer =
+    reason === "sensitive-input"
+      ? locale === "hi"
+        ? "आपकी गोपनीयता के लिए, मार्गदर्शन मांगने से पहले निजी, आवेदन, दस्तावेज़, संपर्क या भुगतान जानकारी हटा दें।"
+        : "For your privacy, remove personal, application, document, contact, or payment information before asking for guidance."
+      : locale === "hi"
+        ? "मार्गदर्शन अभी उपलब्ध नहीं है। इस पेज की जानकारी देखें और बाद में फिर प्रयास करें।"
+        : "Guidance is temporarily unavailable. Review the information on this page and try again later."
+
+  return {
+    kind: "fallback",
+    reason,
+    response: {
+      answer,
+      blockedReason:
+        reason === "sensitive-input" ? "PII_DETECTED" : "PROVIDER_UNAVAILABLE",
+      contextToken: null,
+      escalation: null,
+      fallbackUsed: true,
+      intent: "UNSUPPORTED_QUESTION",
+      sources: [],
+      uncertain: true,
+    },
+  }
+}
+
 function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
   const ask = useServerFn(askAssistant)
   const questionId = useId()
@@ -49,6 +80,17 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
   async function submitQuestion(value: string) {
     const trimmedQuestion = value.trim()
     if (!trimmedQuestion || isSubmitting) return
+
+    if (questionContainsSensitiveData(trimmedQuestion)) {
+      const fallback = clientFallback(locale, "sensitive-input")
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), kind: "question", text: trimmedQuestion },
+        { id: crypto.randomUUID(), kind: "answer", result: fallback },
+      ])
+      setQuestion("")
+      return
+    }
 
     setIsSubmitting(true)
     setMessages((current) => [
@@ -76,21 +118,7 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
       }
       onAnswered?.()
     } catch {
-      const fallback: AssistantResult = {
-        kind: "fallback",
-        reason: "unavailable",
-        response: {
-          answer:
-            "Guidance is temporarily unavailable. Review the information on this page and try again later.",
-          blockedReason: "PROVIDER_UNAVAILABLE",
-          contextToken: null,
-          escalation: null,
-          fallbackUsed: true,
-          intent: "UNSUPPORTED_QUESTION",
-          sources: [],
-          uncertain: true,
-        },
-      }
+      const fallback = clientFallback(locale, "unavailable")
       setMessages((current) => [
         ...current,
         { id: crypto.randomUUID(), kind: "answer", result: fallback },
