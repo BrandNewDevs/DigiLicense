@@ -134,13 +134,10 @@ function ApplicationStatusFlow() {
   }
 
   return (
-    <section className="rounded-3xl border border-border p-6 sm:p-8">
-      <p className="text-sm font-medium text-muted-foreground">
-        Application tracking
-      </p>
-      <div className="mt-2 flex items-center gap-3">
-        <Search aria-hidden="true" className="size-6 text-[#d96b16]" />
-        <h2 className="font-heading text-2xl font-medium tracking-[-0.04em]">
+    <section className="rounded-xl border border-border p-6 sm:p-8">
+      <div className="flex items-center gap-3">
+        <Search aria-hidden="true" className="size-6 text-primary" />
+        <h2 className="font-sans text-2xl font-medium">
           Check the current application status
         </h2>
       </div>
@@ -187,10 +184,10 @@ function ApplicationStatusFlow() {
           <div className="flex items-center gap-3">
             <ClipboardCheck
               aria-hidden="true"
-              className="size-5 text-[#d96b16]"
+              className="size-5 text-primary"
             />
             <h3
-              className="font-heading text-xl font-medium"
+              className="font-sans text-xl font-medium"
               id="application-status-result"
             >
               Current status

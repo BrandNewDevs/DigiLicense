@@ -49,7 +49,11 @@ const services = [
         label: "Vehicle class",
         name: "vehicleClass",
         type: "select",
-        options: ["Motorcycle without gear", "Motorcycle with gear", "Car"],
+        options: [
+          "Two-wheeler without gear (MCWOG)",
+          "Two-wheeler with gear (MCWG)",
+          "Car / Light Motor Vehicle (LMV)",
+        ],
       },
       {
         label: "Preferred Delhi zone",
@@ -100,7 +104,11 @@ const services = [
         label: "Vehicle class",
         name: "vehicleClass",
         type: "select",
-        options: ["Motorcycle without gear", "Motorcycle with gear", "Car"],
+        options: [
+          "Two-wheeler without gear (MCWOG)",
+          "Two-wheeler with gear (MCWG)",
+          "Car / Light Motor Vehicle (LMV)",
+        ],
       },
     ],
   },

@@ -5,9 +5,10 @@
 const learnerServiceName = "Learner's licence"
 
 type VehicleClassOption = {
+  code: "LMV" | "MCWG" | "MCWOG"
+  label: string
   minimumAgeYears: number
   value: (typeof vehicleClassValues)[number]
-  label: string
 }
 
 const vehicleClassValues = [
@@ -20,17 +21,20 @@ const vehicleClassValues = [
 // motorcycle and 18 for geared motorcycles and cars.
 const vehicleClasses = [
   {
-    label: "Motorcycle without gear",
+    code: "MCWOG",
+    label: "Two-wheeler without gear",
     minimumAgeYears: 16,
     value: "MOTORCYCLE_WITHOUT_GEAR",
   },
   {
-    label: "Motorcycle with gear",
+    code: "MCWG",
+    label: "Two-wheeler with gear",
     minimumAgeYears: 18,
     value: "MOTORCYCLE_WITH_GEAR",
   },
   {
-    label: "Car",
+    code: "LMV",
+    label: "Car / Light Motor Vehicle",
     minimumAgeYears: 18,
     value: "LIGHT_MOTOR_VEHICLE",
   },

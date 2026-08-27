@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start"
 import { FileText, MapPin, ShieldCheck } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
 import {
   addressChangeLocalityValues,
@@ -354,20 +355,24 @@ function AddressChangeFlow() {
 
   if (phase === "loading") {
     return (
-      <p
-        className="rounded-3xl border border-border p-6 text-muted-foreground"
-        role="status"
+      <section
+        aria-busy="true"
+        aria-label="Loading address-change request"
+        className="rounded-lg border bg-card p-6"
       >
-        Loading your address-change request...
-      </p>
+        <Skeleton className="h-7 w-60" />
+        <Skeleton className="mt-4 h-4 w-full max-w-lg" />
+        <Skeleton className="mt-8 h-11 w-full" />
+        <Skeleton className="mt-4 h-11 w-full" />
+      </section>
     )
   }
 
   if (phase === "authentication-required") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
+      <section className="rounded-xl border border-border p-6 sm:p-8">
         <h2
-          className="font-heading text-2xl font-medium"
+          className="font-sans text-2xl font-medium"
           ref={headingRef}
           tabIndex={-1}
         >
@@ -387,9 +392,9 @@ function AddressChangeFlow() {
 
   if (phase === "unavailable") {
     return (
-      <section className="rounded-3xl border border-border p-6 sm:p-8">
+      <section className="rounded-xl border border-border p-6 sm:p-8">
         <h2
-          className="font-heading text-2xl font-medium"
+          className="font-sans text-2xl font-medium"
           ref={headingRef}
           tabIndex={-1}
         >
@@ -405,15 +410,12 @@ function AddressChangeFlow() {
     return (
       <section
         aria-live="polite"
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
       >
-        <p className="text-sm font-medium text-muted-foreground">
-          {submitted ? "Submission complete" : "Application in progress"}
-        </p>
-        <div className="mt-2 flex items-center gap-3">
-          <FileText aria-hidden="true" className="size-6 text-[#d96b16]" />
+        <div className="flex items-center gap-3">
+          <FileText aria-hidden="true" className="size-6 text-primary" />
           <h2
-            className="font-heading text-2xl font-medium"
+            className="font-sans text-2xl font-medium"
             ref={headingRef}
             tabIndex={-1}
           >
@@ -445,13 +447,10 @@ function AddressChangeFlow() {
   if (phase === "otp" && verification) {
     return (
       <form
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
         onSubmit={handleVerify}
       >
-        <p className="text-sm font-medium text-muted-foreground">
-          Mobile verification
-        </p>
-        <h2 className="mt-2 font-heading text-2xl font-medium">
+        <h2 className="font-sans text-2xl font-medium">
           Confirm the mobile number ending in {currentMobileLastFour}
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
@@ -488,15 +487,15 @@ function AddressChangeFlow() {
   if (phase === "ready") {
     return (
       <form
-        className="rounded-3xl border border-border p-6 sm:p-8"
+        className="rounded-xl border border-border p-6 sm:p-8"
         onSubmit={handleStart}
       >
         <p className="text-sm font-medium text-muted-foreground">
           Address verification
         </p>
         <div className="mt-2 flex items-center gap-3">
-          <ShieldCheck aria-hidden="true" className="size-6 text-[#d96b16]" />
-          <h2 className="font-heading text-2xl font-medium">
+          <ShieldCheck aria-hidden="true" className="size-6 text-primary" />
+          <h2 className="font-sans text-2xl font-medium">
             Verify before changing an address
           </h2>
         </div>
@@ -551,15 +550,12 @@ function AddressChangeFlow() {
 
   return (
     <form
-      className="rounded-3xl border border-border p-6 sm:p-8"
+      className="rounded-xl border border-border p-6 sm:p-8"
       onSubmit={handleSubmit}
     >
-      <p className="text-sm font-medium text-muted-foreground">
-        Address details
-      </p>
-      <div className="mt-2 flex items-center gap-3">
-        <MapPin aria-hidden="true" className="size-6 text-[#d96b16]" />
-        <h2 className="font-heading text-2xl font-medium">
+      <div className="flex items-center gap-3">
+        <MapPin aria-hidden="true" className="size-6 text-primary" />
+        <h2 className="font-sans text-2xl font-medium">
           Enter the new Delhi address
         </h2>
       </div>
