@@ -429,6 +429,13 @@ async function submitLearnerLicenceApplication(
           })),
         })
 
+        await transaction.learnerLicenceDetail.create({
+          data: {
+            applicationId: application.id,
+            vehicleClass,
+          },
+        })
+
         await transaction.notificationRecord.create({
           data: {
             applicantId: applicant.applicantId,

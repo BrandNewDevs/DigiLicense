@@ -102,6 +102,7 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
           applicationNumber: true,
           updatedAt: true,
           draft: { select: { formPayload: true } },
+          learnerLicenceDetail: { select: { vehicleClass: true } },
         },
       }),
     ])
@@ -120,9 +121,9 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
           "Pass the learner's test before starting a permanent-licence application.",
       }
 
-    const vehicleClass = learner.draft
-      ? getLearnerVehicleClass(learner.draft.formPayload)
-      : null
+    const vehicleClass =
+      learner.learnerLicenceDetail?.vehicleClass ??
+      (learner.draft ? getLearnerVehicleClass(learner.draft.formPayload) : null)
     if (
       vehicleClass !== "MOTORCYCLE_WITHOUT_GEAR" &&
       vehicleClass !== "MOTORCYCLE_WITH_GEAR" &&
@@ -240,11 +241,14 @@ async function submitPermanentLicenceApplication(
           id: true,
           updatedAt: true,
           draft: { select: { formPayload: true } },
+          learnerLicenceDetail: { select: { vehicleClass: true } },
         },
       })
-      const learnerVehicleClass = learner?.draft
-        ? getLearnerVehicleClass(learner.draft.formPayload)
-        : null
+      const learnerVehicleClass =
+        learner?.learnerLicenceDetail?.vehicleClass ??
+        (learner?.draft
+          ? getLearnerVehicleClass(learner.draft.formPayload)
+          : null)
       if (!learner || learnerVehicleClass !== input.vehicleClass) {
         return {
           kind: "vehicle-class-mismatch" as const,
