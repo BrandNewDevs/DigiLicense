@@ -225,6 +225,36 @@ function getPaymentCompletionTransition(
       statusDeadlineAt: null,
     }
   }
+  if (service === "Duplicate or replacement driving licence") {
+    return {
+      blockingReasonCode: null,
+      documentStatus: "ACCEPTED",
+      events: [
+        {
+          description:
+            "DigiLicense rechecked the owned licence and recorded declaration after payment.",
+          fromStatus: "PAYMENT_CONFIRMED",
+          title: "Replacement checks completed",
+          toStatus: "APPROVAL_PENDING",
+        },
+        {
+          description:
+            "The replacement is recorded by DigiLicense only; the licence number is unchanged and no government service was contacted.",
+          fromStatus: "APPROVAL_PENDING",
+          title: "Replacement recorded",
+          toStatus: "APPROVED",
+        },
+      ],
+      nextAction:
+        "No further action is required. The replacement is recorded by DigiLicense only; no government service was contacted.",
+      notification: {
+        message: "Your replacement has been recorded.",
+        title: "Replacement recorded",
+      },
+      status: "APPROVED",
+      statusDeadlineAt: null,
+    }
+  }
   return {
     blockingReasonCode: null,
     documentStatus: null,
@@ -720,6 +750,46 @@ async function resolveApplicationPayment(
             entityId: renewal.id,
             entityType: "RENEWAL",
             reasonCode: "DIGILICENSE_RENEWAL_RULE_APPLIED",
+            requestId: randomUUID(),
+          },
+        })
+      }
+      if (
+        paid &&
+        payment.application.service ===
+          "Duplicate or replacement driving licence"
+      ) {
+        const replacement =
+          await transaction.replacementDetail.findUniqueOrThrow({
+            where: { applicationId: payment.application.id },
+            select: {
+              id: true,
+              licenceRecord: { select: { id: true } },
+            },
+          })
+        const replacementReference = `DLREPL-${completedAt.getUTCFullYear()}-${randomUUID()
+          .replaceAll("-", "")
+          .slice(0, 12)
+          .toUpperCase()}`
+        await transaction.drivingLicenceRecord.update({
+          where: { id: replacement.licenceRecord.id },
+          data: {
+            lastReplacementAt: completedAt,
+            version: { increment: 1 },
+          },
+        })
+        await transaction.replacementDetail.update({
+          where: { id: replacement.id },
+          data: { replacementReference },
+        })
+        await transaction.auditEvent.create({
+          data: {
+            action: "AUTO_APPROVE_REPLACEMENT",
+            actorId: "digilicense-payment-workflow",
+            applicationId: payment.application.id,
+            entityId: replacement.id,
+            entityType: "REPLACEMENT",
+            reasonCode: "DIGILICENSE_REPLACEMENT_RECORDED",
             requestId: randomUUID(),
           },
         })

@@ -16,6 +16,7 @@ import type {
 } from "../validation/address-change"
 import { addressChangeDraftPayloadSchema } from "../validation/address-change"
 import { requireApplicant } from "./demo-session.server"
+import { hasConflictingLicenceWorkflow } from "./licence-workflow.shared"
 import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
 import { normalizeUniqueConstraintTargets } from "./unique-constraint.shared"
@@ -105,6 +106,7 @@ type AddressChangeSubmitResult =
   | { kind: "authentication-required"; message: string }
   | { kind: "duplicate-active"; message: string }
   | { kind: "invalid-submission"; message: string }
+  | { kind: "licence-busy"; message: string }
   | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
   | { kind: "unavailable"; message: string }
   | { kind: "verification-required"; message: string }
@@ -863,6 +865,15 @@ async function submitAddressChangeApplication(
           select: { applicationNumber: true },
         })
         if (activeConflict) return { kind: "duplicate-active" as const }
+        if (
+          await hasConflictingLicenceWorkflow(transaction, {
+            applicantId: applicant.applicantId,
+            excludedService: addressChangeServiceName,
+            licenceRecordId: verification.licenceRecordId,
+          })
+        ) {
+          return { kind: "licence-busy" as const }
+        }
 
         const application = await transaction.application.create({
           data: {
@@ -958,6 +969,13 @@ async function submitAddressChangeApplication(
           kind: "duplicate-active",
           message:
             "An active address-change application already exists for this account.",
+        }
+      }
+      if (outcome.kind === "licence-busy") {
+        return {
+          kind: "licence-busy",
+          message:
+            "Complete the active licence-change workflow before changing this address.",
         }
       }
       if (outcome.kind === "verification-required") {

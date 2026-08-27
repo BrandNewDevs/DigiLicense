@@ -38,6 +38,8 @@ const rateLimitRules = {
   "mobile-update-start": { limit: 3, windowMs: 15 * 60_000 },
   "renewal-read": { limit: 30, windowMs: 15 * 60_000 },
   "renewal-submit": { limit: 5, windowMs: 15 * 60_000 },
+  "replacement-read": { limit: 30, windowMs: 15 * 60_000 },
+  "replacement-submit": { limit: 5, windowMs: 15 * 60_000 },
   "login-ip": { limit: 30, windowMs: 15 * 60_000 },
   // Session hydration runs on page load and must not consume the stricter
   // login-attempt budget. It still has a bounded per-IP allowance.
