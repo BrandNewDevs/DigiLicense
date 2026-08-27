@@ -335,7 +335,13 @@ describe.sequential("PostgreSQL learner workflow boundaries", () => {
       permanentSubmission.applicationNumber
     )
     expect(offeredJourney.kind).toBe("found")
-    if (offeredJourney.kind !== "found" || !offeredJourney.offer) return
+    if (offeredJourney.kind !== "found")
+      throw new Error("Expected the owned appointment journey to be found")
+    expect(offeredJourney.offer).not.toBeNull()
+    if (!offeredJourney.offer)
+      throw new Error(
+        "Expected allocation to create an active appointment offer"
+      )
 
     await expect(
       acceptAppointmentOffer({
