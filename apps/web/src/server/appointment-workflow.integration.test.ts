@@ -101,7 +101,7 @@ describe.sequential("PostgreSQL permanent appointment workflow", () => {
         applicationNumber: "DLINTAPPOINTMENTINELIGIBLE",
         nextAction: "Not eligible for an appointment.",
         service: "Permanent driving licence",
-        status: "WAITLISTED",
+        status: "APPROVED",
       },
       select: { id: true },
     })
