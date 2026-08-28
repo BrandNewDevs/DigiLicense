@@ -200,9 +200,7 @@ def _contains_reviewed_text_fact(answer: str, fact: FactPacket) -> bool:
     normalized_phrase = " ".join(
         unicodedata.normalize("NFKC", f"{fact.value} {fact.unit}").casefold().split()
     )
-    return re.search(
-        rf"(?<!\w){re.escape(normalized_phrase)}(?!\w)", normalized_answer
-    ) is not None
+    return re.search(rf"(?<!\w){re.escape(normalized_phrase)}(?!\w)", normalized_answer) is not None
 
 
 def _implies_affiliation(value: str) -> bool:
@@ -320,8 +318,6 @@ class OutputSafetyValidator:
             for fact in numeric_cited_facts
         ):
             raise OutputSafetyError("answer cites a fact without using its reviewed value and unit")
-        if any(
-            not _contains_reviewed_text_fact(answer, fact) for fact in textual_cited_facts
-        ):
+        if any(not _contains_reviewed_text_fact(answer, fact) for fact in textual_cited_facts):
             raise OutputSafetyError("answer cites a fact without using its reviewed value and unit")
         return result.model_copy(update={"answer": answer})
