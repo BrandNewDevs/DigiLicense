@@ -11,7 +11,10 @@ const readRenewalState = createServerFn({ method: "POST" })
   .handler(async () => {
     const { readRenewalState: readState } =
       await import("../server/renewal.server")
-    return withServerDeadline(readState())
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return readState()
+    })
   })
 
 const submitRenewalApplication = createServerFn({ method: "POST" })
@@ -19,7 +22,10 @@ const submitRenewalApplication = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { submitRenewalApplication: submit } =
       await import("../server/renewal.server")
-    return withServerDeadline(submit(data))
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return submit(data)
+    })
   })
 
 export { readRenewalState, submitRenewalApplication }
