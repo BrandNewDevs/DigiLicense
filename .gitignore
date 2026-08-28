@@ -21,3 +21,5 @@ apps/web/test-results/
 
 # typescript
 *.tsbuildinfo
+.vercel
+.deploy-secrets.local

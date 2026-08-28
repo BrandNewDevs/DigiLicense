@@ -111,6 +111,7 @@ def _valid_response(
             {
                 "answer": answer,
                 "sourceIds": source_ids or [_SOURCE_ID],
+                "factIds": [],
                 "uncertain": False,
             }
         ),
@@ -178,6 +179,9 @@ async def test_responses_request_is_strict_bounded_and_non_stored() -> None:
     assert call["text"]["format"]["type"] == "json_schema"
     assert call["text"]["format"]["strict"] is True
     assert call["text"]["format"]["schema"]["additionalProperties"] is False
+    assert set(call["text"]["format"]["schema"]["required"]) == set(
+        call["text"]["format"]["schema"]["properties"]
+    )
     for prohibited in ("conversation", "previous_response_id", "user", "safety_identifier"):
         assert prohibited not in call
 

@@ -2,9 +2,10 @@ import { readdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const clientDirectory = fileURLToPath(
-  new URL("../dist/client/", import.meta.url)
-)
+const clientOutput = process.env.VERCEL
+  ? "../.vercel/output/static/"
+  : "../.output/public/"
+const clientDirectory = fileURLToPath(new URL(clientOutput, import.meta.url))
 const prohibitedMarkers = [
   "DATABASE_URL",
   "PrismaClient",

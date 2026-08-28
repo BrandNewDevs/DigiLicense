@@ -1,9 +1,11 @@
 """Deterministic validation for provider answers after schema validation."""
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
 from digilicense_ai.corpus import CorpusError, PromotedCorpus
+from digilicense_ai.corpus.models import FactPacket
 from digilicense_ai.schemas import CanonicalProviderRequest, ProviderResult
 
 _HTML_OR_MARKDOWN = re.compile(
@@ -189,6 +191,20 @@ def _fact_unit(unit: str) -> str:
     return _UNIT_ALIASES.get(unit.casefold(), unit.casefold())
 
 
+def _is_numeric_fact(fact: FactPacket) -> bool:
+    return _NUMBER.search(_normalize_spelled_numbers(fact.value)) is not None
+
+
+def _contains_reviewed_text_fact(answer: str, fact: FactPacket) -> bool:
+    normalized_answer = " ".join(unicodedata.normalize("NFKC", answer).casefold().split())
+    normalized_phrase = " ".join(
+        unicodedata.normalize("NFKC", f"{fact.value} {fact.unit}").casefold().split()
+    )
+    return re.search(
+        rf"(?<!\w){re.escape(normalized_phrase)}(?!\w)", normalized_answer
+    ) is not None
+
+
 def _implies_affiliation(value: str) -> bool:
     lowered = value.casefold()
     if any(phrase in lowered for phrase in _AFFILIATION):
@@ -284,14 +300,28 @@ class OutputSafetyValidator:
         if numeric_claims and not result.fact_ids:
             raise OutputSafetyError("numeric answer omits reviewed fact IDs")
         cited_facts = tuple(expected_facts[fact_id] for fact_id in result.fact_ids)
+        numeric_cited_facts = tuple(fact for fact in cited_facts if _is_numeric_fact(fact))
+        textual_cited_facts = tuple(fact for fact in cited_facts if not _is_numeric_fact(fact))
         for value, unit in numeric_claims:
             if not any(
                 fact.value.translate(_DEVANAGARI_DIGITS) == value
                 and unit is not None
                 and _fact_unit(fact.unit) == unit
-                for fact in cited_facts
+                for fact in numeric_cited_facts
             ):
                 raise OutputSafetyError("answer contains a numeric claim outside fact packets")
-        if result.fact_ids and not numeric_claims:
+        if any(
+            not any(
+                fact.value.translate(_DEVANAGARI_DIGITS) == value
+                and unit is not None
+                and _fact_unit(fact.unit) == unit
+                for value, unit in numeric_claims
+            )
+            for fact in numeric_cited_facts
+        ):
+            raise OutputSafetyError("answer cites a fact without using its reviewed value and unit")
+        if any(
+            not _contains_reviewed_text_fact(answer, fact) for fact in textual_cited_facts
+        ):
             raise OutputSafetyError("answer cites a fact without using its reviewed value and unit")
         return result.model_copy(update={"answer": answer})

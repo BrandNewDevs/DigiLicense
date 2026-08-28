@@ -1,0 +1,8 @@
+{
+  "name": "@digilicense/ai-service",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "build": "python -m pip install --disable-pip-version-check ."
+  }
+}

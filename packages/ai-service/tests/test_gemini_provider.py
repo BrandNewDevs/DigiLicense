@@ -78,6 +78,7 @@ def _valid_response() -> FakeResponse:
             {
                 "answer": "Use the reviewed public appointment guidance.",
                 "sourceIds": [_SOURCE_ID],
+                "factIds": [],
                 "uncertain": False,
             }
         )
