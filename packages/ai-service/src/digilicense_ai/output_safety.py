@@ -9,7 +9,7 @@ from digilicense_ai.corpus.models import FactPacket
 from digilicense_ai.schemas import CanonicalProviderRequest, ProviderResult
 
 _HTML_OR_MARKDOWN = re.compile(
-    r"<[^>]+>|[`*_~]|!\[[^]]*\]|\[[^]]+\]\([^)]*\)|^\s{0,3}#{1,6}\s|^\s*>\s",
+    r"<[^>]+>|[`*~]|!\[[^]]*\]|\[[^]]+\]\([^)]*\)|^\s{0,3}#{1,6}\s|^\s*>\s",
     re.MULTILINE,
 )
 _URL = re.compile(r"(?:\b[a-z][a-z0-9+.-]{1,31}:(?://|[^\s])|www\.)\S*", re.IGNORECASE)
