@@ -37,6 +37,7 @@ class RecordingProvider:
         return ProviderResult(
             answer=self.answer,
             source_ids=tuple(item.source_id for item in request.evidence),
+            fact_ids=(),
             uncertain=False,
         )
 
