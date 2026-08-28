@@ -104,7 +104,7 @@ variability.
 ### Gemini
 
 Gemini is an optional development-only adapter using
-`gemini-2.5-flash-lite`. It receives the same canonical public payload and
+`gemini-3.5-flash-lite`. It receives the same canonical public payload and
 reviewed evidence as OpenAI. It cannot be selected in `evaluation` or
 `production`, is not included in the production container dependency set, and
 requires the optional `gemini` dependency group.

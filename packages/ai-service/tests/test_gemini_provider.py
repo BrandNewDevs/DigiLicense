@@ -24,7 +24,7 @@ from digilicense_ai.schemas import (
     Topic,
 )
 
-_MODEL = "gemini-2.5-flash-lite"
+_MODEL = "gemini-3.5-flash-lite"
 _SOURCE_ID = "reviewed-public-source"
 
 
@@ -138,7 +138,20 @@ async def test_development_adapter_sends_only_canonical_structured_content() -> 
     assert "question" not in payload
     assert call["model"] == _MODEL
     assert call["config"]["response_mime_type"] == "application/json"
-    assert call["config"]["response_schema"].__name__ == "ProviderResult"
+    assert call["config"]["response_schema"] == {
+        "type": "object",
+        "properties": {
+            "answer": {"type": "string"},
+            "sourceIds": {
+                "type": "array",
+                "items": {"type": "string", "enum": [_SOURCE_ID]},
+                "minItems": 1,
+            },
+            "factIds": {"type": "array", "items": {"type": "string", "enum": []}},
+            "uncertain": {"type": "boolean"},
+        },
+        "required": ["answer", "sourceIds", "uncertain"],
+    }
     assert call["config"]["max_output_tokens"] == 500
     assert call["config"]["tools"] == []
 
