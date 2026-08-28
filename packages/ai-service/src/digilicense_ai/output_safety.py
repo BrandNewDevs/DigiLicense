@@ -198,10 +198,12 @@ def _is_numeric_fact(fact: FactPacket) -> bool:
 
 def _contains_reviewed_text_fact(answer: str, fact: FactPacket) -> bool:
     normalized_answer = " ".join(unicodedata.normalize("NFKC", answer).casefold().split())
-    normalized_phrase = " ".join(
-        unicodedata.normalize("NFKC", f"{fact.value} {fact.unit}").casefold().split()
+    normalized_value = " ".join(unicodedata.normalize("NFKC", fact.value).casefold().split())
+    normalized_unit = " ".join(unicodedata.normalize("NFKC", fact.unit).casefold().split())
+    return all(
+        re.search(rf"(?<!\w){re.escape(part)}(?!\w)", normalized_answer) is not None
+        for part in (normalized_value, normalized_unit)
     )
-    return re.search(rf"(?<!\w){re.escape(normalized_phrase)}(?!\w)", normalized_answer) is not None
 
 
 def _implies_affiliation(value: str) -> bool:

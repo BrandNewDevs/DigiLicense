@@ -5,7 +5,9 @@ import { z } from "zod"
 import type { PrivateAiConfiguration } from "./assistant-config.server"
 import type { AskAssistantInput } from "../validation/assistant"
 
-const assistantRequestTimeoutMs = 8_000
+// The AI provider has its own eight-second hard deadline. This outer budget also
+// covers the private service hop, cold start, DLP, routing, and retrieval.
+const assistantRequestTimeoutMs = 15_000
 
 const canonicalIntents = [
   "CURRENT_STEP_EXPLANATION",

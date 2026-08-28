@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  assistantRequestTimeoutMs,
   requestPrivateAssistant,
   toPublicAiPayload,
 } from "./assistant-client.server"
@@ -36,6 +37,10 @@ const validResponse = {
 }
 
 describe("private AI client", () => {
+  it("leaves headroom around the AI provider's bounded deadline", () => {
+    expect(assistantRequestTimeoutMs).toBe(15_000)
+  })
+
   it("forwards only the allowlisted public body and a correlation ID", async () => {
     let requestUrl = ""
     let requestInit: RequestInit | undefined
