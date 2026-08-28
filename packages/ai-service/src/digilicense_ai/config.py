@@ -2,6 +2,7 @@
 
 from enum import StrEnum
 from ipaddress import ip_address
+from os import environ
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
@@ -78,6 +79,7 @@ class Settings(BaseSettings):
     service_bearer_token: SecretStr | None = Field(default=None, repr=False)
     require_tls: bool = False
     trusted_proxy_ips: tuple[str, ...] = Field(default=(), max_length=32)
+    trust_render_tls_proxy: bool = False
     gateway_rate_limit_per_minute: int = Field(default=60, ge=1, le=60)
     provider_daily_call_limit: int = Field(default=1500, ge=1, le=1500)
     context_signing_current_key: SecretStr | None = Field(default=None, repr=False)
@@ -98,6 +100,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
+        if self.trust_render_tls_proxy and environ.get("RENDER") != "true":
+            raise ValueError("trust_render_tls_proxy requires Render's RENDER=true environment.")
         if (
             self.context_signing_previous_key is not None
             and self.context_current_key_id == self.context_previous_key_id

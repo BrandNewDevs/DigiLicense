@@ -79,7 +79,12 @@ services:
         generateValue: true
       - key: DIGILICENSE_AI_CONTEXT_SIGNING_CURRENT_KEY
         generateValue: true
+      # Render terminates HTTPS before requests reach the container. This flag
+      # accepts its forwarded HTTPS scheme while the bearer gate still protects
+      # the assistant endpoint from browser and unauthenticated access.
       - key: DIGILICENSE_AI_REQUIRE_TLS
+        value: "true"
+      - key: DIGILICENSE_AI_TRUST_RENDER_TLS_PROXY
         value: "true"
       - key: DIGILICENSE_AI_OPENAI_BUDGET_CONTROLS_CONFIRMED
         value: "true"

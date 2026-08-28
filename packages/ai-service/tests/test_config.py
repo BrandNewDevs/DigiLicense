@@ -25,6 +25,20 @@ def test_default_profile_requires_no_api_key(monkeypatch: pytest.MonkeyPatch) ->
     assert container.settings.provider_backend is ProviderBackend.FAKE
 
 
+def test_render_proxy_trust_requires_render_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RENDER", raising=False)
+
+    with pytest.raises(ValidationError, match="RENDER=true"):
+        Settings(trust_render_tls_proxy=True)
+
+    monkeypatch.setenv("RENDER", "true")
+    settings = Settings(trust_render_tls_proxy=True)
+
+    assert settings.trust_render_tls_proxy is True
+
+
 @pytest.mark.parametrize(
     ("provider", "retrieval"),
     [

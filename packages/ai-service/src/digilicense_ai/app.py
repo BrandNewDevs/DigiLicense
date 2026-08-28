@@ -60,6 +60,7 @@ def create_app(
         require_tls=resolved_settings.require_tls,
         rate_limit=resolved_settings.gateway_rate_limit_per_minute,
         trusted_proxy_ips=frozenset(resolved_settings.trusted_proxy_ips),
+        trust_render_tls_proxy=resolved_settings.trust_render_tls_proxy,
     )
 
     @app.middleware("http")
