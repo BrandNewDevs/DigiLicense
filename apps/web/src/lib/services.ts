@@ -16,6 +16,8 @@ type ServiceWorkflow =
   | "learner-test"
   | "mobile-update"
   | "permanent-licence"
+  | "renewal"
+  | "fees"
 
 type ServiceDefinition = {
   action: string
@@ -120,10 +122,11 @@ const services = [
       "Review a licence record, choose the renewal reason, and see the next step.",
     action: "Prepare renewal",
     protected: true,
+    workflow: "renewal",
     whatYouNeed: [
-      "A driving-licence number",
-      "A renewal reason",
-      "Documents if requested",
+      "A driving-licence record",
+      "A renewal reason that matches the expiry date",
+      "A recorded fee outcome",
     ],
     fields: [
       {
@@ -257,11 +260,8 @@ const services = [
       "Choose a service to see a fee estimate. Confirm final fees with the relevant authority.",
     action: "Calculate fee",
     protected: false,
-    whatYouNeed: [
-      "The service you plan to use",
-      "The vehicle class where relevant",
-      "No personal details",
-    ],
+    workflow: "fees",
+    whatYouNeed: ["The service you plan to use", "No personal details"],
     fields: [
       {
         label: "Service",
