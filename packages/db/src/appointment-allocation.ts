@@ -66,7 +66,8 @@ function createCooldownDeadline(now: Date): Date {
 
 async function allocateAppointmentSlot(
   slotId: string,
-  now: Date
+  now: Date,
+  waitlistEntryId?: string
 ): Promise<boolean> {
   return prisma.$transaction(
     async (transaction) => {
@@ -99,6 +100,7 @@ async function allocateAppointmentSlot(
         INNER JOIN "AppointmentPreference" AS preference
           ON preference."waitlistEntryId" = entry."id"
         WHERE entry."status" = 'ACTIVE'::"AppointmentWaitlistStatus"
+          AND (${waitlistEntryId ?? null}::text IS NULL OR entry."id" = ${waitlistEntryId ?? null})
           AND (entry."availableAfter" IS NULL OR entry."availableAfter" <= ${now})
           AND application."service" = ${permanentLicenceServiceName}
           AND application."status" = 'WAITLISTED'::"ApplicationStatus"
@@ -371,6 +373,40 @@ async function allocateAvailableAppointmentOffers(
   return { offeredCount, scannedSlotCount: slots.length }
 }
 
+async function allocateAppointmentOfferForWaitlistEntry(
+  waitlistEntryId: string,
+  clock: AppointmentClock = systemAppointmentClock
+): Promise<boolean> {
+  const now = clock.now()
+  const entry = await prisma.appointmentWaitlistEntry.findUnique({
+    where: { id: waitlistEntryId },
+    select: {
+      preferences: { select: { zone: true } },
+      application: {
+        select: { permanentLicenceDetail: { select: { vehicleClass: true } } },
+      },
+    },
+  })
+  const vehicleClass = entry?.application.permanentLicenceDetail?.vehicleClass
+  if (!entry || !vehicleClass || entry.preferences.length === 0) return false
+  const slots = await prisma.appointmentSlot.findMany({
+    where: {
+      startsAt: { gt: now },
+      status: "OPEN",
+      vehicleClass,
+      zone: { in: entry.preferences.map((preference) => preference.zone) },
+    },
+    orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+    select: { id: true },
+    take: allocationBatchSize,
+  })
+  for (const slot of slots) {
+    if (await allocateAppointmentSlot(slot.id, now, waitlistEntryId))
+      return true
+  }
+  return false
+}
+
 async function expireDueAppointmentOffers(
   clock: AppointmentClock = systemAppointmentClock
 ): Promise<AppointmentExpiryResult> {
@@ -417,6 +453,7 @@ async function processAppointmentOfferLifecycle(
 
 export {
   allocateAvailableAppointmentOffers,
+  allocateAppointmentOfferForWaitlistEntry,
   expireDueAppointmentOffers,
   processAppointmentOfferLifecycle,
   reactivateElapsedAppointmentCooldowns,

@@ -13,7 +13,10 @@ import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
 import { MockApplicantGate } from "../components/mock-applicant-gate"
-import { readApplicantDashboard } from "../server-functions/dashboard"
+import {
+  readApplicantDashboard,
+  resetWalkthroughAppointment,
+} from "../server-functions/dashboard"
 
 export const Route = createFileRoute("/dashboard")({ component: DashboardPage })
 
@@ -40,9 +43,27 @@ function DashboardPage() {
 
 function DashboardContent() {
   const readDashboard = useServerFn(readApplicantDashboard)
+  const resetAppointment = useServerFn(resetWalkthroughAppointment)
   const [dashboard, setDashboard] = useState<Dashboard>()
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [isResetting, setIsResetting] = useState(false)
+
+  async function resetWalkthrough() {
+    setIsResetting(true)
+    try {
+      const result = await resetAppointment({ data: undefined })
+      if (result.kind === "reset") {
+        if (await refresh()) setMessage(result.message)
+      } else {
+        setMessage(result.message)
+      }
+    } catch {
+      setMessage("The reset could not be completed.")
+    } finally {
+      setIsResetting(false)
+    }
+  }
 
   async function refresh() {
     setIsLoading(true)
@@ -51,11 +72,14 @@ function DashboardContent() {
       if (result.kind === "found") {
         setDashboard(result)
         setMessage("")
-      } else {
-        setMessage(result.message)
+        return true
       }
+
+      setMessage(result.message)
+      return false
     } catch {
       setMessage("Your dashboard is temporarily unavailable.")
+      return false
     } finally {
       setIsLoading(false)
     }
@@ -108,6 +132,29 @@ function DashboardContent() {
         {message}
       </p>
       {isLoading && !dashboard ? <DashboardSkeleton /> : null}
+      {dashboard?.isWalkthroughAccount ? (
+        <section className="mt-8 rounded-xl border border-border bg-card p-6 sm:p-8">
+          <p className="text-sm font-semibold text-primary">
+            Walkthrough account
+          </p>
+          <h2 className="mt-2 text-xl font-semibold">
+            Start the full journey again
+          </h2>
+          <p className="mt-2 max-w-2xl leading-7 text-muted-foreground">
+            Reset removes this account's applications and returns you to the
+            learner's-licence application.
+          </p>
+          <Button
+            className="mt-5"
+            disabled={isResetting}
+            onClick={() => void resetWalkthrough()}
+            type="button"
+            variant="outline"
+          >
+            {isResetting ? "Resetting..." : "Reset walkthrough"}
+          </Button>
+        </section>
+      ) : null}
       {dashboard ? (
         <DashboardApplications
           applicationCount={dashboard.applicationCount}

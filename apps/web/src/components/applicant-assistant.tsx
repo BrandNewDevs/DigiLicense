@@ -1,7 +1,6 @@
-import { Menu } from "@base-ui/react/menu"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Bot, Check, ChevronDown, ExternalLink, Send, X } from "lucide-react"
+import { Bot, Send, X } from "lucide-react"
 import { useEffect, useId, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -15,7 +14,6 @@ import type { AskAssistantInput } from "../validation/assistant"
 
 type AssistantResult = Awaited<ReturnType<typeof askAssistant>>
 type Locale = AskAssistantInput["locale"]
-type Service = AskAssistantInput["service"]
 type ChatMessage =
   | { id: string; kind: "question"; text: string }
   | {
@@ -24,19 +22,6 @@ type ChatMessage =
       locale: Locale
       result: AssistantResult
     }
-
-const serviceOptions: ReadonlyArray<{ label: string; value: Service }> = [
-  { label: "Learner's licence", value: "learner-licence" },
-  { label: "Learner's test", value: "learner-test" },
-  { label: "Permanent driving licence", value: "permanent-driving-licence" },
-  { label: "Renewal", value: "renewal" },
-  { label: "Replacement", value: "duplicate-replacement" },
-  { label: "Address change", value: "change-address" },
-  { label: "Mobile update", value: "mobile-update" },
-  { label: "Application status", value: "application-status" },
-  { label: "Fees and payment", value: "fees-payment" },
-  { label: "Driving-test appointment", value: "appointment-waitlist" },
-]
 
 const suggestedQuestions = [
   "What should I do next?",
@@ -79,19 +64,13 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
   const publicContext = useAssistantPublicContext()
   const questionId = useId()
   const [locale, setLocale] = useState<Locale>("en")
-  const [selectedService, setSelectedService] = useState<Service>()
   const [question, setQuestion] = useState("")
   const [contextToken, setContextToken] = useState<string>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const service = selectedService ?? publicContext.service
-  // Re-selecting the visible route topic is a no-op. Only a different topic
-  // discards the route's known page and blocking reason.
-  const usesRouteContext =
-    selectedService === undefined || selectedService === publicContext.service
+  const service = publicContext.service
 
   useEffect(() => {
-    setSelectedService(undefined)
     setContextToken(undefined)
   }, [publicContext.page, publicContext.reasonCode, publicContext.service])
 
@@ -126,9 +105,9 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
         data: {
           ...(contextToken ? { contextToken } : {}),
           locale,
-          page: usesRouteContext ? publicContext.page : "assistant",
+          page: publicContext.page,
           question: trimmedQuestion,
-          reasonCode: usesRouteContext ? publicContext.reasonCode : "NONE",
+          reasonCode: publicContext.reasonCode,
           service,
         },
       })
@@ -153,44 +132,7 @@ function AssistantForm({ onAnswered }: { onAnswered?: () => void }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between gap-3">
-        <Menu.Root>
-          <Menu.Trigger
-            aria-label="Choose guidance topic"
-            className="inline-flex h-10 max-w-56 min-w-0 items-center gap-2 rounded-full border border-border bg-background px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <span className="truncate">
-              {serviceOptions.find((option) => option.value === service)?.label}
-            </span>
-            <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
-          </Menu.Trigger>
-          <Menu.Portal>
-            <Menu.Positioner
-              align="start"
-              className="z-50"
-              side="bottom"
-              sideOffset={8}
-            >
-              <Menu.Popup className="z-50 max-h-56 w-60 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-lg outline-none">
-                {serviceOptions.map((option) => (
-                  <Menu.Item
-                    className="flex min-h-9 cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-sm outline-none hover:bg-accent focus:bg-accent"
-                    key={option.value}
-                    onClick={() => {
-                      setContextToken(undefined)
-                      setSelectedService(option.value)
-                    }}
-                  >
-                    {option.label}
-                    {service === option.value ? (
-                      <Check aria-hidden="true" className="size-4 shrink-0" />
-                    ) : null}
-                  </Menu.Item>
-                ))}
-              </Menu.Popup>
-            </Menu.Positioner>
-          </Menu.Portal>
-        </Menu.Root>
+      <div className="flex justify-end">
         <div
           className="flex h-11 items-center rounded-full border border-border bg-background p-1"
           role="group"
@@ -394,17 +336,7 @@ function AssistantAnswer({
           </h3>
           <ul className="mt-2 space-y-2 text-sm">
             {response.sources.map((source) => (
-              <li key={source.id}>
-                <a
-                  className="inline-flex items-center gap-1 underline"
-                  href={source.url}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  {source.title}
-                  <ExternalLink aria-hidden="true" className="size-3" />
-                </a>
-              </li>
+              <li key={source.id}>{source.title}</li>
             ))}
           </ul>
         </section>

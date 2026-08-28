@@ -55,7 +55,7 @@ test("an applicant can establish a server session and open the dashboard", async
   ).toHaveCount(0)
 })
 
-test("a signed-in applicant receives cited guidance through FastAPI", async ({
+test("a signed-in applicant receives grounded guidance through FastAPI", async ({
   page,
 }) => {
   await page.goto("/dashboard")
@@ -73,10 +73,6 @@ test("a signed-in applicant receives cited guidance through FastAPI", async ({
       name: "DigiLicense guidance assistant",
     })
   ).toBeVisible()
-  await expect(
-    page.getByRole("button", { name: "Choose guidance topic" })
-  ).toContainText("Driving-test appointment")
-
   await page
     .getByRole("textbox", { name: "Your question" })
     .fill("How does the appointment waitlist work?")
@@ -89,6 +85,6 @@ test("a signed-in applicant receives cited guidance through FastAPI", async ({
     )
   ).toBeVisible()
   await expect(
-    page.getByRole("link", { name: /DigiLicense prototype behavior/ })
+    page.getByText("DigiLicense prototype behavior", { exact: true })
   ).toBeVisible()
 })

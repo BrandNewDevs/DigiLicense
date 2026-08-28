@@ -9,6 +9,7 @@ import {
   permanentLicenceWaitingPeriodDays,
   Prisma,
   prisma,
+  allocateAppointmentOfferForWaitlistEntry,
 } from "@digilicense/db/server"
 
 import type {
@@ -264,6 +265,18 @@ async function readAppointmentJourney(
       }
     }
 
+    if (!selectedApplicationNumber) {
+      return { kind: "not-found", message: notFoundMessage }
+    }
+
+    const eligibility = await assertOwnedEligiblePermanentApplication(
+      prisma,
+      authorization.applicantId,
+      selectedApplicationNumber,
+      new Date()
+    )
+    if ("kind" in eligibility) return eligibility
+
     const application = await prisma.application.findFirst({
       where: {
         applicantId: authorization.applicantId,
@@ -382,8 +395,9 @@ async function saveAppointmentPreferences(
   const rate = await limit("appointment-preferences", authorization.applicantId)
   if (rate.kind !== "allowed") return rate
   const now = new Date()
+  let saved: SavedPreferencesResult
   try {
-    return await prisma.$transaction(async (transaction) => {
+    saved = await prisma.$transaction(async (transaction) => {
       const context = await assertOwnedEligiblePermanentApplication(
         transaction,
         authorization.applicantId,
@@ -484,7 +498,7 @@ async function saveAppointmentPreferences(
           requestId: randomUUID(),
         },
       })
-      return { entryId: entry.id, kind: "saved" }
+      return { entryId: entry.id, kind: "saved" } as const
     })
   } catch (error) {
     if (
@@ -510,6 +524,22 @@ async function saveAppointmentPreferences(
     })
     return { kind: "unavailable", message: unavailableMessage }
   }
+
+  if (
+    saved.kind === "saved" &&
+    authorization.applicantId === "demo-applicant-004"
+  ) {
+    try {
+      await allocateAppointmentOfferForWaitlistEntry(saved.entryId)
+    } catch (error) {
+      recordDependencyFailure(error, {
+        dependency: "postgres",
+        operation: "appointment_offer_allocate_after_preferences_save",
+      })
+    }
+  }
+
+  return saved
 }
 
 async function leaveAppointmentWaitlist(

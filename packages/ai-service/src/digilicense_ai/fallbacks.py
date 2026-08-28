@@ -36,44 +36,44 @@ SAFETY = {
 
 BOUNDARY = {
     Locale.ENGLISH: (
-        "I could not safely prepare that answer. Please use the public guidance on this page "
+        "I could not safely prepare that answer. Use the next action shown in DigiLicense "
         "and try again without personal information."
     ),
     Locale.HINDI: (
-        "मैं उस उत्तर को सुरक्षित रूप से तैयार नहीं कर सका। कृपया इस पेज पर सार्वजनिक मार्गदर्शन "
+        "मैं उस उत्तर को सुरक्षित रूप से तैयार नहीं कर सका। DigiLicense में दिखाया गया अगला चरण "
         "देखें और निजी जानकारी के बिना फिर प्रयास करें।"
     ),
 }
 
 PROVIDER = {
     Locale.ENGLISH: (
-        "AI guidance is temporarily unavailable. Please use the public guidance on this "
-        "page and try again later."
+        "AI guidance is temporarily unavailable. Use the next action shown in DigiLicense "
+        "and try again later."
     ),
     Locale.HINDI: (
-        "AI मार्गदर्शन अभी उपलब्ध नहीं है। कृपया इस पेज पर दिए सार्वजनिक मार्गदर्शन का उपयोग "
-        "करें और बाद में फिर प्रयास करें।"
+        "AI मार्गदर्शन अभी उपलब्ध नहीं है। DigiLicense में दिखाए गए अगले चरण का उपयोग करें "
+        "और बाद में फिर प्रयास करें।"
     ),
 }
 
 ESCALATIONS = {
     "REVIEW_PUBLIC_GUIDANCE": {
-        Locale.ENGLISH: "Review the approved public guidance for the next step.",
-        Locale.HINDI: "अगले चरण के लिए अनुमोदित सार्वजनिक मार्गदर्शन देखें।",
+        Locale.ENGLISH: "Use the next action shown in DigiLicense.",
+        Locale.HINDI: "DigiLicense में दिखाया गया अगला चरण अपनाएं।",
     },
     "CONTACT_PROTOTYPE_SUPPORT": {
-        Locale.ENGLISH: "Use the public guidance or prototype support path for help.",
-        Locale.HINDI: "सहायता के लिए सार्वजनिक मार्गदर्शन या प्रोटोटाइप सहायता मार्ग का उपयोग करें।",
+        Locale.ENGLISH: "Use the next action shown in DigiLicense for help.",
+        Locale.HINDI: "सहायता के लिए DigiLicense में दिखाया गया अगला चरण अपनाएं।",
     },
 }
 
 NO_EVIDENCE = {
     Locale.ENGLISH: (
-        "I do not have enough reviewed guidance to answer that safely. Please use the public "
-        "guidance shown on this page."
+        "I do not have enough reviewed guidance to answer that safely. Use the next action "
+        "shown in DigiLicense."
     ),
     Locale.HINDI: (
-        "मेरे पास इसका सुरक्षित उत्तर देने के लिए पर्याप्त समीक्षित मार्गदर्शन नहीं है। कृपया इस "
-        "पेज पर दिया गया सार्वजनिक मार्गदर्शन देखें।"
+        "मेरे पास इसका सुरक्षित उत्तर देने के लिए पर्याप्त समीक्षित मार्गदर्शन नहीं है। "
+        "DigiLicense में दिखाया गया अगला चरण देखें।"
     ),
 }

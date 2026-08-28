@@ -3,16 +3,27 @@ import "@tanstack/react-start/server-only"
 import { randomUUID } from "node:crypto"
 
 import type { ApplicationStatus, TestLanguage } from "@digilicense/db/server"
-import { prisma, WorkflowActor } from "@digilicense/db/server"
+import {
+  addUtcDays,
+  permanentLicenceWaitingPeriodDays,
+  prisma,
+  WorkflowActor,
+} from "@digilicense/db/server"
 
 import {
   gradeLearnerTestAnswers,
   learnerTestPassMark,
   learnerTestQuestionCount,
 } from "../lib/learner-test"
-import type { LearnerTestLanguage, PublicTestQuestion } from "../lib/learner-test"
+import type {
+  LearnerTestLanguage,
+  PublicTestQuestion,
+} from "../lib/learner-test"
 import { requireApplicant } from "./demo-session.server"
-import { getLearnerTestAnswerKey, learnerTestBank } from "./learner-test-bank.server"
+import {
+  getLearnerTestAnswerKey,
+  learnerTestBank,
+} from "./learner-test-bank.server"
 import { recordDependencyFailure } from "./logger.server"
 import { consumeRateLimit } from "./rate-limit.server"
 
@@ -36,7 +47,12 @@ type LearnerTestReadResult =
   | { kind: "authentication-required"; message: string }
   | { kind: "unavailable"; message: string }
   | { kind: "no-application"; message: string }
-  | { kind: "already-passed"; message: string; applicationNumber: string }
+  | {
+      kind: "already-passed"
+      message: string
+      applicationNumber: string
+      permanentLicenceEligibleOn: string
+    }
   | {
       kind: "ready"
       applicationNumber: string
@@ -108,7 +124,7 @@ async function readLearnerTestState(): Promise<LearnerTestReadResult> {
           status: "TEST_PASSED",
         },
         orderBy: { submittedAt: "desc" },
-        select: { applicationNumber: true },
+        select: { applicationNumber: true, updatedAt: true },
       }),
       findTestEligibleApplication(applicant.applicantId),
       prisma.learnerTestAttempt.findMany({
@@ -136,8 +152,12 @@ async function readLearnerTestState(): Promise<LearnerTestReadResult> {
       return {
         kind: "already-passed",
         applicationNumber: passedApplication.applicationNumber,
+        permanentLicenceEligibleOn: addUtcDays(
+          passedApplication.updatedAt,
+          permanentLicenceWaitingPeriodDays
+        ).toISOString(),
         message:
-          "The learner's test was already passed for this account. Continue with the permanent-licence application.",
+          "The learner's test was already passed for this account. Check when the permanent-licence application opens.",
       }
     }
 
@@ -376,9 +396,7 @@ async function submitLearnerTest(input: {
         data: {
           applicationId: application.id,
           actorId: applicant.applicantId,
-          action: passed
-            ? "PASS_LEARNER_TEST"
-            : "FAIL_LEARNER_TEST",
+          action: passed ? "PASS_LEARNER_TEST" : "FAIL_LEARNER_TEST",
           entityType: "LEARNER_TEST_ATTEMPT",
           entityId: application.applicationNumber,
           reasonCode: "SYNTHETIC_TEST_SUBMISSION",
@@ -431,12 +449,5 @@ async function submitLearnerTest(input: {
   }
 }
 
-export {
-  readLearnerTestState,
-  startLearnerTestAttempt,
-  submitLearnerTest,
-}
-export type {
-  LearnerTestReadResult,
-  LearnerTestSubmitResult,
-}
+export { readLearnerTestState, startLearnerTestAttempt, submitLearnerTest }
+export type { LearnerTestReadResult, LearnerTestSubmitResult }

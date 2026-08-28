@@ -13,6 +13,7 @@ const rateLimitRules = {
   "application-submit": { limit: 5, windowMs: 15 * 60_000 },
   "application-status-lookup": { limit: 30, windowMs: 15 * 60_000 },
   "applicant-dashboard-read": { limit: 30, windowMs: 15 * 60_000 },
+  "walkthrough-reset": { limit: 5, windowMs: 15 * 60_000 },
   "application-notification-read": { limit: 30, windowMs: 15 * 60_000 },
   "application-payment-read": { limit: 30, windowMs: 15 * 60_000 },
   "application-payment-resolve": { limit: 5, windowMs: 15 * 60_000 },

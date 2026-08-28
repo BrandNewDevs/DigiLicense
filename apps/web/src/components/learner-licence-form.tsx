@@ -29,6 +29,11 @@ import {
   saveLearnerLicenceDraft,
   submitLearnerLicenceApplication,
 } from "../server-functions/learner-licence"
+import {
+  readApplicationPayment,
+  resolveApplicationPayment,
+  startApplicationPayment,
+} from "../server-functions/payment"
 
 type FormValues = {
   fullName: string
@@ -105,16 +110,30 @@ function formatDate(isoDateTime: string) {
   })
 }
 
+function daysUntil(isoDateTime: string) {
+  const millisecondsPerDay = 24 * 60 * 60 * 1000
+  return Math.max(
+    0,
+    Math.ceil(
+      (new Date(isoDateTime).getTime() - Date.now()) / millisecondsPerDay
+    )
+  )
+}
+
 function LearnerLicenceForm() {
   const readState = useServerFn(readLearnerLicenceState)
   const persistDraft = useServerFn(saveLearnerLicenceDraft)
   const submitApplication = useServerFn(submitLearnerLicenceApplication)
+  const readPayment = useServerFn(readApplicationPayment)
+  const startPayment = useServerFn(startApplicationPayment)
+  const resolvePayment = useServerFn(resolveApplicationPayment)
 
   const [phase, setPhase] = useState<
     | "active"
     | "authentication-required"
     | "form"
     | "loading"
+    | "payment"
     | "submitted"
     | "unavailable"
   >("loading")
@@ -132,6 +151,14 @@ function LearnerLicenceForm() {
     kind: string
     message: string
   }>()
+  const [payment, setPayment] =
+    useState<
+      Extract<
+        Awaited<ReturnType<typeof readApplicationPayment>>,
+        { kind: "found" }
+      >["payment"]
+    >(null)
+  const [paymentMessage, setPaymentMessage] = useState("")
   const [announcement, setAnnouncement] = useState("")
 
   const activeApplicationRef = useRef<{
@@ -139,6 +166,7 @@ function LearnerLicenceForm() {
     status: string
     nextAction: string
     submittedAt: string
+    permanentLicenceEligibleOn: string | null
   } | null>(null)
 
   const submittedNumberRef = useRef("")
@@ -278,6 +306,95 @@ function LearnerLicenceForm() {
     }
   }
 
+  async function openPayment(applicationNumber: string) {
+    setIsSubmitting(true)
+    setPaymentMessage("")
+    try {
+      const result = await readPayment({ data: { applicationNumber } })
+      if (result.kind === "found") {
+        submittedNumberRef.current = applicationNumber
+        setPayment(result.payment)
+        setPhase("payment")
+      } else {
+        setSubmitError({ kind: result.kind, message: result.message })
+        setPhase("unavailable")
+      }
+    } catch {
+      setSubmitError({
+        kind: "network-error",
+        message:
+          "The fee service is temporarily unavailable. Try again shortly.",
+      })
+      setPhase("unavailable")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleStartPayment() {
+    if (!submittedNumberRef.current) return
+    setIsSubmitting(true)
+    setPaymentMessage("")
+    try {
+      const result = await startPayment({
+        data: {
+          applicationNumber: submittedNumberRef.current,
+          idempotencyKey: crypto.randomUUID(),
+        },
+      })
+      if (result.kind === "started" || result.kind === "already-paid")
+        setPayment(result.payment)
+      else if ("message" in result) setPaymentMessage(result.message)
+    } catch {
+      setPaymentMessage(
+        "The fee service is temporarily unavailable. Try again shortly."
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handlePaymentOutcome(outcome: "SUCCESS" | "FAILURE") {
+    if (!payment) return
+    setIsSubmitting(true)
+    setPaymentMessage("")
+    try {
+      const result = await resolvePayment({
+        data: {
+          applicationNumber: submittedNumberRef.current,
+          idempotencyKey: crypto.randomUUID(),
+          outcome,
+          paymentId: payment.id,
+        },
+      })
+      if (result.kind === "paid") {
+        const refreshed = await readState()
+        if (refreshed.kind === "ready" && refreshed.activeApplication) {
+          activeApplicationRef.current = refreshed.activeApplication
+          setPhase("active")
+        } else {
+          setSubmitError({
+            kind: refreshed.kind,
+            message:
+              "message" in refreshed
+                ? refreshed.message
+                : "The learner's licence service could not be loaded.",
+          })
+          setPhase(refreshed.kind === "ready" ? "unavailable" : refreshed.kind)
+        }
+      } else if (result.kind === "failed") {
+        setPayment(result.payment)
+        setPaymentMessage("The payment was not completed. You can try again.")
+      } else if ("message" in result) setPaymentMessage(result.message)
+    } catch {
+      setPaymentMessage(
+        "The fee service is temporarily unavailable. Try again shortly."
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   async function handleSubmit() {
     const nextErrors = {
       ...validateFields([
@@ -317,8 +434,8 @@ function LearnerLicenceForm() {
 
       if (result.kind === "submitted") {
         submittedNumberRef.current = result.applicationNumber
-        announce("Application submitted.")
-        setPhase("submitted")
+        announce("Application submitted. Continue with the fee step.")
+        await openPayment(result.applicationNumber)
         return
       }
 
@@ -423,6 +540,9 @@ function LearnerLicenceForm() {
 
   if (phase === "active") {
     const activeApplication = activeApplicationRef.current
+    const eligibilityDays = activeApplication?.permanentLicenceEligibleOn
+      ? daysUntil(activeApplication.permanentLicenceEligibleOn)
+      : 0
 
     return (
       <section
@@ -461,8 +581,27 @@ function LearnerLicenceForm() {
                 <dt className="text-sm font-medium text-muted-foreground">
                   Next action for you
                 </dt>
-                <dd className="mt-1">{activeApplication.nextAction}</dd>
+                <dd className="mt-1">
+                  {activeApplication.status === "TEST_PASSED" &&
+                  activeApplication.permanentLicenceEligibleOn
+                    ? `Your permanent-licence application opens on ${formatDate(activeApplication.permanentLicenceEligibleOn)}.`
+                    : activeApplication.nextAction}
+                </dd>
               </div>
+              {activeApplication.status === "TEST_PASSED" &&
+              activeApplication.permanentLicenceEligibleOn ? (
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">
+                    When you can apply
+                  </dt>
+                  <dd className="mt-1">
+                    {formatDate(activeApplication.permanentLicenceEligibleOn)}
+                    {eligibilityDays > 0
+                      ? `, in ${eligibilityDays} ${eligibilityDays === 1 ? "day" : "days"}`
+                      : ", today"}
+                  </dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">
                   Submitted on
@@ -472,13 +611,33 @@ function LearnerLicenceForm() {
                 </dd>
               </div>
             </dl>
-            {activeApplication.status === "TEST_PENDING" ? (
+            {activeApplication.status === "PAYMENT_REVIEW" ? (
+              <Button
+                className="mt-6"
+                disabled={isSubmitting}
+                onClick={() =>
+                  void openPayment(activeApplication.applicationNumber)
+                }
+              >
+                Continue to fee step
+              </Button>
+            ) : null}
+            {activeApplication.status === "DOCUMENTS_VERIFIED" ? (
               <Link
                 className="mt-6 inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 params={{ serviceId: "learner-test" }}
                 to="/services/$serviceId"
               >
                 Start learner's test
+              </Link>
+            ) : null}
+            {activeApplication.status === "TEST_PASSED" ? (
+              <Link
+                className="mt-6 inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                params={{ serviceId: "permanent-licence" }}
+                to="/services/$serviceId"
+              >
+                View permanent-licence application
               </Link>
             ) : null}
             <p className="mt-5 text-sm leading-6 text-muted-foreground">
@@ -492,6 +651,78 @@ function LearnerLicenceForm() {
             second submission. Reload the page to view the application.
           </p>
         )}
+      </section>
+    )
+  }
+
+  if (phase === "payment") {
+    return (
+      <section
+        aria-live="polite"
+        className="rounded-xl border border-border p-6 sm:p-8"
+      >
+        <h2 className="font-sans text-2xl font-medium">
+          Record the fee outcome
+        </h2>
+        <p className="mt-3 leading-7 text-muted-foreground">
+          Reference number: {submittedNumberRef.current}
+        </p>
+        {!payment ? (
+          <>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Recorded by DigiLicense only. No payment provider or government
+              service is contacted.
+            </p>
+            <Button
+              className="mt-6"
+              disabled={isSubmitting}
+              onClick={() => void handleStartPayment()}
+            >
+              {isSubmitting ? "Starting..." : "Start payment"}
+            </Button>
+          </>
+        ) : payment.status === "PENDING" ? (
+          <div className="mt-6 rounded-xl bg-muted p-5">
+            <p className="text-sm text-muted-foreground">Amount due</p>
+            <p className="mt-1 text-3xl font-semibold">
+              {new Intl.NumberFormat("en-IN", {
+                currency: "INR",
+                maximumFractionDigits: 0,
+                style: "currency",
+              }).format(payment.amountPaise / 100)}
+            </p>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Button
+                disabled={isSubmitting}
+                onClick={() => void handlePaymentOutcome("SUCCESS")}
+              >
+                Record payment
+              </Button>
+              <Button
+                disabled={isSubmitting}
+                onClick={() => void handlePaymentOutcome("FAILURE")}
+                variant="outline"
+              >
+                Record unsuccessful payment
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-xl bg-muted p-5">
+            <p className="font-semibold">Payment not completed</p>
+            <Button
+              className="mt-5"
+              disabled={isSubmitting}
+              onClick={() => void handleStartPayment()}
+              variant="outline"
+            >
+              Try payment again
+            </Button>
+          </div>
+        )}
+        {paymentMessage ? (
+          <p className="mt-4 text-sm text-destructive">{paymentMessage}</p>
+        ) : null}
       </section>
     )
   }

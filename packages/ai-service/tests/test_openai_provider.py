@@ -199,6 +199,7 @@ async def test_provider_payload_contains_only_canonical_public_content() -> None
     assert raw_sentinel not in provider_input
     assert payload["intent"] == "NO_APPOINTMENT_EXPLANATION"
     assert payload["evidence"][0]["sourceId"] == _SOURCE_ID
+    assert "url" not in payload["evidence"][0]
 
 
 async def test_provider_rejects_raw_request_runtime_type() -> None:

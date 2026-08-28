@@ -64,8 +64,8 @@ function endMockSession(role: MockRole) {
 
 const mockCredentials = {
   applicant: {
-    mobileNumber: "9000000001",
-    otp: "123456",
+    mobileNumber: "9009006767",
+    otp: "676767",
   },
 } as const
 

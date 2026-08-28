@@ -42,7 +42,6 @@ async def test_fake_end_to_end_path(
             {
                 "id": "digilicense-prototype-behavior-v1",
                 "title": "DigiLicense prototype behavior",
-                "url": "https://digilicense.invalid/prototype/assistant-behavior",
             }
         ],
         "uncertain": False,

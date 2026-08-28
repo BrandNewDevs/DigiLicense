@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { fileURLToPath } from "node:url"
 
 import { config } from "dotenv"
@@ -99,7 +100,7 @@ const applicantAccounts = [
   { id: "demo-applicant-001", mobileNumber: "9000000001" },
   { id: "demo-applicant-002", mobileNumber: "9000000002" },
   { id: "demo-applicant-003", mobileNumber: "9000000003" },
-  { id: "demo-applicant-004", mobileNumber: "9000000004" },
+  { id: "demo-applicant-004", mobileNumber: "9009006767" },
 ] as const
 
 for (const applicant of applicantAccounts) {
@@ -298,6 +299,98 @@ for (const slot of appointmentFixtureSlots) {
   })
 }
 
+// The deployment seed creates an offer immediately for the dedicated synthetic
+// walkthrough account. Regular applications still enter the waitlist and are
+// allocated by the scheduled worker.
+const existingFixtureConfirmation =
+  await prisma.confirmedAppointment.findUnique({
+    where: { applicationId: appointmentFixturePermanent.id },
+    select: { id: true },
+  })
+const existingFixtureOffer = await prisma.appointmentOffer.findFirst({
+  where: { status: "ACTIVE", waitlistEntryId: appointmentFixtureEntry.id },
+  select: { id: true },
+})
+
+if (!existingFixtureConfirmation && !existingFixtureOffer) {
+  const expiresAt = new Date(appointmentFixtureNow.getTime() + 30 * 60 * 1_000)
+
+  await prisma.$transaction(async (transaction) => {
+    const centralSlot = await transaction.appointmentSlot.findUniqueOrThrow({
+      where: { inventoryKey: "seeded-appointment-central-lmv-001" },
+      select: { id: true },
+    })
+    const offer = await transaction.appointmentOffer.create({
+      data: {
+        allocationKey: randomUUID(),
+        expiresAt,
+        rankingBreakdown: {
+          preferencePoints: 10,
+          urgencyPoints: 0,
+          waitTimePoints: 4,
+        },
+        rankingPolicyVersion: "appointment-v1",
+        rankingScore: 14,
+        slotId: centralSlot.id,
+        waitlistEntryId: appointmentFixtureEntry.id,
+      },
+      select: { id: true },
+    })
+
+    await transaction.appointmentSlot.update({
+      where: { id: centralSlot.id },
+      data: { status: "OFFERED" },
+    })
+    await transaction.application.update({
+      where: { id: appointmentFixturePermanent.id },
+      data: {
+        blockingReasonCode:
+          ApplicationBlockingReason.APPOINTMENT_OFFER_ACTION_REQUIRED,
+        nextAction: "Respond to the appointment offer before it expires.",
+        status: ApplicationStatus.APPOINTMENT_OFFERED,
+        statusDeadlineAt: expiresAt,
+      },
+    })
+    await transaction.workflowEvent.create({
+      data: {
+        actor: WorkflowActor.SYSTEM,
+        actorId: "synthetic-seed",
+        applicationId: appointmentFixturePermanent.id,
+        description:
+          "DigiLicense created an appointment offer for the walkthrough account. No government service was contacted.",
+        fromStatus: ApplicationStatus.WAITLISTED,
+        title: "Appointment offer created",
+        toStatus: ApplicationStatus.APPOINTMENT_OFFERED,
+      },
+    })
+    await transaction.notificationRecord.create({
+      data: {
+        applicantId: appointmentFixtureApplicantId,
+        applicationId: appointmentFixturePermanent.id,
+        message:
+          "An appointment offer is available. Check its expiry time before responding. DigiLicense recorded this only; no government service was contacted.",
+        title: "Appointment offer available",
+      },
+    })
+    await transaction.appointmentNotificationDelivery.createMany({
+      data: [
+        {
+          channel: AppointmentNotificationChannel.SMS,
+          idempotencyKey: `${offer.id}:SMS`,
+          offerId: offer.id,
+          recipientAlias: "synthetic-sms:demo-applicant-004",
+        },
+        {
+          channel: AppointmentNotificationChannel.EMAIL,
+          idempotencyKey: `${offer.id}:EMAIL`,
+          offerId: offer.id,
+          recipientAlias: "synthetic-email:demo-applicant-004",
+        },
+      ],
+    })
+  })
+}
+
 const drivingLicenceRecords = [
   {
     applicantId: "demo-applicant-001",
@@ -371,15 +464,6 @@ const scenarios = [
     blockingReasonCode: ApplicationBlockingReason.APPROVAL_REVIEW_PENDING,
     nextAction: "Wait for the mock operator decision.",
     title: "Synthetic checks completed",
-  },
-  {
-    applicantId: "demo-applicant-001",
-    applicationNumber: "DLDEMO20260005",
-    service: "Permanent driving licence",
-    status: ApplicationStatus.WAITLISTED,
-    blockingReasonCode: ApplicationBlockingReason.APPOINTMENT_SLOT_UNAVAILABLE,
-    nextAction: "Wait for a synthetic driving-test slot offer.",
-    title: "Joined the mock appointment waitlist",
   },
 ] as const
 

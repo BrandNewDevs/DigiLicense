@@ -255,7 +255,6 @@ class AssistantService:
             SourceReference(
                 id=source_id,
                 title=evidence_by_id[source_id].title,
-                url=evidence_by_id[source_id].url,
             )
             for source_id in provider_result.source_ids
             if source_id in evidence_by_id

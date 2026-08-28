@@ -16,6 +16,11 @@ const integrationApplicants = {
     licenceNumber: "DL-INT-B-0001",
     mobileNumber: "9100000002",
   },
+  judge: {
+    id: "demo-applicant-004",
+    licenceNumber: "DL-INT-J-0001",
+    mobileNumber: "9009006767",
+  },
 } as const
 
 type IntegrationApplicantKey = keyof typeof integrationApplicants

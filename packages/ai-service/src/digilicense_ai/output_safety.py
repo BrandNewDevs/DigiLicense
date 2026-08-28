@@ -133,6 +133,13 @@ _SIMULATION_MARKERS = (
     "प्रोटोटाइप",
     "कृत्रिम",
 )
+_EXTERNAL_DIRECTION = re.compile(
+    r"\b(?:visit|go\s+to|open|check|use|refer\s+to|navigate\s+to|follow)\s+"
+    r"(?:the\s+)?(?:official|government|external)\s+(?:website|site|portal|service)\b|"
+    r"(?:सरकारी|आधिकारिक|बाहरी)\s+(?:वेबसाइट|साइट|पोर्टल|सेवा)"
+    r"(?:\s+(?:पर|का))?\s*(?:देखें|खोलें|जाएं|जाइए|का\s+उपयोग\s+करें)",
+    re.IGNORECASE,
+)
 
 
 class OutputSafetyError(ValueError):
@@ -194,9 +201,7 @@ def _contains_reviewed_text_fact(answer: str, fact: FactPacket) -> bool:
     normalized_phrase = " ".join(
         unicodedata.normalize("NFKC", f"{fact.value} {fact.unit}").casefold().split()
     )
-    return re.search(
-        rf"(?<!\w){re.escape(normalized_phrase)}(?!\w)", normalized_answer
-    ) is not None
+    return re.search(rf"(?<!\w){re.escape(normalized_phrase)}(?!\w)", normalized_answer) is not None
 
 
 def _implies_affiliation(value: str) -> bool:
@@ -235,6 +240,8 @@ class OutputSafetyValidator:
         lowered = answer.casefold()
         if _implies_affiliation(answer):
             raise OutputSafetyError("answer implies government affiliation")
+        if _EXTERNAL_DIRECTION.search(answer):
+            raise OutputSafetyError("answer directs the user outside DigiLicense")
 
         permitted_source_ids = {item.source_id for item in request.evidence}
         if not result.source_ids or not set(result.source_ids).issubset(permitted_source_ids):
@@ -312,8 +319,6 @@ class OutputSafetyValidator:
             for fact in numeric_cited_facts
         ):
             raise OutputSafetyError("answer cites a fact without using its reviewed value and unit")
-        if any(
-            not _contains_reviewed_text_fact(answer, fact) for fact in textual_cited_facts
-        ):
+        if any(not _contains_reviewed_text_fact(answer, fact) for fact in textual_cited_facts):
             raise OutputSafetyError("answer cites a fact without using its reviewed value and unit")
         return result.model_copy(update={"answer": answer})

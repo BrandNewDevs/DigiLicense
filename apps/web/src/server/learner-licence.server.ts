@@ -2,7 +2,13 @@ import "@tanstack/react-start/server-only"
 
 import { randomUUID } from "node:crypto"
 
-import { Prisma, prisma, WorkflowActor } from "@digilicense/db/server"
+import {
+  addUtcDays,
+  permanentLicenceWaitingPeriodDays,
+  Prisma,
+  prisma,
+  WorkflowActor,
+} from "@digilicense/db/server"
 import type { ApplicationStatus } from "@digilicense/db/server"
 
 import {
@@ -41,6 +47,7 @@ type LearnerLicenceActiveApplication = {
   status: ApplicationStatus
   nextAction: string
   submittedAt: string
+  permanentLicenceEligibleOn: string | null
 }
 
 type LearnerLicenceSavedDraft = {
@@ -81,12 +88,20 @@ function serializeActiveApplication(application: {
   status: ApplicationStatus
   nextAction: string
   submittedAt: Date
+  updatedAt: Date
 }): LearnerLicenceActiveApplication {
   return {
     applicationNumber: application.applicationNumber,
     status: application.status,
     nextAction: application.nextAction,
     submittedAt: application.submittedAt.toISOString(),
+    permanentLicenceEligibleOn:
+      application.status === "TEST_PASSED"
+        ? addUtcDays(
+            application.updatedAt,
+            permanentLicenceWaitingPeriodDays
+          ).toISOString()
+        : null,
   }
 }
 
@@ -155,6 +170,7 @@ async function readLearnerLicenceState(): Promise<LearnerLicenceReadResult> {
           status: true,
           nextAction: true,
           submittedAt: true,
+          updatedAt: true,
         },
       }),
       prisma.applicationDraft.findFirst({
