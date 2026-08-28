@@ -15,6 +15,7 @@ import {
   readRenewalState,
   submitRenewalApplication,
 } from "../server-functions/renewal"
+import { serverFunctionTimeoutMs } from "../server-functions/request-deadline"
 
 type ReadyState = Extract<RenewalReadResult, { kind: "ready" }>
 type Reason = "EXPIRING_SOON" | "RECENTLY_EXPIRED"
@@ -28,6 +29,12 @@ function createIdempotencyKey(): string | null {
     return null
   }
   return crypto.randomUUID()
+}
+
+function createRequestDeadline(): { cancel: () => void; signal: AbortSignal } {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), serverFunctionTimeoutMs)
+  return { cancel: () => clearTimeout(timeout), signal: controller.signal }
 }
 
 function formatDate(value: string): string {
@@ -66,12 +73,23 @@ function RenewalFlow() {
     >(null)
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [renewalSubmissionKey, setRenewalSubmissionKey] = useState<
+    string | null
+  >(null)
+  const [paymentStartKey, setPaymentStartKey] = useState<string | null>(null)
+  const [paymentResolutionKey, setPaymentResolutionKey] = useState<
+    string | null
+  >(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const result = await loadState()
+        const deadline = createRequestDeadline()
+        const result = await loadState({
+          data: undefined,
+          signal: deadline.signal,
+        }).finally(deadline.cancel)
         if (cancelled) return
         if (result.kind !== "ready") {
           setMessage(result.message)
@@ -107,9 +125,11 @@ function RenewalFlow() {
   async function openPayment(reference: string) {
     setSubmitting(true)
     try {
+      const deadline = createRequestDeadline()
       const result = await readPayment({
         data: { applicationNumber: reference },
-      })
+        signal: deadline.signal,
+      }).finally(deadline.cancel)
       if (result.kind === "found") {
         setPayment(result.payment)
         setPhase("payment")
@@ -129,16 +149,18 @@ function RenewalFlow() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const idempotencyKey = createIdempotencyKey()
+    const idempotencyKey = renewalSubmissionKey ?? createIdempotencyKey()
     if (!idempotencyKey || !licenceRecordId) {
       setMessage(
         "Choose a licence record and use a browser that supports secure requests."
       )
       return
     }
+    setRenewalSubmissionKey(idempotencyKey)
     setSubmitting(true)
     setMessage("")
     try {
+      const deadline = createRequestDeadline()
       const result = await submitRenewal({
         data: {
           declarationAccepted: true,
@@ -146,7 +168,9 @@ function RenewalFlow() {
           licenceRecordId,
           reason,
         },
-      })
+        signal: deadline.signal,
+      }).finally(deadline.cancel)
+      setRenewalSubmissionKey(null)
       if (result.kind === "submitted") {
         setApplicationNumber(result.applicationNumber)
         await openPayment(result.applicationNumber)
@@ -163,13 +187,18 @@ function RenewalFlow() {
   }
 
   async function handleStartPayment() {
-    const idempotencyKey = createIdempotencyKey()
+    const idempotencyKey = paymentStartKey ?? createIdempotencyKey()
     if (!idempotencyKey) return
+    setPaymentStartKey(idempotencyKey)
     setSubmitting(true)
+    setMessage("")
     try {
+      const deadline = createRequestDeadline()
       const result = await startPayment({
         data: { applicationNumber, idempotencyKey },
-      })
+        signal: deadline.signal,
+      }).finally(deadline.cancel)
+      setPaymentStartKey(null)
       if (result.kind === "started" || result.kind === "already-paid") {
         setPayment(result.payment)
       } else if ("message" in result) {
@@ -186,10 +215,12 @@ function RenewalFlow() {
 
   async function handleOutcome(outcome: "SUCCESS" | "FAILURE") {
     if (!payment) return
-    const idempotencyKey = createIdempotencyKey()
+    const idempotencyKey = paymentResolutionKey ?? createIdempotencyKey()
     if (!idempotencyKey) return
+    setPaymentResolutionKey(idempotencyKey)
     setSubmitting(true)
     try {
+      const deadline = createRequestDeadline()
       const result = await resolvePayment({
         data: {
           applicationNumber,
@@ -197,7 +228,9 @@ function RenewalFlow() {
           outcome,
           paymentId: payment.id,
         },
-      })
+        signal: deadline.signal,
+      }).finally(deadline.cancel)
+      setPaymentResolutionKey(null)
       if (result.kind === "paid" || result.kind === "failed") {
         setPayment(result.payment)
         setMessage(
@@ -263,16 +296,27 @@ function RenewalFlow() {
           Record the fee outcome
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          Reference: {applicationNumber}. {payment?.disclosure}
+          Reference: {applicationNumber}.
         </p>
         {!payment ? (
-          <Button
-            className="mt-6"
-            disabled={submitting}
-            onClick={() => void handleStartPayment()}
-          >
-            {submitting ? "Starting..." : "Start payment"}
-          </Button>
+          <>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Recorded by DigiLicense only; no government service or payment
+              provider is contacted.
+            </p>
+            {message ? (
+              <p aria-live="polite" className="mt-4 text-sm text-destructive">
+                {message}
+              </p>
+            ) : null}
+            <Button
+              className="mt-6"
+              disabled={submitting}
+              onClick={() => void handleStartPayment()}
+            >
+              {submitting ? "Starting..." : "Start payment"}
+            </Button>
+          </>
         ) : payment.status === "PENDING" ? (
           <div className="mt-6 rounded-xl bg-muted p-5">
             <p className="text-sm text-muted-foreground">Amount due</p>

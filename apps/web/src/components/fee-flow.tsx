@@ -69,6 +69,7 @@ function FeeFlow() {
         </label>
         <select
           className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base sm:max-w-md"
+          disabled={loading}
           id="fee-service"
           onChange={(event) => setService(event.target.value as FeeService)}
           value={service}
