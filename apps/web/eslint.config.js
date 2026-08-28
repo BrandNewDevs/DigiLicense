@@ -15,6 +15,6 @@ export default [
     },
   },
   {
-    ignores: ["eslint.config.js", ".prettierrc", ".vercel/**"],
+    ignores: ["eslint.config.js", ".prettierrc", ".output/**", ".vercel/**"],
   },
 ]
