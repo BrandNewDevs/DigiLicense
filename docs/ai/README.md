@@ -721,7 +721,8 @@ DIGILICENSE_AI_TRUSTED_PROXY_IPS=["10.0.0.10"]
 
 Render is the one supported platform exception. Its managed ingress terminates
 TLS and does not expose a stable proxy address to the container. Set the
-following value only in a Render web-service environment:
+following value only in a Render web-service environment. The service rejects
+this setting unless Render's platform-controlled `RENDER=true` variable exists:
 
 ```dotenv
 DIGILICENSE_AI_TRUST_RENDER_TLS_PROXY=true

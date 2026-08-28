@@ -2,6 +2,7 @@
 
 from enum import StrEnum
 from ipaddress import ip_address
+from os import environ
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
@@ -99,6 +100,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def enforce_profile_boundary(self) -> "Settings":
+        if self.trust_render_tls_proxy and environ.get("RENDER") != "true":
+            raise ValueError("trust_render_tls_proxy requires Render's RENDER=true environment.")
         if (
             self.context_signing_previous_key is not None
             and self.context_current_key_id == self.context_previous_key_id

@@ -133,11 +133,14 @@ class ServiceSecurityMiddleware:
             return "https"
         return "http"
 
-    @staticmethod
-    def _is_health_request(scope: dict[str, Any]) -> bool:
+    def _is_health_request(self, scope: dict[str, Any]) -> bool:
         # Render sends HTTP readiness probes from its service network after TLS
-        # termination. These endpoints return no applicant or provider data.
-        return scope.get("path") in {"/health/live", "/health/ready"}
+        # termination. Outside that managed ingress, health requests must meet
+        # the same TLS requirement as every other request.
+        return self.trust_render_tls_proxy and scope.get("path") in {
+            "/health/live",
+            "/health/ready",
+        }
 
     @staticmethod
     def _peer_address(scope: dict[str, Any]) -> str:

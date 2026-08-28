@@ -184,7 +184,7 @@ async def test_service_perimeter_accepts_authenticated_json() -> None:
     assert response.status_code == 200
 
 
-async def test_tls_requirement_allows_health_probes_after_tls_termination() -> None:
+async def test_tls_requirement_rejects_plain_direct_health_request() -> None:
     app = create_app(settings=Settings(profile=EnvironmentProfile.TEST, require_tls=True))
     async with AsyncClient(
         transport=ASGITransport(app=app, client=("198.51.100.10", 8000)),
@@ -192,7 +192,7 @@ async def test_tls_requirement_allows_health_probes_after_tls_termination() -> N
     ) as client:
         response = await client.get("/health/ready")
 
-    assert response.status_code == 200
+    assert response.status_code == 426
 
 
 async def test_tls_requirement_accepts_forwarded_scheme_from_trusted_proxy() -> None:
@@ -234,7 +234,10 @@ async def test_tls_requirement_accepts_forwarded_scheme_from_trusted_proxy() -> 
     assert untrusted.status_code == 426
 
 
-async def test_tls_requirement_accepts_render_managed_tls_proxy() -> None:
+async def test_tls_requirement_accepts_render_managed_tls_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RENDER", "true")
     app = create_app(
         settings=Settings(
             profile=EnvironmentProfile.TEST,
@@ -247,6 +250,7 @@ async def test_tls_requirement_accepts_render_managed_tls_proxy() -> None:
         transport=ASGITransport(app=app, client=("198.51.100.10", 8000)),
         base_url="http://test",
     ) as client:
+        health = await client.get("/health/ready")
         response = await client.post(
             "/v1/assistant/messages",
             headers={"authorization": "Bearer secret", "x-forwarded-proto": "https"},
@@ -259,4 +263,5 @@ async def test_tls_requirement_accepts_render_managed_tls_proxy() -> None:
             },
         )
 
+    assert health.status_code == 200
     assert response.status_code == 200
