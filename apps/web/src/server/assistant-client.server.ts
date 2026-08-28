@@ -56,7 +56,6 @@ const assistantResponseSchema = z
           .object({
             id: z.string().min(1).max(128),
             title: z.string().min(1).max(200),
-            url: z.string().url(),
           })
           .strict()
       )

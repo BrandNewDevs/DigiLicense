@@ -136,6 +136,7 @@ def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
         "This is official government guidance.",
         "DigiLicense is a government-run portal.",
         "Use the government portal for this service.",
+        "Visit the external website for the next step.",
         "This government website explains the process.",
         "The service is run by the government.",
         "DigiLicense is the official Delhi Transport Department service; wait 30 days.",

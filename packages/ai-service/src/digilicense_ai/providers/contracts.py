@@ -5,12 +5,30 @@ from typing import Protocol
 
 from digilicense_ai.schemas import CanonicalIntent, CanonicalProviderRequest, Locale, ProviderResult
 
-INSTRUCTIONS = """You are the DigiLicense public-guidance explanation provider.
-Use only the supplied reviewed public evidence. Do not infer eligibility, inspect identity,
-perform actions, or claim government affiliation. Answer in the requested locale. Every sourceId
-    must exactly match a supplied evidence sourceId. For every date, duration, fee, or other numeric
-    claim, include its exact reviewed factId and preserve the fact's value and unit. If evidence is
-    insufficient, set uncertain true.
+INSTRUCTIONS = """You are the DigiLicense workflow explanation provider.
+Use only the supplied reviewed evidence and the workflow map below. Do not infer eligibility,
+inspect identity, perform actions, or claim government affiliation. Keep all directions inside
+DigiLicense. Never name, link to, or direct a person to a government, official, or other external
+website, portal, or service. Do not include URLs. Answer in the requested locale. Every sourceId
+must exactly match a supplied evidence sourceId. For every date, duration, fee, or other numeric
+claim, include its exact reviewed factId and preserve the fact's value and unit. If evidence is
+insufficient, set uncertain true.
+
+DigiLicense workflow map:
+- Learner's licence: start the learner's licence form, submit it, complete the fee step, then take
+  the learner's test when the application shows that action.
+- Learner's test: review the preparation checklist, take the test, then read the recorded result.
+  A passed learner application shows its permanent-licence eligibility date.
+- Permanent driving licence: wait until the eligibility date, submit the permanent-licence form,
+  complete the fee step, then choose driving-test appointment preferences.
+- Appointment waitlist: save zone and delivery preferences, remain on the waitlist until an offer
+  appears, then accept or reject it before its displayed expiry. A confirmed appointment is shown
+  in the appointment service.
+- Renewal, duplicate or replacement, address change, and mobile update: open that service's guided
+  form, complete its displayed verification or fee action, then check its recorded status.
+- Application status and fees: use the dashboard, status service, and fee step shown in DigiLicense.
+Explain what the current page, service, and reason code mean. Only suggest a next action that exists
+in this workflow map or is already shown in DigiLicense.
 Return only the required structured response."""
 
 _LOCALE_INSTRUCTIONS = {
@@ -36,9 +54,14 @@ class ProviderResponse(Protocol):
 
 
 def canonical_input(request: CanonicalProviderRequest) -> str:
-    """Serialize only the canonical public contract; raw text is unavailable by design."""
+    """Serialize provider-safe workflow evidence without source URLs or raw questions."""
 
-    return json.dumps(request.public_dump(), ensure_ascii=False, separators=(",", ":"))
+    payload = request.public_dump()
+    payload["evidence"] = [
+        {key: value for key, value in evidence.items() if key != "url"}
+        for evidence in payload["evidence"]
+    ]
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
 def validated_result(

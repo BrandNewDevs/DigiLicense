@@ -30,7 +30,6 @@ const validResponse = {
     {
       id: "digilicense-prototype-behavior-v1",
       title: "DigiLicense prototype behavior",
-      url: "https://digilicense.invalid/prototype/assistant-behavior",
     },
   ],
   uncertain: false,

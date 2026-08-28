@@ -131,6 +131,12 @@ _SIMULATION_MARKERS = (
     "प्रोटोटाइप",
     "कृत्रिम",
 )
+_EXTERNAL_DIRECTION = re.compile(
+    r"\b(?:visit|go\s+to|open|check|use|refer\s+to)\s+(?:the\s+)?"
+    r"(?:official|government|external)\s+(?:website|site|portal|service)\b|"
+    r"(?:सरकारी|आधिकारिक)\s+(?:वेबसाइट|साइट|पोर्टल)\s+(?:पर|का)\s*(?:जाएं|जाइए|देखें)",
+    re.IGNORECASE,
+)
 
 
 class OutputSafetyError(ValueError):
@@ -219,6 +225,8 @@ class OutputSafetyValidator:
         lowered = answer.casefold()
         if _implies_affiliation(answer):
             raise OutputSafetyError("answer implies government affiliation")
+        if _EXTERNAL_DIRECTION.search(answer):
+            raise OutputSafetyError("answer directs the user outside DigiLicense")
 
         permitted_source_ids = {item.source_id for item in request.evidence}
         if not result.source_ids or not set(result.source_ids).issubset(permitted_source_ids):

@@ -1,7 +1,7 @@
 import { Menu } from "@base-ui/react/menu"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Bot, Check, ChevronDown, ExternalLink, Send, X } from "lucide-react"
+import { Bot, Check, ChevronDown, Send, X } from "lucide-react"
 import { useEffect, useId, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -394,17 +394,7 @@ function AssistantAnswer({
           </h3>
           <ul className="mt-2 space-y-2 text-sm">
             {response.sources.map((source) => (
-              <li key={source.id}>
-                <a
-                  className="inline-flex items-center gap-1 underline"
-                  href={source.url}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  {source.title}
-                  <ExternalLink aria-hidden="true" className="size-3" />
-                </a>
-              </li>
+              <li key={source.id}>{source.title}</li>
             ))}
           </ul>
         </section>

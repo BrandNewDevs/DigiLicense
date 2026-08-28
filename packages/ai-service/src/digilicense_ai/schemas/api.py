@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic import Field, field_validator
 
 from digilicense_ai.schemas.base import ContractModel
 from digilicense_ai.schemas.enums import (
@@ -33,9 +33,10 @@ class AssistantMessageRequest(ContractModel):
 
 
 class SourceReference(ContractModel):
+    """Reviewed source identity shown as plain text, never an external link."""
+
     id: Annotated[str, Field(min_length=1, max_length=128)]
     title: Annotated[str, Field(min_length=1, max_length=200)]
-    url: AnyHttpUrl
 
 
 class Escalation(ContractModel):
