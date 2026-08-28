@@ -239,8 +239,10 @@ The prototype deployment runs one Uvicorn worker because the Phase 7 rate-limit 
 guards are process-local; multiple workers require a shared atomic quota store before scaling out.
 When TLS terminates at a reverse proxy, that proxy must be the trusted component that sets the
 ASGI HTTPS scheme. Configure its IP through `DIGILICENSE_AI_TRUSTED_PROXY_IPS`; only a listed proxy
-may supply `X-Forwarded-Proto: https`. Loopback liveness/readiness probes remain intentionally
-available to the container over HTTP and cannot be reached from a remote peer without TLS.
+may supply `X-Forwarded-Proto: https`. On Render, set
+`DIGILICENSE_AI_TRUST_RENDER_TLS_PROXY=true` instead because Render's managed ingress has no stable
+proxy address inside the container. Render readiness probes may use HTTP after TLS termination; the
+health endpoints return no applicant or provider data.
 
 An AI-only hardened Compose example is in `deploy/compose.ai.yaml`. It exposes no host port, keeps
 internal traffic on an isolated `ai-private` network, and attaches the service to a separately

@@ -488,17 +488,16 @@ stylesheet rather than hard-coded colors wherever possible.
 ## Deploying to Render
 
 DigiLicense includes a Render Blueprint (`render.yaml`) and a production
-Dockerfile (`Dockerfile.render`). Render runs the web app and its maintenance
-job. Neon supplies PostgreSQL. The AI service is not part of this Blueprint;
-see the private AI service boundary below.
+Dockerfile (`Dockerfile.render`). Render runs the web app, maintenance job, and
+private AI service. Neon supplies PostgreSQL.
 
 ### Steps
 
 1. Push `main` to GitHub.
 2. In the [Render dashboard](https://dashboard.render.com), click **New** →
    **Blueprint** and connect the repository.
-3. Render detects `render.yaml` and provisions the web app and maintenance
-   job. Deploy the private AI service separately as described below.
+3. Render detects `render.yaml` and provisions the web app, maintenance job,
+   and AI service.
 4. During Blueprint creation, provide these server-only values:
    - **DATABASE_URL**: a Neon direct connection string with `sslmode=require`,
      shared by the web and maintenance services
@@ -534,7 +533,10 @@ that same credential to the web server as
 service has no product database credential, rejects browser and preflight
 requests, and requires the bearer credential on its message endpoint. Its
 publicly routable Render address is an encrypted service perimeter, not a
-browser API.
+browser API. Render terminates HTTPS before the container. The Blueprint sets
+`DIGILICENSE_AI_TRUST_RENDER_TLS_PROXY=true` so the AI service accepts only
+Render's forwarded HTTPS scheme on that perimeter. Its health endpoints also
+accept Render's internal HTTP probes and return no applicant or provider data.
 
 ### What gets built
 

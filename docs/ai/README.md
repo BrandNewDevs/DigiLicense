@@ -719,7 +719,18 @@ or configure only the proxy's exact literal IP addresses:
 DIGILICENSE_AI_TRUSTED_PROXY_IPS=["10.0.0.10"]
 ```
 
-Do not trust wildcard proxy addresses or client-supplied forwarding headers.
+Render is the one supported platform exception. Its managed ingress terminates
+TLS and does not expose a stable proxy address to the container. Set the
+following value only in a Render web-service environment:
+
+```dotenv
+DIGILICENSE_AI_TRUST_RENDER_TLS_PROXY=true
+```
+
+This permits `X-Forwarded-Proto: https` at the Render perimeter. The message
+endpoint still rejects browser-originated requests and requires the service
+bearer. Do not enable this setting in another environment or trust wildcard
+proxy addresses.
 
 ### TanStack Start web service
 
@@ -761,7 +772,9 @@ healthy.
    settings.
 5. Configure the AI service bearer and context-signing key through secret
    management.
-6. Start one AI worker and wait for `/health/ready`.
+6. Start one AI worker and wait for `/health/ready`. On Render, its managed
+   HTTP readiness probe is allowed through the TLS gate and returns no private
+   data.
 7. From the web service's server network, perform an authenticated synthetic
    request. Never perform this check from browser JavaScript.
 8. Verify a provider-completion event or an understood fail-closed result.
