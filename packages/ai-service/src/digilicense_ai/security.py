@@ -4,7 +4,6 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from hmac import compare_digest
-from ipaddress import ip_address
 from time import monotonic, time
 from typing import Any
 
@@ -80,11 +79,13 @@ class ServiceSecurityMiddleware:
         require_tls: bool,
         rate_limit: int,
         trusted_proxy_ips: frozenset[str] = frozenset(),
+        trust_render_tls_proxy: bool = False,
     ) -> None:
         self.app = app
         self.bearer_token = bearer_token
         self.require_tls = require_tls
         self.trusted_proxy_ips = trusted_proxy_ips
+        self.trust_render_tls_proxy = trust_render_tls_proxy
         self.limiter = FixedWindowLimiter(rate_limit)
         self.peer_limiter = FixedWindowLimiter(rate_limit)
 
@@ -97,7 +98,7 @@ class ServiceSecurityMiddleware:
         if headers.get(b"origin") is not None or scope.get("method") == "OPTIONS":
             await self._reject(send, 403, "browser access is not permitted")
             return
-        if self.require_tls and not self._is_loopback_health_request(scope):
+        if self.require_tls and not self._is_health_request(scope):
             if self._effective_scheme(scope, headers) != "https":
                 await self._reject(send, 426, "TLS is required")
                 return
@@ -128,26 +129,22 @@ class ServiceSecurityMiddleware:
             return "https"
         peer = self._peer_address(scope)
         forwarded = headers.get(b"x-forwarded-proto", b"").decode("latin-1").strip().casefold()
-        if peer in self.trusted_proxy_ips and forwarded == "https":
+        if forwarded == "https" and (
+            peer in self.trusted_proxy_ips or self.trust_render_tls_proxy
+        ):
             return "https"
         return "http"
 
-    def _is_loopback_health_request(self, scope: dict[str, Any]) -> bool:
-        return scope.get("path") in {"/health/live", "/health/ready"} and self._is_loopback_peer(
-            self._peer_address(scope)
-        )
+    @staticmethod
+    def _is_health_request(scope: dict[str, Any]) -> bool:
+        # Render sends HTTP readiness probes from its service network after TLS
+        # termination. These endpoints return no applicant or provider data.
+        return scope.get("path") in {"/health/live", "/health/ready"}
 
     @staticmethod
     def _peer_address(scope: dict[str, Any]) -> str:
         client = scope.get("client")
         return str(client[0]) if isinstance(client, (tuple, list)) and client else ""
-
-    @staticmethod
-    def _is_loopback_peer(peer: str) -> bool:
-        try:
-            return ip_address(peer).is_loopback
-        except ValueError:
-            return False
 
     @staticmethod
     async def _reject(send: Any, status_code: int, detail: str) -> None:

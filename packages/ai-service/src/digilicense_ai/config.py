@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     service_bearer_token: SecretStr | None = Field(default=None, repr=False)
     require_tls: bool = False
     trusted_proxy_ips: tuple[str, ...] = Field(default=(), max_length=32)
+    trust_render_tls_proxy: bool = False
     gateway_rate_limit_per_minute: int = Field(default=60, ge=1, le=60)
     provider_daily_call_limit: int = Field(default=1500, ge=1, le=1500)
     context_signing_current_key: SecretStr | None = Field(default=None, repr=False)

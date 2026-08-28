@@ -184,21 +184,15 @@ async def test_service_perimeter_accepts_authenticated_json() -> None:
     assert response.status_code == 200
 
 
-async def test_tls_requirement_allows_only_loopback_health_probes() -> None:
+async def test_tls_requirement_allows_health_probes_after_tls_termination() -> None:
     app = create_app(settings=Settings(profile=EnvironmentProfile.TEST, require_tls=True))
-    async with AsyncClient(
-        transport=ASGITransport(app=app, client=("127.0.0.1", 8000)),
-        base_url="http://test",
-    ) as client:
-        local = await client.get("/health/live")
     async with AsyncClient(
         transport=ASGITransport(app=app, client=("198.51.100.10", 8000)),
         base_url="http://test",
     ) as client:
-        remote = await client.get("/health/live")
+        response = await client.get("/health/ready")
 
-    assert local.status_code == 200
-    assert remote.status_code == 426
+    assert response.status_code == 200
 
 
 async def test_tls_requirement_accepts_forwarded_scheme_from_trusted_proxy() -> None:
@@ -238,3 +232,31 @@ async def test_tls_requirement_accepts_forwarded_scheme_from_trusted_proxy() -> 
 
     assert trusted.status_code == 200
     assert untrusted.status_code == 426
+
+
+async def test_tls_requirement_accepts_render_managed_tls_proxy() -> None:
+    app = create_app(
+        settings=Settings(
+            profile=EnvironmentProfile.TEST,
+            require_tls=True,
+            service_bearer_token="secret",
+            trust_render_tls_proxy=True,
+        )
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=app, client=("198.51.100.10", 8000)),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/v1/assistant/messages",
+            headers={"authorization": "Bearer secret", "x-forwarded-proto": "https"},
+            json={
+                "question": "How long will it take?",
+                "locale": "en",
+                "service": "permanent-driving-licence",
+                "page": "appointment-waitlist",
+                "reasonCode": "NO_MATCHING_SLOT",
+            },
+        )
+
+    assert response.status_code == 200
