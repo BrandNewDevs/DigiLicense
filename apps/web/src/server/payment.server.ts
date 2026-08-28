@@ -26,6 +26,10 @@ const notFoundMessage = "No payment journey was found for this account."
 const paymentBoundaryDisclosure =
   "Recorded by DigiLicense only; no government service or payment provider was contacted."
 
+function throwIfAborted(signal?: AbortSignal) {
+  signal?.throwIfAborted()
+}
+
 const publicServiceToFeeService = {
   "address-change": FeeService.ADDRESS_CHANGE,
   "learner-licence": FeeService.LEARNER_LICENCE,
@@ -283,7 +287,11 @@ function projectPayment(payment: ProjectablePayment): PaymentProjection {
   }
 }
 
-async function getFeeQuote(input: FeeQuoteInput): Promise<FeeQuoteResult> {
+async function getFeeQuote(
+  input: FeeQuoteInput,
+  signal?: AbortSignal
+): Promise<FeeQuoteResult> {
+  throwIfAborted(signal)
   try {
     const rateLimit = await consumeRateLimit(
       "fee-quote-public",
@@ -297,6 +305,7 @@ async function getFeeQuote(input: FeeQuoteInput): Promise<FeeQuoteResult> {
       }
     }
 
+    throwIfAborted(signal)
     const fee = await prisma.feeSchedule.findFirst({
       where: {
         active: true,
@@ -306,6 +315,7 @@ async function getFeeQuote(input: FeeQuoteInput): Promise<FeeQuoteResult> {
       orderBy: { effectiveFrom: "desc" },
       select: { amountPaise: true, code: true, version: true },
     })
+    throwIfAborted(signal)
     if (!fee) return { kind: "unavailable", message: unavailableMessage }
 
     return {
@@ -377,9 +387,11 @@ const paymentProjectionSelect = {
   status: true,
 } as const
 
-async function readApplicationPayment(input: {
-  applicationNumber: string
-}): Promise<PaymentReadResult> {
+async function readApplicationPayment(
+  input: { applicationNumber: string },
+  signal?: AbortSignal
+): Promise<PaymentReadResult> {
+  throwIfAborted(signal)
   const authorization = await authenticatePaymentApplicant()
   if (authorization.kind !== "authenticated") return authorization
 
@@ -390,6 +402,7 @@ async function readApplicationPayment(input: {
   if (rateLimit.kind !== "allowed") return rateLimit
 
   try {
+    throwIfAborted(signal)
     const application = await prisma.application.findFirst({
       where: {
         applicantId: authorization.applicantId,
@@ -403,6 +416,7 @@ async function readApplicationPayment(input: {
         },
       },
     })
+    throwIfAborted(signal)
     if (!application) return { kind: "not-found", message: notFoundMessage }
 
     return {
@@ -422,9 +436,11 @@ async function readApplicationPayment(input: {
 
 async function findOwnedStartReplay(
   applicantId: string,
-  input: StartApplicationPaymentInput
+  input: StartApplicationPaymentInput,
+  signal?: AbortSignal
 ): Promise<ProjectablePayment | null> {
-  return prisma.paymentRecord.findFirst({
+  throwIfAborted(signal)
+  const replay = await prisma.paymentRecord.findFirst({
     where: {
       application: {
         applicantId,
@@ -434,16 +450,24 @@ async function findOwnedStartReplay(
     },
     select: paymentProjectionSelect,
   })
+  throwIfAborted(signal)
+  return replay
 }
 
 async function startApplicationPayment(
-  input: StartApplicationPaymentInput
+  input: StartApplicationPaymentInput,
+  signal?: AbortSignal
 ): Promise<PaymentStartResult> {
+  throwIfAborted(signal)
   const authorization = await authenticatePaymentApplicant()
   if (authorization.kind !== "authenticated") return authorization
 
   try {
-    const replay = await findOwnedStartReplay(authorization.applicantId, input)
+    const replay = await findOwnedStartReplay(
+      authorization.applicantId,
+      input,
+      signal
+    )
     if (replay) {
       return {
         kind: replay.status === PaymentStatus.PAID ? "already-paid" : "started",
@@ -465,7 +489,9 @@ async function startApplicationPayment(
   if (rateLimit.kind !== "allowed") return rateLimit
 
   try {
+    throwIfAborted(signal)
     const result = await prisma.$transaction(async (transaction) => {
+      throwIfAborted(signal)
       const application = await transaction.application.findFirst({
         where: {
           applicantId: authorization.applicantId,
@@ -558,6 +584,7 @@ async function startApplicationPayment(
       })
       return { kind: "started" as const, payment }
     })
+    throwIfAborted(signal)
 
     if (result.kind === "not-found") {
       return { kind: "not-found", message: notFoundMessage }
@@ -573,13 +600,15 @@ async function startApplicationPayment(
     }
     return { kind: result.kind, payment: projectPayment(result.payment) }
   } catch (error) {
+    if (signal?.aborted) throw error
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
       const replay = await findOwnedStartReplay(
         authorization.applicantId,
-        input
+        input,
+        signal
       )
       if (replay) {
         return {
@@ -599,9 +628,11 @@ async function startApplicationPayment(
 
 async function findOwnedResolutionReplay(
   applicantId: string,
-  input: ResolveApplicationPaymentInput
+  input: ResolveApplicationPaymentInput,
+  signal?: AbortSignal
 ): Promise<ResolvedProjectablePayment | null> {
-  return prisma.paymentRecord.findFirst({
+  throwIfAborted(signal)
+  const replay = await prisma.paymentRecord.findFirst({
     where: {
       application: {
         applicantId,
@@ -615,6 +646,8 @@ async function findOwnedResolutionReplay(
       application: { select: { status: true } },
     },
   })
+  throwIfAborted(signal)
+  return replay
 }
 
 function projectResolvedPayment(
@@ -630,15 +663,18 @@ function projectResolvedPayment(
 }
 
 async function resolveApplicationPayment(
-  input: ResolveApplicationPaymentInput
+  input: ResolveApplicationPaymentInput,
+  signal?: AbortSignal
 ): Promise<PaymentResolveResult> {
+  throwIfAborted(signal)
   const authorization = await authenticatePaymentApplicant()
   if (authorization.kind !== "authenticated") return authorization
 
   try {
     const replay = await findOwnedResolutionReplay(
       authorization.applicantId,
-      input
+      input,
+      signal
     )
     if (replay) return projectResolvedPayment(replay, replay.application.status)
   } catch (error) {
@@ -656,7 +692,9 @@ async function resolveApplicationPayment(
   if (rateLimit.kind !== "allowed") return rateLimit
 
   try {
+    throwIfAborted(signal)
     const result = await prisma.$transaction(async (transaction) => {
+      throwIfAborted(signal)
       const locked = await transaction.$queryRaw<Array<{ id: string }>>`
         SELECT payment."id"
         FROM "PaymentRecord" payment
@@ -868,6 +906,7 @@ async function resolveApplicationPayment(
         payment: updatedPayment,
       }
     })
+    throwIfAborted(signal)
 
     if (result.kind === "not-found") {
       return { kind: "not-found", message: notFoundMessage }
@@ -880,13 +919,15 @@ async function resolveApplicationPayment(
     }
     return projectResolvedPayment(result.payment, result.applicationStatus)
   } catch (error) {
+    if (signal?.aborted) throw error
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
       const replay = await findOwnedResolutionReplay(
         authorization.applicantId,
-        input
+        input,
+        signal
       )
       if (replay)
         return projectResolvedPayment(replay, replay.application.status)

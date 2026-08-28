@@ -6,13 +6,17 @@ import {
   resolveApplicationPaymentSchema,
   startApplicationPaymentSchema,
 } from "../validation/payment"
+import { withServerDeadline } from "./request-deadline"
 
 const getFeeQuote = createServerFn({ method: "POST" })
   .validator((input: unknown) => feeQuoteSchema.parse(input))
   .handler(async ({ data }) => {
     const { getFeeQuote: readFeeQuote } =
       await import("../server/payment.server")
-    return readFeeQuote(data)
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return readFeeQuote(data, signal)
+    })
   })
 
 const readApplicationPayment = createServerFn({ method: "POST" })
@@ -20,7 +24,10 @@ const readApplicationPayment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { readApplicationPayment: readPayment } =
       await import("../server/payment.server")
-    return readPayment(data)
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return readPayment(data, signal)
+    })
   })
 
 const startApplicationPayment = createServerFn({ method: "POST" })
@@ -28,7 +35,10 @@ const startApplicationPayment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { startApplicationPayment: startPayment } =
       await import("../server/payment.server")
-    return startPayment(data)
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return startPayment(data, signal)
+    })
   })
 
 const resolveApplicationPayment = createServerFn({ method: "POST" })
@@ -36,7 +46,10 @@ const resolveApplicationPayment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { resolveApplicationPayment: resolvePayment } =
       await import("../server/payment.server")
-    return resolvePayment(data)
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return resolvePayment(data, signal)
+    })
   })
 
 export {

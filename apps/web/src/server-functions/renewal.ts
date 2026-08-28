@@ -4,13 +4,17 @@ import {
   renewalReadSchema,
   renewalSubmissionSchema,
 } from "../validation/renewal"
+import { withServerDeadline } from "./request-deadline"
 
 const readRenewalState = createServerFn({ method: "POST" })
   .validator((input: unknown) => renewalReadSchema.parse(input))
   .handler(async () => {
     const { readRenewalState: readState } =
       await import("../server/renewal.server")
-    return readState()
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return readState()
+    })
   })
 
 const submitRenewalApplication = createServerFn({ method: "POST" })
@@ -18,7 +22,10 @@ const submitRenewalApplication = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { submitRenewalApplication: submit } =
       await import("../server/renewal.server")
-    return submit(data)
+    return withServerDeadline((signal) => {
+      signal.throwIfAborted()
+      return submit(data)
+    })
   })
 
 export { readRenewalState, submitRenewalApplication }

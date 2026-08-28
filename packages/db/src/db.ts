@@ -20,7 +20,13 @@ function getDatabaseUrl() {
 }
 
 function createPrismaClient() {
-  return new PrismaClient({ adapter: createDatabaseAdapter(getDatabaseUrl()) })
+  return new PrismaClient({
+    adapter: createDatabaseAdapter(getDatabaseUrl()),
+    transactionOptions: {
+      maxWait: 5_000,
+      timeout: 10_000,
+    },
+  })
 }
 
 const globalForPrisma = globalThis as typeof globalThis & {

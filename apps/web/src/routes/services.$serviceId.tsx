@@ -9,8 +9,10 @@ import { AppointmentFlow } from "../components/appointment-flow"
 import { MockApplicantGate } from "../components/mock-applicant-gate"
 import { LearnerLicenceForm } from "../components/learner-licence-form"
 import { LearnerTestFlow } from "../components/learner-test-flow"
+import { FeeFlow } from "../components/fee-flow"
 import { MobileUpdateFlow } from "../components/mobile-update-flow"
 import { PermanentLicenceFlow } from "../components/permanent-licence-flow"
+import { RenewalFlow } from "../components/renewal-flow"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
 import { getService } from "../lib/services"
 
@@ -43,6 +45,10 @@ function ServicePage() {
       <PermanentLicenceFlow />
     ) : workflow === "address-change" ? (
       <AddressChangeFlow />
+    ) : workflow === "renewal" ? (
+      <RenewalFlow />
+    ) : workflow === "fees" ? (
+      <FeeFlow />
     ) : service.id === "appointments" ? (
       <AppointmentFlow applicationNumber={applicationNumber} />
     ) : (
