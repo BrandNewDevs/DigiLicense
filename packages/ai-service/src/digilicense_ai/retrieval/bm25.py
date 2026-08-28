@@ -8,7 +8,7 @@ import structlog
 from rank_bm25 import BM25Okapi  # type: ignore[import-untyped]
 
 from digilicense_ai.corpus import PromotedCorpus
-from digilicense_ai.schemas import CanonicalIntent, EvidenceChunk, RetrievalQuery
+from digilicense_ai.schemas import CanonicalIntent, EvidenceChunk, RetrievalQuery, Topic
 
 logger = structlog.get_logger(__name__)
 
@@ -36,6 +36,23 @@ _INTENT_TERMS: dict[CanonicalIntent, str] = {
     CanonicalIntent.UNSUPPORTED_QUESTION: "assistant scope evidence insufficient public guidance",
 }
 
+_TOPIC_TERMS: dict[Topic, str] = {
+    Topic.LEARNER_LICENCE_APPLICATION: "learner licence form submission fee next action",
+    Topic.LEARNER_TEST: "learner test preparation checklist recorded result",
+    Topic.PERMANENT_LICENCE_APPLICATION: "permanent driving licence eligibility form fee",
+    Topic.RENEWAL: "renewal guided form fee status",
+    Topic.DUPLICATE_REPLACEMENT: "duplicate replacement guided request status",
+    Topic.CHANGE_ADDRESS: "change address verification proof review status",
+    Topic.MOBILE_UPDATE: "mobile update verification Aadhaar local status",
+    Topic.APPLICATION_STATUS: "application status persisted records reason codes",
+    Topic.FEES_PAYMENT: "fee catalogue payment result money charged",
+    Topic.APPOINTMENT: "appointment workflow zone delivery preferences confirmation",
+    Topic.WAITLIST: "appointment waitlist membership offer timer",
+    Topic.SLOT_OFFER: "appointment offer timer accept reject confirmation",
+    Topic.PREPARATION: "learner test preparation checklist",
+    Topic.SIMULATION: "assistant scope simulated prototype behavior",
+}
+
 
 def canonical_query(query: RetrievalQuery) -> str:
     """Create a search string only from enum-controlled context, never user text."""
@@ -45,7 +62,7 @@ def canonical_query(query: RetrievalQuery) -> str:
     return " ".join(
         (
             _INTENT_TERMS[query.intent],
-            query.topic.value.replace("_", " "),
+            _TOPIC_TERMS[query.topic],
             "hindi" if query.locale.value == "hi" else "english",
         )
     )

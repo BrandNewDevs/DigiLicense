@@ -243,24 +243,45 @@ class FakeRetriever:
     async def retrieve(self, query: RetrievalQuery) -> tuple[EvidenceChunk, ...]:
         if not isinstance(query, RetrievalQuery):
             raise TypeError("FakeRetriever accepts only RetrievalQuery")
-        prototype_intents = {
+        appointment_intents = {
             CanonicalIntent.NO_APPOINTMENT_EXPLANATION,
             CanonicalIntent.WAITLIST_EXPLANATION,
             CanonicalIntent.OFFER_EXPIRY_EXPLANATION,
             CanonicalIntent.MOCK_VS_REAL_EXPLANATION,
         }
-        if query.intent in prototype_intents:
-            source_id = "digilicense-prototype-behavior-v1"
-            section_id = "prototype-guided-actions-v1"
-            title = "DigiLicense prototype behavior"
-            url = "https://digilicense.invalid/prototype/assistant-behavior"
-            text = "This is simulated prototype behavior for the Phase 0 contract."
+        source_id = "digilicense-prototype-behavior-v1"
+        title = "DigiLicense prototype behavior"
+        url = "https://digilicense-web.vercel.app/services"
+        if query.intent in appointment_intents:
+            section_id = "prototype-waitlist-offers-v1"
+            text = "Appointment reservation is a simulated workflow inside DigiLicense."
+        elif query.intent in {
+            CanonicalIntent.WAITING_PERIOD_EXPLANATION,
+            CanonicalIntent.LEARNER_LICENCE_EXPIRY_EXPLANATION,
+        }:
+            section_id = "prototype-permanent-licence-v1"
+            text = "DigiLicense explains only displayed dates in its simulated prototype workflow."
+        elif query.intent is CanonicalIntent.PREPARATION_CHECKLIST_EXPLANATION:
+            section_id = "prototype-learner-test-v1"
+            text = "The DigiLicense learner test is simulated prototype behavior."
         else:
-            source_id = "delhi-driving-licence-guidance-2026"
-            section_id = "delhi-ll-validity-preparation-v1"
-            title = "Delhi driving-licence public guidance"
-            url = "https://transport.delhi.gov.in/transport/driving-license"
-            text = "This reviewed fixture proves the Phase 0 contract without a live provider."
+            section_id = {
+                Topic.LEARNER_LICENCE_APPLICATION: "prototype-learner-licence-v1",
+                Topic.LEARNER_TEST: "prototype-learner-test-v1",
+                Topic.PERMANENT_LICENCE_APPLICATION: "prototype-permanent-licence-v1",
+                Topic.RENEWAL: "prototype-renewal-v1",
+                Topic.DUPLICATE_REPLACEMENT: "prototype-duplicate-replacement-v1",
+                Topic.CHANGE_ADDRESS: "prototype-change-address-v1",
+                Topic.MOBILE_UPDATE: "prototype-mobile-update-v1",
+                Topic.APPLICATION_STATUS: "prototype-application-status-v1",
+                Topic.FEES_PAYMENT: "prototype-fees-payment-v1",
+                Topic.APPOINTMENT: "prototype-waitlist-offers-v1",
+                Topic.WAITLIST: "prototype-waitlist-offers-v1",
+                Topic.SLOT_OFFER: "prototype-waitlist-offers-v1",
+                Topic.PREPARATION: "prototype-learner-test-v1",
+                Topic.SIMULATION: "prototype-assistant-scope-v1",
+            }[query.topic]
+            text = "This DigiLicense service is simulated prototype behavior."
         return (
             EvidenceChunk(
                 source_id=source_id,

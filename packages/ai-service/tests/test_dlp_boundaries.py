@@ -47,10 +47,10 @@ class PiiEvidenceRetriever:
         del query
         return (
             EvidenceChunk(
-                source_id="synthetic-pii-fixture",
-                section_id="test-only",
+                source_id="digilicense-prototype-behavior-v1",
+                section_id="prototype-waitlist-offers-v1",
                 title="Synthetic test fixture",
-                url="https://example.invalid/test-only",
+                url="https://digilicense-web.vercel.app/services",
                 text="Contact synthetic.user@example.org for this test.",
                 score=1.0,
             ),

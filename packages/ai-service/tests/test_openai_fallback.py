@@ -240,6 +240,12 @@ async def test_provider_receives_only_facts_bound_to_retrieved_sections() -> Non
     await service.answer(_request())
 
     assert provider.request is not None
+    assert {item.source_id for item in provider.request.evidence} == {
+        "digilicense-prototype-behavior-v1"
+    }
+    assert {item.section_id for item in provider.request.evidence} == {
+        "prototype-waitlist-offers-v1"
+    }
     assert provider.request.facts
     assert all(
         (fact.source_id, fact.section_id)

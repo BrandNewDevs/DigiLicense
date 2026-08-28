@@ -57,6 +57,48 @@ async def test_bm25_prefilters_the_intent_allowlist_and_has_no_cross_intent_leak
     )
 
 
+async def test_production_scope_returns_only_digilicense_evidence_for_every_intent() -> None:
+    retriever = Bm25Retriever(load_promoted_corpus())
+    prototype_source = ("digilicense-prototype-behavior-v1",)
+
+    for intent in CanonicalIntent:
+        if intent is CanonicalIntent.UNSUPPORTED_QUESTION:
+            continue
+        result = await retriever.retrieve(_query(intent, allowed=prototype_source))
+        assert result
+        assert {item.source_id for item in result} == set(prototype_source)
+        assert all(
+            str(item.url) == "https://digilicense-web.vercel.app/services" for item in result
+        )
+
+
+async def test_current_step_query_ranks_each_workflow_section_first() -> None:
+    retriever = Bm25Retriever(load_promoted_corpus())
+    expected_sections = {
+        Topic.LEARNER_LICENCE_APPLICATION: "prototype-learner-licence-v1",
+        Topic.LEARNER_TEST: "prototype-learner-test-v1",
+        Topic.PERMANENT_LICENCE_APPLICATION: "prototype-permanent-licence-v1",
+        Topic.RENEWAL: "prototype-renewal-v1",
+        Topic.DUPLICATE_REPLACEMENT: "prototype-duplicate-replacement-v1",
+        Topic.CHANGE_ADDRESS: "prototype-change-address-v1",
+        Topic.MOBILE_UPDATE: "prototype-mobile-update-v1",
+        Topic.APPLICATION_STATUS: "prototype-application-status-v1",
+        Topic.FEES_PAYMENT: "prototype-fees-payment-v1",
+        Topic.APPOINTMENT: "prototype-waitlist-offers-v1",
+    }
+
+    for topic, expected_section in expected_sections.items():
+        result = await retriever.retrieve(
+            RetrievalQuery(
+                intent=CanonicalIntent.CURRENT_STEP_EXPLANATION,
+                topic=topic,
+                locale=Locale.ENGLISH,
+                allowed_source_ids=("digilicense-prototype-behavior-v1",),
+            )
+        )
+        assert result[0].section_id == expected_section
+
+
 async def test_bm25_returns_no_evidence_when_no_allowlisted_source_can_match() -> None:
     retriever = Bm25Retriever(load_promoted_corpus())
 

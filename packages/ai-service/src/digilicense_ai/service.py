@@ -4,6 +4,7 @@ import asyncio
 
 from digilicense_ai.config import ProviderBackend
 from digilicense_ai.container import ServiceContainer
+from digilicense_ai.corpus.models import SourceKind
 from digilicense_ai.fallbacks import (
     BOUNDARY,
     ESCALATIONS,
@@ -33,7 +34,34 @@ from digilicense_ai.schemas import (
     ProviderFact,
     RetrievalQuery,
     SourceReference,
+    Topic,
 )
+
+_PROTOTYPE_SECTION_BY_TOPIC = {
+    Topic.LEARNER_LICENCE_APPLICATION: "prototype-learner-licence-v1",
+    Topic.LEARNER_TEST: "prototype-learner-test-v1",
+    Topic.PERMANENT_LICENCE_APPLICATION: "prototype-permanent-licence-v1",
+    Topic.RENEWAL: "prototype-renewal-v1",
+    Topic.DUPLICATE_REPLACEMENT: "prototype-duplicate-replacement-v1",
+    Topic.CHANGE_ADDRESS: "prototype-change-address-v1",
+    Topic.MOBILE_UPDATE: "prototype-mobile-update-v1",
+    Topic.APPLICATION_STATUS: "prototype-application-status-v1",
+    Topic.FEES_PAYMENT: "prototype-fees-payment-v1",
+    Topic.APPOINTMENT: "prototype-waitlist-offers-v1",
+    Topic.WAITLIST: "prototype-waitlist-offers-v1",
+    Topic.SLOT_OFFER: "prototype-waitlist-offers-v1",
+    Topic.PREPARATION: "prototype-learner-test-v1",
+    Topic.SIMULATION: "prototype-assistant-scope-v1",
+}
+
+_PROTOTYPE_SECTION_BY_INTENT = {
+    CanonicalIntent.WAITING_PERIOD_EXPLANATION: "prototype-permanent-licence-v1",
+    CanonicalIntent.LEARNER_LICENCE_EXPIRY_EXPLANATION: "prototype-permanent-licence-v1",
+    CanonicalIntent.NO_APPOINTMENT_EXPLANATION: "prototype-waitlist-offers-v1",
+    CanonicalIntent.WAITLIST_EXPLANATION: "prototype-waitlist-offers-v1",
+    CanonicalIntent.OFFER_EXPIRY_EXPLANATION: "prototype-waitlist-offers-v1",
+    CanonicalIntent.PREPARATION_CHECKLIST_EXPLANATION: "prototype-learner-test-v1",
+}
 
 _PII_LOCAL_HELP = {
     Locale.ENGLISH: (
@@ -150,6 +178,18 @@ class AssistantService:
                 fallback_used=True,
                 blocked_reason=BlockedReason.UNSUPPORTED,
             )
+        prototype_source_ids = tuple(
+            source.source_id
+            for source in self._output_validator.corpus.manifest.sources
+            if source.kind is SourceKind.PROTOTYPE_BEHAVIOR
+            and intent_result.intent in source.allowed_intents
+        )
+        if not prototype_source_ids:
+            return self._retrieval_failure_response(
+                request,
+                intent_result,
+                BlockedReason.NO_EVIDENCE,
+            )
         try:
             async with asyncio.timeout(self._container.settings.retrieval_timeout_seconds):
                 evidence = await self._container.retriever.retrieve(
@@ -157,7 +197,15 @@ class AssistantService:
                         intent=intent_result.intent,
                         topic=intent_result.topic,
                         locale=request.locale,
+                        allowed_source_ids=prototype_source_ids,
                     )
+                )
+                expected_section_id = _PROTOTYPE_SECTION_BY_INTENT.get(
+                    intent_result.intent,
+                    _PROTOTYPE_SECTION_BY_TOPIC[intent_result.topic],
+                )
+                evidence = tuple(
+                    item for item in evidence if item.section_id == expected_section_id
                 )
         except TimeoutError:
             return self._retrieval_failure_response(
