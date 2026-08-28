@@ -131,6 +131,39 @@ not a fallback. Install it only with `uv sync --group gemini`; it is not part of
 or Conda installation. It cannot be selected in evaluation or production, and the deployed
 prototype requires no Gemini credential.
 
+### DigiLicense-only workflow guidance
+
+The assistant explains the DigiLicense journey, not external services. Its provider instruction includes
+an allowlisted workflow map for all supported product paths:
+
+- learner's licence form, fee step, learner's test, and the permanent-licence eligibility date
+- permanent driving-licence form, fee step, appointment preferences, waitlist, offer expiry, and
+  confirmed appointment
+- renewal, duplicate or replacement, address change, and mobile update guided forms
+- dashboard, application status, and fee views
+
+The map is static product context. The request still carries only the enum-controlled `service`,
+`page`, `reasonCode`, and `locale` values. It never adds an applicant record, identity, document,
+contact detail, payment, application number, raw chat history, or any other private workflow state.
+The current page and reason code tell the assistant which part of the static map to explain.
+
+Provider instructions permit next-step directions only to a DigiLicense page, control, or step in
+that map. They prohibit naming, linking to, or directing someone to a government, official, or
+other external website, portal, or service. The provider payload strips the retrieval URL from every
+evidence chunk before it leaves the service. The browser receives plain source IDs and titles for
+traceability, not URLs, and renders those titles without anchors.
+
+`OutputSafetyValidator` enforces the same rule after model output is parsed. It rejects all URLs and
+markup, affiliation claims, and URL-free external directions. The direction matcher is
+case-insensitive and covers English instructions such as "Navigate to the external portal" and
+"Follow the external service", plus Hindi instructions such as "सरकारी वेबसाइट देखें" and
+"आधिकारिक पोर्टल पर जाएं". Rejected output is replaced with deterministic bilingual guidance that
+points the person to the next action shown in DigiLicense.
+
+Regression coverage lives in `tests/test_output_safety.py`. It tests URL, markup, affiliation,
+English external-direction, and Hindi external-direction rejection. `tests/test_openai_provider.py`
+also verifies that `canonical_input()` omits evidence URLs before a provider request is made.
+
 ### Answer release safety
 
 English and Hindi instructions are locale-specific and require preservation of dates, numbers,
@@ -145,8 +178,8 @@ reviewed bilingual fallback with one of the bounded escalation codes; model-gene
 never returned to callers.
 
 The deterministic local router recognizes English, Hindi, and common Hinglish follow-up terms
-without forwarding raw text to a provider. The public response includes only source metadata
-resolved from the promoted corpus.
+without forwarding raw text to a provider. The public response includes only source IDs and titles
+resolved from the promoted corpus; it never includes source URLs.
 
 ### Service perimeter and operations
 
