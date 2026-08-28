@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     provider_circuit_failure_threshold: int = Field(default=3, ge=1, le=10)
     provider_circuit_reset_seconds: float = Field(default=30.0, ge=1.0, le=300.0)
     gemini_api_key: SecretStr | None = Field(default=None, repr=False)
-    gemini_model_id: Literal["gemini-3.5-flash-lite"] = "gemini-3.5-flash-lite"
+    gemini_model_id: Literal["gemini-2.5-flash-lite"] = "gemini-2.5-flash-lite"
     openai_budget_controls_confirmed: bool = False
     file_search_enabled: bool = False
     file_search_vector_store_id: str | None = Field(default=None, min_length=4, max_length=128)

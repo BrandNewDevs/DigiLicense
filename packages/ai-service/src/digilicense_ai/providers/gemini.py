@@ -20,30 +20,6 @@ from digilicense_ai.schemas import CanonicalProviderRequest, DlpScope, ProviderR
 
 logger = structlog.get_logger(__name__)
 
-# Gemini's current schema endpoint rejects Pydantic's `additionalProperties`
-# keyword. Constrain citations to this request's reviewed evidence, then let
-# ProviderResult validate every returned value before it reaches the app.
-def gemini_response_schema(request: CanonicalProviderRequest) -> dict[str, object]:
-    source_ids = [chunk.source_id for chunk in request.evidence]
-    fact_ids = [fact.fact_id for fact in request.facts]
-    return {
-        "type": "object",
-        "properties": {
-            "answer": {"type": "string"},
-            "sourceIds": {
-                "type": "array",
-                "items": {"type": "string", "enum": source_ids},
-                "minItems": 1,
-            },
-            "factIds": {
-                "type": "array",
-                "items": {"type": "string", "enum": fact_ids},
-            },
-            "uncertain": {"type": "boolean"},
-        },
-        "required": ["answer", "sourceIds", "uncertain"],
-    }
-
 
 class _GeminiModels(Protocol):
     async def generate_content(self, **kwargs: Any) -> Any: ...
@@ -137,7 +113,7 @@ class GeminiProvider:
                         config={
                             "system_instruction": localized_instructions(request.locale),
                             "response_mime_type": "application/json",
-                            "response_schema": gemini_response_schema(request),
+                            "response_schema": ProviderResult,
                             "max_output_tokens": self._max_output_tokens,
                             "temperature": 0,
                             "tools": [],

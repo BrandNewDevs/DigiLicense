@@ -284,11 +284,6 @@ class OutputSafetyValidator:
                 for fact in cited_facts
             ):
                 raise OutputSafetyError("answer contains a numeric claim outside fact packets")
-        numeric_cited_facts = tuple(
-            fact
-            for fact in cited_facts
-            if _NUMBER.fullmatch(fact.value.translate(_DEVANAGARI_DIGITS))
-        )
-        if numeric_cited_facts and not numeric_claims:
+        if result.fact_ids and not numeric_claims:
             raise OutputSafetyError("answer cites a fact without using its reviewed value and unit")
         return result.model_copy(update={"answer": answer})
