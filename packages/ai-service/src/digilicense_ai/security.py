@@ -129,9 +129,7 @@ class ServiceSecurityMiddleware:
             return "https"
         peer = self._peer_address(scope)
         forwarded = headers.get(b"x-forwarded-proto", b"").decode("latin-1").strip().casefold()
-        if forwarded == "https" and (
-            peer in self.trusted_proxy_ips or self.trust_render_tls_proxy
-        ):
+        if forwarded == "https" and (peer in self.trusted_proxy_ips or self.trust_render_tls_proxy):
             return "https"
         return "http"
 
