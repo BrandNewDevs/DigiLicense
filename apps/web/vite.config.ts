@@ -3,6 +3,7 @@ import { configDefaults } from "vitest/config"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
+import { nitro } from "nitro/vite"
 import tailwindcss from "@tailwindcss/vite"
 
 import { buildSecurityHeaderValues } from "./src/server/security-policy.shared"
@@ -24,7 +25,7 @@ const config = defineConfig(({ isPreview }) => {
         "src/**/*.integration.test.ts",
       ],
     },
-    plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
+    plugins: [devtools(), tailwindcss(), tanstackStart(), nitro(), viteReact()],
   }
 })
 

@@ -7,6 +7,15 @@ const databaseStatementTimeoutMs = 10_000
 
 function withDatabaseStatementTimeout(databaseUrl: string): string {
   const url = new URL(databaseUrl)
+  const hostname = url.hostname.replace(/^\[|\]$/g, "")
+
+  // Neon pooled connections reject PostgreSQL startup `options`, including
+  // statement_timeout. Request and interactive-transaction deadlines remain
+  // bounded by the application and Prisma transaction configuration.
+  if (hostname.endsWith(".neon.tech") && hostname.includes("-pooler.")) {
+    return url.toString()
+  }
+
   const timeoutOption = `-c statement_timeout=${databaseStatementTimeoutMs}`
   const existingOptions = url.searchParams.get("options")?.trim()
 
@@ -39,4 +48,8 @@ function createDatabaseAdapter(databaseUrl: string) {
   return new PrismaNeon({ connectionString })
 }
 
-export { createDatabaseAdapter, databaseStatementTimeoutMs }
+export {
+  createDatabaseAdapter,
+  databaseStatementTimeoutMs,
+  withDatabaseStatementTimeout,
+}

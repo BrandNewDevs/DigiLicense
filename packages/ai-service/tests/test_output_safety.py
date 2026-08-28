@@ -67,6 +67,39 @@ def _result(answer: str, *, fact_ids: tuple[str, ...] = ()) -> ProviderResult:
     )
 
 
+def _prototype_request() -> CanonicalProviderRequest:
+    return CanonicalProviderRequest(
+        intent=CanonicalIntent.NO_APPOINTMENT_EXPLANATION,
+        topic=Topic.WAITLIST,
+        service=Service.APPOINTMENT_WAITLIST,
+        page=Page.APPOINTMENT_WAITLIST,
+        reason_code=ReasonCode.NO_MATCHING_SLOT,
+        locale=Locale.ENGLISH,
+        evidence=(
+            EvidenceChunk(
+                source_id="digilicense-prototype-behavior-v1",
+                section_id="prototype-waitlist-offers-v1",
+                title="DigiLicense behavior and service boundaries",
+                url="https://digilicense.invalid/prototype/assistant-behavior",
+                text="Appointment reservation is simulated workflow behavior.",
+                score=1,
+            ),
+        ),
+        facts=(
+            ProviderFact(
+                fact_id="prototype-appointment-reservation-v1",
+                source_id="digilicense-prototype-behavior-v1",
+                section_id="prototype-waitlist-offers-v1",
+                label="Appointment reservation status",
+                value="simulated",
+                unit="workflow",
+            ),
+        ),
+        prompt_version="phase6-test-v1",
+        corpus_version="v1",
+    )
+
+
 def test_numeric_claim_must_match_reviewed_fact_packet() -> None:
     validator = OutputSafetyValidator(load_promoted_corpus())
     fact_ids = ("delhi-permanent-licence-waiting-period-v1",)
@@ -167,6 +200,24 @@ def test_numeric_answers_require_fact_ids_and_matching_units() -> None:
                 fact_ids=("delhi-permanent-licence-waiting-period-v1",),
             ),
             _request(),
+        )
+
+
+def test_reviewed_text_fact_requires_its_exact_value_and_unit() -> None:
+    validator = OutputSafetyValidator(load_promoted_corpus())
+    request = _prototype_request()
+    result = ProviderResult(
+        answer="Appointment reservation is simulated workflow behavior.",
+        source_ids=("digilicense-prototype-behavior-v1",),
+        fact_ids=("prototype-appointment-reservation-v1",),
+        uncertain=False,
+    )
+
+    assert validator.validate(result, request)
+    with pytest.raises(OutputSafetyError, match="without using"):
+        validator.validate(
+            result.model_copy(update={"answer": "This is simulated prototype behavior."}),
+            request,
         )
 
 
