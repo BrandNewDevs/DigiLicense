@@ -54,8 +54,7 @@ function DashboardContent() {
     try {
       const result = await resetAppointment({ data: undefined })
       if (result.kind === "reset") {
-        await refresh()
-        setMessage(result.message)
+        if (await refresh()) setMessage(result.message)
       } else {
         setMessage(result.message)
       }
@@ -73,11 +72,14 @@ function DashboardContent() {
       if (result.kind === "found") {
         setDashboard(result)
         setMessage("")
-      } else {
-        setMessage(result.message)
+        return true
       }
+
+      setMessage(result.message)
+      return false
     } catch {
       setMessage("Your dashboard is temporarily unavailable.")
+      return false
     } finally {
       setIsLoading(false)
     }
