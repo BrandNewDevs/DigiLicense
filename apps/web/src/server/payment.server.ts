@@ -600,6 +600,7 @@ async function startApplicationPayment(
     }
     return { kind: result.kind, payment: projectPayment(result.payment) }
   } catch (error) {
+    if (signal?.aborted) throw error
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
@@ -918,6 +919,7 @@ async function resolveApplicationPayment(
     }
     return projectResolvedPayment(result.payment, result.applicationStatus)
   } catch (error) {
+    if (signal?.aborted) throw error
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
