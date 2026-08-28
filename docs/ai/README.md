@@ -393,8 +393,8 @@ pnpm --filter web dev
 Open [http://localhost:3000](http://localhost:3000) and sign in using only the
 seeded synthetic applicant:
 
-- mobile: `9000000001`
-- OTP: `123456`
+- mobile: `9009006767`
+- OTP: `676767`
 
 Then:
 

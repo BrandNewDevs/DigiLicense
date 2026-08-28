@@ -15,12 +15,11 @@ PII_LOCAL_HELP = {
 
 UNSUPPORTED = {
     Locale.ENGLISH: (
-        "I can only explain DigiLicense services using public guidance. Please ask about the "
+        "I can only explain the ten DigiLicense services. Please ask about the "
         "licence service shown on this page."
     ),
     Locale.HINDI: (
-        "मैं केवल सार्वजनिक मार्गदर्शन के आधार पर DigiLicense सेवाओं को समझा सकता हूँ। कृपया "
-        "इस पेज पर दिखाई गई लाइसेंस सेवा के बारे में पूछें।"
+        "मैं केवल DigiLicense की दस सेवाओं को समझा सकता हूँ। कृपया इस पेज पर दिखाई गई लाइसेंस सेवा के बारे में पूछें।"
     ),
 }
 

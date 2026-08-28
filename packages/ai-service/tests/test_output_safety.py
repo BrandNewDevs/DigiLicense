@@ -80,7 +80,7 @@ def _prototype_request() -> CanonicalProviderRequest:
                 source_id="digilicense-prototype-behavior-v1",
                 section_id="prototype-waitlist-offers-v1",
                 title="DigiLicense behavior and service boundaries",
-                url="https://digilicense.invalid/prototype/assistant-behavior",
+                url="https://digilicense-web.vercel.app/services",
                 text="Appointment reservation is simulated workflow behavior.",
                 score=1,
             ),
@@ -208,7 +208,7 @@ def test_numeric_answers_require_fact_ids_and_matching_units() -> None:
         )
 
 
-def test_reviewed_text_fact_requires_its_exact_value_and_unit() -> None:
+def test_reviewed_text_fact_requires_its_value_and_unit_without_forcing_word_order() -> None:
     validator = OutputSafetyValidator(load_promoted_corpus())
     request = _prototype_request()
     result = ProviderResult(
@@ -219,10 +219,17 @@ def test_reviewed_text_fact_requires_its_exact_value_and_unit() -> None:
     )
 
     assert validator.validate(result, request)
+    assert validator.validate(
+        result.model_copy(
+            update={
+                "answer": ("This appointment workflow is simulated and remains prototype behavior.")
+            }
+        ),
+        request,
+    )
     with pytest.raises(OutputSafetyError, match="without using"):
         validator.validate(
-            result.model_copy(update={"answer": "This is simulated prototype behavior."}),
-            request,
+            result.model_copy(update={"answer": "This is prototype behavior."}), request
         )
 
 

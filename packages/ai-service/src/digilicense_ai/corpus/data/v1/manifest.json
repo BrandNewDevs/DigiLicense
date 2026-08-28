@@ -5,7 +5,7 @@
     "https://transport.delhi.gov.in/transport/permanent-driving-licence",
     "https://transport.delhi.gov.in/transport/driving-license",
     "https://transport.delhi.gov.in/transport/renewal-driving-licence",
-    "https://digilicense.invalid/prototype/assistant-behavior"
+    "https://digilicense-web.vercel.app/services"
   ],
   "sources": [
     {
@@ -93,51 +93,103 @@
       "title": "DigiLicense prototype behavior",
       "publisher": "DigiLicense prototype team",
       "jurisdiction": "DigiLicense independent prototype",
-      "publicUrl": "https://digilicense.invalid/prototype/assistant-behavior",
+      "publicUrl": "https://digilicense-web.vercel.app/services",
       "publicationDate": "2026-08-23",
       "retrievedDate": "2026-08-23",
-      "sha256": "44cc205ba6ecba240aff807fe1901c8c89db2fc3b35848c66c76cd77e7a51362",
+      "sha256": "4f000e0e1466c89ed025736b16b26c05760f58280b92c5c2bdb370d864e0a44e",
       "reviewer": "digilicense-ai-content-review",
       "reviewStatus": "promoted",
       "corpusVersion": "v1",
       "kind": "prototype_behavior",
       "sections": [
         {
-          "sectionId": "prototype-guided-actions-v1",
-          "heading": "Guided steps and locked actions",
+          "sectionId": "prototype-learner-licence-v1",
+          "heading": "Learner's licence",
           "claimKind": "prototype_behavior",
-          "text": "DigiLicense explains the current prototype step and why a displayed action is locked. It does not decide legal eligibility, verify records, or change an application.",
+          "text": "The learner's-licence workflow guides a user through the form, recorded submission, fee step, and next action shown by DigiLicense. It is simulated prototype behavior and does not submit an official application or decide legal eligibility.",
           "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION"]
         },
         {
-          "sectionId": "prototype-waitlist-offers-v1",
-          "heading": "Waitlist and offers",
+          "sectionId": "prototype-learner-test-v1",
+          "heading": "Learner's test",
           "claimKind": "prototype_behavior",
-          "text": "The DigiLicense appointment waitlist and any offer timer are simulated prototype behavior. They demonstrate a transparent workflow and do not reserve a real appointment.",
-          "allowedIntents": ["NO_APPOINTMENT_EXPLANATION", "WAITLIST_EXPLANATION", "OFFER_EXPIRY_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+          "text": "The learner's-test workflow provides a preparation checklist, an in-product test, and a recorded result. It is simulated prototype behavior; passing it does not create an official learner licence.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "PREPARATION_CHECKLIST_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
         },
         {
-          "sectionId": "prototype-synthetic-service-flows-v1",
-          "heading": "Status, payment, address, and mobile updates",
+          "sectionId": "prototype-permanent-licence-v1",
+          "heading": "Permanent driving licence",
           "claimKind": "prototype_behavior",
-          "text": "DigiLicense status, payment, address-change, and mobile-update flows are synthetic. The assistant can explain a displayed reason code but cannot inspect or alter personal records.",
-          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+          "text": "The permanent-driving-licence workflow explains displayed eligibility dates or locked actions, records the form and fee steps, and leads to appointment preferences. It is simulated prototype behavior and neither decides legal eligibility nor submits an official application.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "WAITING_PERIOD_EXPLANATION", "LEARNER_LICENCE_EXPIRY_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+        },
+        {
+          "sectionId": "prototype-renewal-v1",
+          "heading": "Renewal",
+          "claimKind": "prototype_behavior",
+          "text": "The renewal workflow records its guided form, displayed fee action, and status inside DigiLicense. It is simulated prototype behavior and does not renew an official driving licence.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+        },
+        {
+          "sectionId": "prototype-duplicate-replacement-v1",
+          "heading": "Duplicate or replacement",
+          "claimKind": "prototype_behavior",
+          "text": "The duplicate-or-replacement workflow records its guided request and status inside DigiLicense. It is simulated prototype behavior and does not issue or replace an official driving licence.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+        },
+        {
+          "sectionId": "prototype-change-address-v1",
+          "heading": "Change of address",
+          "claimKind": "prototype_behavior",
+          "text": "The change-of-address workflow records local verification, proof, review, and status steps. It is simulated prototype behavior and does not alter a government record.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+        },
+        {
+          "sectionId": "prototype-mobile-update-v1",
+          "heading": "Mobile-number update",
+          "claimKind": "prototype_behavior",
+          "text": "The mobile-update workflow records local verification and status. Its optional mock Aadhaar proof is simulated prototype behavior; DigiLicense does not contact Aadhaar or change a government record.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+        },
+        {
+          "sectionId": "prototype-application-status-v1",
+          "heading": "Application status",
+          "claimKind": "prototype_behavior",
+          "text": "The application-status workflow explains only persisted synthetic DigiLicense records and their displayed reason codes. It is simulated prototype behavior and cannot inspect a government system.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+        },
+        {
+          "sectionId": "prototype-fees-payment-v1",
+          "heading": "Fees and payment",
+          "claimKind": "prototype_behavior",
+          "text": "The fee catalogue and payment result are recorded only inside DigiLicense. Payment is a simulated workflow: no real money is charged and no government fee is confirmed.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
+        },
+        {
+          "sectionId": "prototype-waitlist-offers-v1",
+          "heading": "Appointment waitlist and offers",
+          "claimKind": "prototype_behavior",
+          "text": "The appointment workflow records zone and delivery preferences, waitlist membership, offer timers, and confirmation inside DigiLicense. Appointment reservation is a simulated workflow and does not reserve a real appointment.",
+          "allowedIntents": ["CURRENT_STEP_EXPLANATION", "LOCKED_ACTION_EXPLANATION", "NO_APPOINTMENT_EXPLANATION", "WAITLIST_EXPLANATION", "OFFER_EXPIRY_EXPLANATION", "MOCK_VS_REAL_EXPLANATION"]
         },
         {
           "sectionId": "prototype-assistant-scope-v1",
-          "heading": "Scope and fallback",
+          "heading": "Assistant scope and fallback",
           "claimKind": "prototype_behavior",
-          "text": "The assistant provides evidence-grounded explanations only. If reviewed evidence is insufficient, it returns deterministic guidance instead of guessing.",
+          "text": "The assistant explains only these ten DigiLicense workflows from reviewed prototype evidence. It does not provide real-world policy, legal advice, government links, or general knowledge. If the evidence is insufficient, it returns bounded DigiLicense guidance instead of guessing.",
           "allowedIntents": ["UNSUPPORTED_QUESTION"]
         }
       ],
       "allowedIntents": [
         "CURRENT_STEP_EXPLANATION",
         "LOCKED_ACTION_EXPLANATION",
+        "WAITING_PERIOD_EXPLANATION",
+        "LEARNER_LICENCE_EXPIRY_EXPLANATION",
         "NO_APPOINTMENT_EXPLANATION",
         "WAITLIST_EXPLANATION",
         "OFFER_EXPIRY_EXPLANATION",
         "MOCK_VS_REAL_EXPLANATION",
+        "PREPARATION_CHECKLIST_EXPLANATION",
         "UNSUPPORTED_QUESTION"
       ]
     }
@@ -186,7 +238,7 @@
     {
       "factId": "prototype-payment-status-v1",
       "sourceId": "digilicense-prototype-behavior-v1",
-      "sectionId": "prototype-synthetic-service-flows-v1",
+      "sectionId": "prototype-fees-payment-v1",
       "claimKind": "prototype_behavior",
       "label": "Payment behavior",
       "value": "simulated",

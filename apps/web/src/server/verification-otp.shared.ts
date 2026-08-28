@@ -11,7 +11,7 @@ function generateWorkflowOtp(): string {
 function getDemoApplicantOtp(): string {
   const configuredOtp = process.env.DIGILICENSE_DEMO_APPLICANT_OTP?.trim()
   if (configuredOtp && /^\d{6}$/.test(configuredOtp)) return configuredOtp
-  if (process.env.NODE_ENV !== "production") return "123456"
+  if (process.env.NODE_ENV !== "production") return "676767"
   throw new Error(
     "DIGILICENSE_DEMO_APPLICANT_OTP must be a six-digit synthetic OTP in production."
   )

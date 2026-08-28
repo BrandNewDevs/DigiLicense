@@ -38,11 +38,33 @@ def test_bundled_corpus_is_promoted_checksummed_and_complete() -> None:
     assert corpus.version == "v1"
     assert corpus.allowed_source_ids(CanonicalIntent.WAITING_PERIOD_EXPLANATION) == (
         "delhi-driving-licence-guidance-2026",
+        "digilicense-prototype-behavior-v1",
     )
     assert corpus.allowed_source_ids(CanonicalIntent.WAITLIST_EXPLANATION) == (
         "digilicense-prototype-behavior-v1",
     )
     assert all(len(source.sha256) == 64 for source in corpus.manifest.sources)
+
+
+def test_prototype_source_covers_all_ten_workflows_and_uses_its_own_url() -> None:
+    corpus = load_promoted_corpus()
+    source = corpus.source("digilicense-prototype-behavior-v1")
+    workflow_sections = {
+        "prototype-learner-licence-v1",
+        "prototype-learner-test-v1",
+        "prototype-permanent-licence-v1",
+        "prototype-renewal-v1",
+        "prototype-duplicate-replacement-v1",
+        "prototype-change-address-v1",
+        "prototype-mobile-update-v1",
+        "prototype-application-status-v1",
+        "prototype-fees-payment-v1",
+        "prototype-waitlist-offers-v1",
+    }
+
+    assert workflow_sections.issubset({section.section_id for section in source.sections})
+    assert str(source.public_url) == "https://digilicense-web.vercel.app/services"
+    assert set(source.allowed_intents) == set(CanonicalIntent)
 
 
 def test_duplicate_source_and_section_ids_are_rejected() -> None:
