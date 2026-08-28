@@ -2,13 +2,21 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import {
   generateWorkflowOtp,
+  getDemoApplicantOtp,
   hashWorkflowOtp,
   workflowOtpMatches,
 } from "./verification-otp.shared"
 
 const previousHmacSecret = process.env.DIGILICENSE_IDENTIFIER_HMAC_SECRET
+const previousApplicantOtp = process.env.DIGILICENSE_DEMO_APPLICANT_OTP
 
 afterEach(() => {
+  if (previousApplicantOtp === undefined) {
+    delete process.env.DIGILICENSE_DEMO_APPLICANT_OTP
+  } else {
+    process.env.DIGILICENSE_DEMO_APPLICANT_OTP = previousApplicantOtp
+  }
+
   if (previousHmacSecret === undefined) {
     delete process.env.DIGILICENSE_IDENTIFIER_HMAC_SECRET
     return
@@ -18,6 +26,12 @@ afterEach(() => {
 })
 
 describe("workflow OTP hashing", () => {
+  it("uses the displayed synthetic applicant passcode in development", () => {
+    delete process.env.DIGILICENSE_DEMO_APPLICANT_OTP
+
+    expect(getDemoApplicantOtp()).toBe("676767")
+  })
+
   it("generates a six-digit code for each challenge", () => {
     expect(generateWorkflowOtp()).toMatch(/^\d{6}$/)
   })
