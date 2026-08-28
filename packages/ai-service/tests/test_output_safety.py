@@ -188,6 +188,12 @@ def test_markup_urls_and_affiliation_are_rejected(answer: str) -> None:
         OutputSafetyValidator(load_promoted_corpus()).validate(_result(answer), _request())
 
 
+def test_plain_text_reason_codes_are_not_misclassified_as_markdown() -> None:
+    answer = "The DigiLicense reason code is NO_MATCHING_SLOT."
+
+    assert OutputSafetyValidator(load_promoted_corpus()).validate(_result(answer), _request())
+
+
 def test_paired_locale_answers_preserve_numeric_facts_and_hindi_digits() -> None:
     assert_locale_fact_equivalence("Wait 30 days.", "३० दिन प्रतीक्षा करें।")
     with pytest.raises(OutputSafetyError, match="numeric facts"):
