@@ -70,7 +70,7 @@ class GeminiProvider:
         if settings.gemini_api_key is None:
             raise ValueError("Gemini provider settings were not validated")
         try:
-            from google import genai
+            from google import genai  # type: ignore[import-not-found]
         except ImportError as error:
             raise RuntimeError("install the optional gemini dependency group") from error
 

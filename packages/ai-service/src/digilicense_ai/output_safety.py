@@ -134,9 +134,10 @@ _SIMULATION_MARKERS = (
     "कृत्रिम",
 )
 _EXTERNAL_DIRECTION = re.compile(
-    r"\b(?:visit|go\s+to|open|check|use|refer\s+to)\s+(?:the\s+)?"
-    r"(?:official|government|external)\s+(?:website|site|portal|service)\b|"
-    r"(?:सरकारी|आधिकारिक)\s+(?:वेबसाइट|साइट|पोर्टल)\s+(?:पर|का)\s*(?:जाएं|जाइए|देखें)",
+    r"\b(?:visit|go\s+to|open|check|use|refer\s+to|navigate\s+to|follow)\s+"
+    r"(?:the\s+)?(?:official|government|external)\s+(?:website|site|portal|service)\b|"
+    r"(?:सरकारी|आधिकारिक|बाहरी)\s+(?:वेबसाइट|साइट|पोर्टल|सेवा)"
+    r"(?:\s+(?:पर|का))?\s*(?:देखें|खोलें|जाएं|जाइए|का\s+उपयोग\s+करें)",
     re.IGNORECASE,
 )
 
