@@ -15,7 +15,7 @@ const getFeeQuote = createServerFn({ method: "POST" })
       await import("../server/payment.server")
     return withServerDeadline((signal) => {
       signal.throwIfAborted()
-      return readFeeQuote(data)
+      return readFeeQuote(data, signal)
     })
   })
 
@@ -26,7 +26,7 @@ const readApplicationPayment = createServerFn({ method: "POST" })
       await import("../server/payment.server")
     return withServerDeadline((signal) => {
       signal.throwIfAborted()
-      return readPayment(data)
+      return readPayment(data, signal)
     })
   })
 
@@ -37,7 +37,7 @@ const startApplicationPayment = createServerFn({ method: "POST" })
       await import("../server/payment.server")
     return withServerDeadline((signal) => {
       signal.throwIfAborted()
-      return startPayment(data)
+      return startPayment(data, signal)
     })
   })
 
@@ -48,7 +48,7 @@ const resolveApplicationPayment = createServerFn({ method: "POST" })
       await import("../server/payment.server")
     return withServerDeadline((signal) => {
       signal.throwIfAborted()
-      return resolvePayment(data)
+      return resolvePayment(data, signal)
     })
   })
 
