@@ -313,34 +313,35 @@ const existingFixtureOffer = await prisma.appointmentOffer.findFirst({
 })
 
 if (!existingFixtureConfirmation && !existingFixtureOffer) {
-  const centralSlot = await prisma.appointmentSlot.findUniqueOrThrow({
-    where: { inventoryKey: "seeded-appointment-central-lmv-001" },
-    select: { id: true },
-  })
   const expiresAt = new Date(appointmentFixtureNow.getTime() + 30 * 60 * 1_000)
-  const offer = await prisma.appointmentOffer.create({
-    data: {
-      allocationKey: randomUUID(),
-      expiresAt,
-      rankingBreakdown: {
-        preferencePoints: 10,
-        urgencyPoints: 0,
-        waitTimePoints: 4,
-      },
-      rankingPolicyVersion: "appointment-v1",
-      rankingScore: 14,
-      slotId: centralSlot.id,
-      waitlistEntryId: appointmentFixtureEntry.id,
-    },
-    select: { id: true },
-  })
 
-  await prisma.$transaction([
-    prisma.appointmentSlot.update({
+  await prisma.$transaction(async (transaction) => {
+    const centralSlot = await transaction.appointmentSlot.findUniqueOrThrow({
+      where: { inventoryKey: "seeded-appointment-central-lmv-001" },
+      select: { id: true },
+    })
+    const offer = await transaction.appointmentOffer.create({
+      data: {
+        allocationKey: randomUUID(),
+        expiresAt,
+        rankingBreakdown: {
+          preferencePoints: 10,
+          urgencyPoints: 0,
+          waitTimePoints: 4,
+        },
+        rankingPolicyVersion: "appointment-v1",
+        rankingScore: 14,
+        slotId: centralSlot.id,
+        waitlistEntryId: appointmentFixtureEntry.id,
+      },
+      select: { id: true },
+    })
+
+    await transaction.appointmentSlot.update({
       where: { id: centralSlot.id },
       data: { status: "OFFERED" },
-    }),
-    prisma.application.update({
+    })
+    await transaction.application.update({
       where: { id: appointmentFixturePermanent.id },
       data: {
         blockingReasonCode:
@@ -349,8 +350,8 @@ if (!existingFixtureConfirmation && !existingFixtureOffer) {
         status: ApplicationStatus.APPOINTMENT_OFFERED,
         statusDeadlineAt: expiresAt,
       },
-    }),
-    prisma.workflowEvent.create({
+    })
+    await transaction.workflowEvent.create({
       data: {
         actor: WorkflowActor.SYSTEM,
         actorId: "synthetic-seed",
@@ -361,8 +362,8 @@ if (!existingFixtureConfirmation && !existingFixtureOffer) {
         title: "Appointment offer created",
         toStatus: ApplicationStatus.APPOINTMENT_OFFERED,
       },
-    }),
-    prisma.notificationRecord.create({
+    })
+    await transaction.notificationRecord.create({
       data: {
         applicantId: appointmentFixtureApplicantId,
         applicationId: appointmentFixturePermanent.id,
@@ -370,8 +371,8 @@ if (!existingFixtureConfirmation && !existingFixtureOffer) {
           "An appointment offer is available. Check its expiry time before responding. DigiLicense recorded this only; no government service was contacted.",
         title: "Appointment offer available",
       },
-    }),
-    prisma.appointmentNotificationDelivery.createMany({
+    })
+    await transaction.appointmentNotificationDelivery.createMany({
       data: [
         {
           channel: AppointmentNotificationChannel.SMS,
@@ -386,8 +387,8 @@ if (!existingFixtureConfirmation && !existingFixtureOffer) {
           recipientAlias: "synthetic-email:demo-applicant-004",
         },
       ],
-    }),
-  ])
+    })
+  })
 }
 
 const drivingLicenceRecords = [

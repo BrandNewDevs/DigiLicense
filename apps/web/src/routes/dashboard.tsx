@@ -53,8 +53,12 @@ function DashboardContent() {
     setIsResetting(true)
     try {
       const result = await resetAppointment({ data: undefined })
-      setMessage(result.message)
-      if (result.kind === "reset") await refresh()
+      if (result.kind === "reset") {
+        await refresh()
+        setMessage(result.message)
+      } else {
+        setMessage(result.message)
+      }
     } catch {
       setMessage("The reset could not be completed.")
     } finally {

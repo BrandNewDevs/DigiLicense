@@ -468,7 +468,7 @@ function AppointmentFlow({
   }
 
   if (phase === "unavailable") {
-    const isUnavailable = failure?.kind === "unavailable"
+    const isUnavailable = !failure || failure.kind === "unavailable"
     return (
       <section className="rounded-xl border border-border p-6 sm:p-8">
         <h2 className="font-sans text-2xl font-medium">

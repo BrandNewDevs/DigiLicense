@@ -29,6 +29,7 @@ function PermanentLicenceFlow() {
   const advanceWaitingPeriod = useServerFn(advanceWalkthroughWaitingPeriod)
   const submit = useServerFn(submitPermanentLicenceApplication)
   const [state, setState] = useState<PermanentState>()
+  const [message, setMessage] = useState("")
   const [isAdvancing, setIsAdvancing] = useState(false)
   useAssistantPublicContextOverride({
     reasonCode:
@@ -176,8 +177,16 @@ function PermanentLicenceFlow() {
                 onClick={() => {
                   setIsAdvancing(true)
                   void advanceWaitingPeriod({ data: undefined })
-                    .then(async () => {
-                      setState(await readState({ data: undefined }))
+                    .then(async (result) => {
+                      if (result.kind === "advanced") {
+                        setMessage("")
+                        setState(await readState({ data: undefined }))
+                      } else {
+                        setMessage(result.message)
+                      }
+                    })
+                    .catch(() => {
+                      setMessage("The walkthrough date could not be adjusted.")
                     })
                     .finally(() => setIsAdvancing(false))
                 }}
@@ -191,7 +200,7 @@ function PermanentLicenceFlow() {
           ) : undefined
         }
         title="Your application opens soon"
-        detail={`${state.message} Eligible on ${new Date(state.eligibleOn).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.`}
+        detail={`${message ? `${message} ` : ""}${state.message} Eligible on ${new Date(state.eligibleOn).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.`}
       />
     )
   }
@@ -261,9 +270,17 @@ function PermanentPayment({
   const resolveKey = useRef(crypto.randomUUID())
 
   useEffect(() => {
-    void readPayment({ data: { applicationNumber } }).then((result) => {
-      if (result.kind === "found") setPayment(result.payment)
-    })
+    void readPayment({ data: { applicationNumber } })
+      .then((result) => {
+        if (result.kind === "found") {
+          setPayment(result.payment)
+        } else {
+          setMessage(result.message)
+        }
+      })
+      .catch(() => {
+        setMessage("Payment service is temporarily unavailable.")
+      })
   }, [applicationNumber, readPayment])
 
   async function begin() {

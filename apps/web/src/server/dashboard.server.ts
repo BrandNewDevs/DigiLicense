@@ -111,6 +111,7 @@ async function resetWalkthroughAppointment(): Promise<
   | { kind: "reset"; message: string }
   | { kind: "not-available"; message: string }
   | { kind: "authentication-required"; message: string }
+  | { kind: "rate-limited"; message: string; retryAfterSeconds: number }
   | { kind: "unavailable"; message: string }
 > {
   const applicant = await requireApplicant()
@@ -126,6 +127,18 @@ async function resetWalkthroughAppointment(): Promise<
     }
 
   try {
+    const rate = await consumeRateLimit(
+      "walkthrough-reset",
+      applicant.applicantId
+    )
+    if (!rate.allowed) {
+      return {
+        kind: "rate-limited",
+        message: "Please wait before resetting the walkthrough.",
+        retryAfterSeconds: rate.retryAfterSeconds,
+      }
+    }
+
     await prisma.$transaction(async (transaction) => {
       const applications = await transaction.application.findMany({
         where: { applicantId: applicant.applicantId },
@@ -152,7 +165,16 @@ async function resetWalkthroughAppointment(): Promise<
         where: { applicationId: { in: applicationIds } },
       })
       await transaction.appointmentSlot.updateMany({
-        where: { id: { in: slotIds } },
+        where: {
+          id: { in: slotIds },
+          confirmation: { is: null },
+          offers: {
+            none: {
+              status: "ACTIVE",
+              waitlistEntry: { applicantId: { not: applicant.applicantId } },
+            },
+          },
+        },
         data: { status: "OPEN" },
       })
       await transaction.learnerTestAttempt.deleteMany({

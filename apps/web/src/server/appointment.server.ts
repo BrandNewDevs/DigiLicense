@@ -395,119 +395,111 @@ async function saveAppointmentPreferences(
   const rate = await limit("appointment-preferences", authorization.applicantId)
   if (rate.kind !== "allowed") return rate
   const now = new Date()
+  let saved: SavedPreferencesResult
   try {
-    const saved: SavedPreferencesResult = await prisma.$transaction(
-      async (transaction) => {
-        const context = await assertOwnedEligiblePermanentApplication(
-          transaction,
-          authorization.applicantId,
-          input.applicationNumber,
-          now
-        )
-        if ("kind" in context) return context
-        const existing = await transaction.appointmentWaitlistEntry.findFirst({
-          where: {
-            applicationId: context.applicationId,
-            status: { in: ["ACTIVE", "COOLDOWN"] },
-          },
-          include: {
-            offers: { where: { status: "ACTIVE" }, select: { id: true } },
-          },
-        })
-        if (existing?.preferenceIdempotencyKey === input.idempotencyKey)
-          return { entryId: existing.id, kind: "saved" }
-        if (existing?.offers.length)
-          return {
-            kind: "offer-pending",
-            message:
-              "Respond to the active appointment offer before changing preferences.",
-          }
-        const isPreferenceUpdate = Boolean(existing)
-        const entry = existing
-          ? await transaction.appointmentWaitlistEntry.update({
-              where: { id: existing.id },
-              data: { preferenceIdempotencyKey: input.idempotencyKey },
-              select: { id: true },
-            })
-          : await transaction.appointmentWaitlistEntry.create({
-              data: {
-                applicantId: authorization.applicantId,
-                applicationId: context.applicationId,
-                joinIdempotencyKey: input.idempotencyKey,
-                preferenceIdempotencyKey: input.idempotencyKey,
-              },
-              select: { id: true },
-            })
-        await transaction.appointmentPreference.deleteMany({
-          where: { waitlistEntryId: entry.id },
-        })
-        await transaction.appointmentNotificationPreference.deleteMany({
-          where: { waitlistEntryId: entry.id },
-        })
-        await transaction.appointmentPreference.createMany({
-          data: input.zones.map((zone, index) => ({
-            rank: index + 1,
-            waitlistEntryId: entry.id,
-            zone,
-          })),
-        })
-        await transaction.appointmentNotificationPreference.createMany({
-          data: input.notificationChannels.map((channel) => ({
-            channel,
-            recipientAlias: recipientAlias(channel, authorization.applicantId),
-            waitlistEntryId: entry.id,
-          })),
-        })
-        await transaction.application.update({
-          where: { id: context.applicationId },
-          data: {
-            blockingReasonCode: "APPOINTMENT_SLOT_UNAVAILABLE",
-            nextAction: "Wait for a matching appointment offer.",
-            status: "WAITLISTED",
-            statusDeadlineAt: null,
-            version: { increment: 1 },
-          },
-        })
-        await transaction.workflowEvent.create({
-          data: {
-            actor: "APPLICANT",
-            actorId: authorization.applicantId,
-            applicationId: context.applicationId,
-            description: isPreferenceUpdate
-              ? "Appointment preferences and selected delivery channels were updated by DigiLicense only; no SMS or email was sent. The original waitlist join time was retained."
-              : "Appointment preferences and selected delivery channels were recorded by DigiLicense only; no SMS or email was sent.",
-            fromStatus: "WAITLISTED",
-            title: isPreferenceUpdate
-              ? "Appointment preferences updated"
-              : "Appointment preferences recorded",
-            toStatus: "WAITLISTED",
-          },
-        })
-        await transaction.auditEvent.create({
-          data: {
-            action: isPreferenceUpdate
-              ? "UPDATE_APPOINTMENT_PREFERENCES"
-              : "SAVE_APPOINTMENT_PREFERENCES",
-            actorId: authorization.applicantId,
-            applicationId: context.applicationId,
-            entityId: entry.id,
-            entityType: "APPOINTMENT_WAITLIST_ENTRY",
-            reasonCode: isPreferenceUpdate
-              ? "APPOINTMENT_PREFERENCES_UPDATED"
-              : "APPOINTMENT_PREFERENCES",
-            requestId: randomUUID(),
-          },
-        })
-        return { entryId: entry.id, kind: "saved" } as const
-      }
-    )
-    if (
-      saved.kind === "saved" &&
-      authorization.applicantId === "demo-applicant-004"
-    ) {
-      await allocateAppointmentOfferForWaitlistEntry(saved.entryId)
-    }
-    return saved
+    saved = await prisma.$transaction(async (transaction) => {
+      const context = await assertOwnedEligiblePermanentApplication(
+        transaction,
+        authorization.applicantId,
+        input.applicationNumber,
+        now
+      )
+      if ("kind" in context) return context
+      const existing = await transaction.appointmentWaitlistEntry.findFirst({
+        where: {
+          applicationId: context.applicationId,
+          status: { in: ["ACTIVE", "COOLDOWN"] },
+        },
+        include: {
+          offers: { where: { status: "ACTIVE" }, select: { id: true } },
+        },
+      })
+      if (existing?.preferenceIdempotencyKey === input.idempotencyKey)
+        return { entryId: existing.id, kind: "saved" }
+      if (existing?.offers.length)
+        return {
+          kind: "offer-pending",
+          message:
+            "Respond to the active appointment offer before changing preferences.",
+        }
+      const isPreferenceUpdate = Boolean(existing)
+      const entry = existing
+        ? await transaction.appointmentWaitlistEntry.update({
+            where: { id: existing.id },
+            data: { preferenceIdempotencyKey: input.idempotencyKey },
+            select: { id: true },
+          })
+        : await transaction.appointmentWaitlistEntry.create({
+            data: {
+              applicantId: authorization.applicantId,
+              applicationId: context.applicationId,
+              joinIdempotencyKey: input.idempotencyKey,
+              preferenceIdempotencyKey: input.idempotencyKey,
+            },
+            select: { id: true },
+          })
+      await transaction.appointmentPreference.deleteMany({
+        where: { waitlistEntryId: entry.id },
+      })
+      await transaction.appointmentNotificationPreference.deleteMany({
+        where: { waitlistEntryId: entry.id },
+      })
+      await transaction.appointmentPreference.createMany({
+        data: input.zones.map((zone, index) => ({
+          rank: index + 1,
+          waitlistEntryId: entry.id,
+          zone,
+        })),
+      })
+      await transaction.appointmentNotificationPreference.createMany({
+        data: input.notificationChannels.map((channel) => ({
+          channel,
+          recipientAlias: recipientAlias(channel, authorization.applicantId),
+          waitlistEntryId: entry.id,
+        })),
+      })
+      await transaction.application.update({
+        where: { id: context.applicationId },
+        data: {
+          blockingReasonCode: "APPOINTMENT_SLOT_UNAVAILABLE",
+          nextAction: "Wait for a matching appointment offer.",
+          status: "WAITLISTED",
+          statusDeadlineAt: null,
+          version: { increment: 1 },
+        },
+      })
+      await transaction.workflowEvent.create({
+        data: {
+          actor: "APPLICANT",
+          actorId: authorization.applicantId,
+          applicationId: context.applicationId,
+          description: isPreferenceUpdate
+            ? "Appointment preferences and selected delivery channels were updated by DigiLicense only; no SMS or email was sent. The original waitlist join time was retained."
+            : "Appointment preferences and selected delivery channels were recorded by DigiLicense only; no SMS or email was sent.",
+          fromStatus: "WAITLISTED",
+          title: isPreferenceUpdate
+            ? "Appointment preferences updated"
+            : "Appointment preferences recorded",
+          toStatus: "WAITLISTED",
+        },
+      })
+      await transaction.auditEvent.create({
+        data: {
+          action: isPreferenceUpdate
+            ? "UPDATE_APPOINTMENT_PREFERENCES"
+            : "SAVE_APPOINTMENT_PREFERENCES",
+          actorId: authorization.applicantId,
+          applicationId: context.applicationId,
+          entityId: entry.id,
+          entityType: "APPOINTMENT_WAITLIST_ENTRY",
+          reasonCode: isPreferenceUpdate
+            ? "APPOINTMENT_PREFERENCES_UPDATED"
+            : "APPOINTMENT_PREFERENCES",
+          requestId: randomUUID(),
+        },
+      })
+      return { entryId: entry.id, kind: "saved" } as const
+    })
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -532,6 +524,22 @@ async function saveAppointmentPreferences(
     })
     return { kind: "unavailable", message: unavailableMessage }
   }
+
+  if (
+    saved.kind === "saved" &&
+    authorization.applicantId === "demo-applicant-004"
+  ) {
+    try {
+      await allocateAppointmentOfferForWaitlistEntry(saved.entryId)
+    } catch (error) {
+      recordDependencyFailure(error, {
+        dependency: "postgres",
+        operation: "appointment_offer_allocate_after_preferences_save",
+      })
+    }
+  }
+
+  return saved
 }
 
 async function leaveAppointmentWaitlist(

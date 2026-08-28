@@ -368,14 +368,20 @@ function LearnerLicenceForm() {
         },
       })
       if (result.kind === "paid") {
-        activeApplicationRef.current = {
-          applicationNumber: submittedNumberRef.current,
-          nextAction: "Your application is ready for the learner's test.",
-          status: "DOCUMENTS_VERIFIED",
-          submittedAt: new Date().toISOString(),
-          permanentLicenceEligibleOn: null,
+        const refreshed = await readState()
+        if (refreshed.kind === "ready" && refreshed.activeApplication) {
+          activeApplicationRef.current = refreshed.activeApplication
+          setPhase("active")
+        } else {
+          setSubmitError({
+            kind: refreshed.kind,
+            message:
+              "message" in refreshed
+                ? refreshed.message
+                : "The learner's licence service could not be loaded.",
+          })
+          setPhase(refreshed.kind === "ready" ? "unavailable" : refreshed.kind)
         }
-        setPhase("active")
       } else if (result.kind === "failed") {
         setPayment(result.payment)
         setPaymentMessage("The payment was not completed. You can try again.")
@@ -534,6 +540,9 @@ function LearnerLicenceForm() {
 
   if (phase === "active") {
     const activeApplication = activeApplicationRef.current
+    const eligibilityDays = activeApplication?.permanentLicenceEligibleOn
+      ? daysUntil(activeApplication.permanentLicenceEligibleOn)
+      : 0
 
     return (
       <section
@@ -587,8 +596,8 @@ function LearnerLicenceForm() {
                   </dt>
                   <dd className="mt-1">
                     {formatDate(activeApplication.permanentLicenceEligibleOn)}
-                    {daysUntil(activeApplication.permanentLicenceEligibleOn) > 0
-                      ? `, in ${daysUntil(activeApplication.permanentLicenceEligibleOn)} days`
+                    {eligibilityDays > 0
+                      ? `, in ${eligibilityDays} ${eligibilityDays === 1 ? "day" : "days"}`
                       : ", today"}
                   </dd>
                 </div>
