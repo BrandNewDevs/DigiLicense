@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowUpRight, House, LogOut, Menu, Search, X } from "lucide-react"
+import { ArrowUpRight, LogOut, Menu, Search, X } from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -121,18 +121,8 @@ function ApplicantHeader() {
           </Link>
 
           <div className="flex items-center gap-2 md:absolute md:left-1/2 md:-translate-x-1/2">
-            <Link
-              aria-current={pathname === "/" ? "page" : undefined}
-              aria-label="Home"
-              className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              to="/"
-            >
-              <House aria-hidden="true" className="size-4" />
-              Home
-            </Link>
-
             <Button
-              className="hidden h-10 w-72 justify-start rounded-lg border-border bg-muted px-3 text-muted-foreground hover:bg-accent hover:text-foreground md:flex"
+              className="hidden h-10 w-80 justify-start rounded-lg border-border bg-muted px-3 text-muted-foreground hover:bg-accent hover:text-foreground lg:w-96 md:flex"
               onClick={openSearch}
               type="button"
               variant="outline"
@@ -181,15 +171,6 @@ function ApplicantHeader() {
               <Search aria-hidden="true" className="size-4" />
               Search services
             </Button>
-            <Link
-              aria-current={pathname === "/" ? "page" : undefined}
-              className="flex min-h-11 items-center gap-2 rounded-lg px-4 text-base font-medium text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              onClick={() => setIsMenuOpen(false)}
-              to="/"
-            >
-              <House aria-hidden="true" className="size-4" />
-              Home
-            </Link>
           </div>
           <div className="mt-6">{accountControl("w-full")}</div>
         </DialogContent>

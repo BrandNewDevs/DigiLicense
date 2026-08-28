@@ -21,7 +21,12 @@ import { consumeRateLimit } from "./rate-limit.server"
 type PermanentLicenceReadResult =
   | { kind: "authentication-required"; message: string }
   | { kind: "no-learner-licence"; message: string }
-  | { kind: "waiting-period"; eligibleOn: string; message: string }
+  | {
+      kind: "waiting-period"
+      eligibleOn: string
+      isWalkthroughAccount: boolean
+      message: string
+    }
   | { kind: "unavailable"; message: string }
   | {
       kind: "eligible"
@@ -77,6 +82,7 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
           applicantId: applicant.applicantId,
           service: permanentLicenceServiceName,
           status: { notIn: ["APPROVED", "REJECTED"] },
+          permanentLicenceDetail: { is: {} },
         },
         orderBy: { submittedAt: "desc" },
         select: { applicationNumber: true, nextAction: true, status: true },
@@ -134,6 +140,7 @@ async function readPermanentLicenceState(): Promise<PermanentLicenceReadResult> 
       return {
         kind: "waiting-period",
         eligibleOn: eligibleOn.toISOString(),
+        isWalkthroughAccount: applicant.applicantId === "demo-applicant-004",
         message:
           "The permanent-licence application opens after the waiting period.",
       }
@@ -366,5 +373,95 @@ async function submitPermanentLicenceApplication(
   }
 }
 
-export { readPermanentLicenceState, submitPermanentLicenceApplication }
+async function advanceWalkthroughWaitingPeriod(): Promise<
+  | { kind: "advanced"; message: string }
+  | { kind: "not-available"; message: string }
+  | { kind: "authentication-required"; message: string }
+  | { kind: "unavailable"; message: string }
+> {
+  const applicant = await requireApplicant()
+  if (!applicant) {
+    return { kind: "authentication-required", message: "Sign in to continue." }
+  }
+  if (applicant.applicantId !== "demo-applicant-004") {
+    return {
+      kind: "not-available",
+      message: "This control is not available for this account.",
+    }
+  }
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const learner = await transaction.application.findFirst({
+        where: {
+          applicantId: applicant.applicantId,
+          service: learnerLicenceServiceName,
+          status: "TEST_PASSED",
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true, updatedAt: true },
+      })
+      if (!learner) throw new Error("No passed learner application.")
+      const adjustment = await transaction.workflowEvent.findFirst({
+        where: {
+          applicationId: learner.id,
+          title: "Walkthrough waiting period adjusted",
+        },
+        select: { id: true },
+      })
+      if (!adjustment) {
+        await transaction.application.update({
+          where: { id: learner.id },
+          data: {
+            updatedAt: addUtcDays(
+              learner.updatedAt,
+              -permanentLicenceWaitingPeriodDays
+            ),
+          },
+        })
+        await transaction.workflowEvent.create({
+          data: {
+            applicationId: learner.id,
+            actor: WorkflowActor.APPLICANT,
+            actorId: applicant.applicantId,
+            description:
+              "DigiLicense recorded the adjusted walkthrough date only; no government service was contacted.",
+            fromStatus: "TEST_PASSED",
+            title: "Walkthrough waiting period adjusted",
+            toStatus: "TEST_PASSED",
+          },
+        })
+        await transaction.auditEvent.create({
+          data: {
+            action: "ADVANCE_WALKTHROUGH_WAITING_PERIOD",
+            actorId: applicant.applicantId,
+            applicationId: learner.id,
+            entityId: learner.id,
+            entityType: "APPLICATION",
+            reasonCode: "JUDGE_WALKTHROUGH_DATE_ADJUSTMENT",
+            requestId: randomUUID(),
+          },
+        })
+      }
+    })
+    return {
+      kind: "advanced",
+      message: "The waiting period has been adjusted for this walkthrough.",
+    }
+  } catch (error) {
+    recordDependencyFailure(error, {
+      dependency: "postgres",
+      operation: "walkthrough_waiting_period_advance",
+    })
+    return {
+      kind: "unavailable",
+      message: "The walkthrough date could not be adjusted.",
+    }
+  }
+}
+
+export {
+  advanceWalkthroughWaitingPeriod,
+  readPermanentLicenceState,
+  submitPermanentLicenceApplication,
+}
 export type { PermanentLicenceReadResult, PermanentLicenceSubmitResult }

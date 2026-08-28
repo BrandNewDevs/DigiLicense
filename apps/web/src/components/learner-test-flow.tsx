@@ -56,12 +56,34 @@ function createTestIdempotencyKey(): string | null {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
+function formatDate(isoDateTime: string) {
+  return new Date(isoDateTime).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+}
+
+function daysUntil(isoDateTime: string) {
+  const millisecondsPerDay = 24 * 60 * 60 * 1000
+  return Math.max(
+    0,
+    Math.ceil(
+      (new Date(isoDateTime).getTime() - Date.now()) / millisecondsPerDay
+    )
+  )
+}
+
 function LearnerTestFlow() {
   const loadState = useServerFn(readLearnerTestState)
   const submitTest = useServerFn(submitLearnerTest)
 
   const [phase, setPhase] = useState<Phase>("loading")
   const [state, setState] = useState<ReadyState | null>(null)
+  const [passedApplication, setPassedApplication] = useState<Extract<
+    LearnerTestReadResult,
+    { kind: "already-passed" }
+  > | null>(null)
   const [outcome, setOutcome] = useState<GradedOutcome | null>(null)
   const [language, setLanguage] = useState<LearnerTestLanguage>("ENGLISH")
   const [answers, setAnswers] = useState<number[]>([])
@@ -93,7 +115,7 @@ function LearnerTestFlow() {
         }
 
         if (result.kind === "already-passed") {
-          setState(null)
+          setPassedApplication(result)
           setPhase("already-passed")
           return
         }
@@ -317,16 +339,36 @@ function LearnerTestFlow() {
           Learner's test already passed
         </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
-          Your learner's test has already been passed and recorded on your
-          application. The next step is the permanent-licence application, which
-          opens after the waiting period.
+          Your result is recorded against reference{" "}
+          {passedApplication?.applicationNumber}.
         </p>
+        <dl className="mt-6 space-y-4 rounded-2xl border border-border p-5">
+          <div>
+            <dt className="text-sm font-medium text-muted-foreground">
+              Permanent-licence application opens
+            </dt>
+            <dd className="mt-1 text-lg font-medium">
+              {formatDate(passedApplication?.permanentLicenceEligibleOn ?? "")}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm font-medium text-muted-foreground">
+              What happens now
+            </dt>
+            <dd className="mt-1">
+              {daysUntil(passedApplication?.permanentLicenceEligibleOn ?? "") >
+              0
+                ? `You can apply in ${daysUntil(passedApplication?.permanentLicenceEligibleOn ?? "")} days. The application stays unavailable until this date.`
+                : "You can start the permanent-licence application now."}
+            </dd>
+          </div>
+        </dl>
         <Link
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
           params={{ serviceId: "permanent-licence" }}
           to="/services/$serviceId"
         >
-          Go to the permanent-licence service
+          Check permanent-licence eligibility
         </Link>
       </section>
     )

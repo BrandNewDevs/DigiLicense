@@ -10,9 +10,15 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { vehicleClasses } from "../lib/learner-licence"
 import { useAssistantPublicContextOverride } from "../lib/assistant-public-context"
 import {
+  advanceWalkthroughWaitingPeriod,
   readPermanentLicenceState,
   submitPermanentLicenceApplication,
 } from "../server-functions/permanent-licence"
+import {
+  readApplicationPayment,
+  resolveApplicationPayment,
+  startApplicationPayment,
+} from "../server-functions/payment"
 
 type PermanentState =
   | Awaited<ReturnType<typeof readPermanentLicenceState>>
@@ -20,8 +26,10 @@ type PermanentState =
 
 function PermanentLicenceFlow() {
   const readState = useServerFn(readPermanentLicenceState)
+  const advanceWaitingPeriod = useServerFn(advanceWalkthroughWaitingPeriod)
   const submit = useServerFn(submitPermanentLicenceApplication)
   const [state, setState] = useState<PermanentState>()
+  const [isAdvancing, setIsAdvancing] = useState(false)
   useAssistantPublicContextOverride({
     reasonCode:
       state?.kind === "waiting-period"
@@ -152,27 +160,70 @@ function PermanentLicenceFlow() {
   if (state.kind === "waiting-period") {
     return (
       <StateCard
+        action={
+          state.isWalkthroughAccount ? (
+            <div className="mt-6 rounded-lg border border-border p-4">
+              <p className="text-sm font-semibold">
+                Walkthrough date adjustment
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                DigiLicense records the adjusted walkthrough date only; no
+                government service is contacted.
+              </p>
+              <Button
+                className="mt-4"
+                disabled={isAdvancing}
+                onClick={() => {
+                  setIsAdvancing(true)
+                  void advanceWaitingPeriod({ data: undefined })
+                    .then(async () => {
+                      setState(await readState({ data: undefined }))
+                    })
+                    .finally(() => setIsAdvancing(false))
+                }}
+                type="button"
+              >
+                {isAdvancing
+                  ? "Adjusting..."
+                  : "Advance waiting period by 30 days"}
+              </Button>
+            </div>
+          ) : undefined
+        }
         title="Your application opens soon"
         detail={`${state.message} Eligible on ${new Date(state.eligibleOn).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.`}
       />
     )
   }
   if (state.kind === "active-application" || state.kind === "submitted") {
-    const detail =
-      state.kind === "active-application"
-        ? state.nextAction
-        : "Your application is ready for driving-test appointment preferences."
+    if (state.kind === "submitted" || state.status === "PAYMENT_REVIEW") {
+      return (
+        <PermanentPayment
+          applicationNumber={state.applicationNumber}
+          onComplete={async () =>
+            setState(await readState({ data: undefined }))
+          }
+        />
+      )
+    }
+    const canManageAppointment =
+      state.status === "WAITLISTED" ||
+      state.status === "APPOINTMENT_OFFERED" ||
+      state.status === "APPOINTMENT_CONFIRMED"
+    const detail = state.nextAction
     return (
       <StateCard
         action={
-          <Link
-            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            params={{ serviceId: "appointments" }}
-            search={{ applicationNumber: state.applicationNumber }}
-            to="/services/$serviceId"
-          >
-            Choose appointment preferences
-          </Link>
+          canManageAppointment ? (
+            <Link
+              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              params={{ serviceId: "appointments" }}
+              search={{ applicationNumber: state.applicationNumber }}
+              to="/services/$serviceId"
+            >
+              Choose appointment preferences
+            </Link>
+          ) : undefined
         }
         title="Permanent-licence application in progress"
         detail={`${detail} Reference: ${state.applicationNumber}.`}
@@ -184,6 +235,110 @@ function PermanentLicenceFlow() {
       title="Permanent-licence application unavailable"
       detail={state.message}
     />
+  )
+}
+
+function PermanentPayment({
+  applicationNumber,
+  onComplete,
+}: {
+  applicationNumber: string
+  onComplete: () => Promise<void>
+}) {
+  const readPayment = useServerFn(readApplicationPayment)
+  const startPayment = useServerFn(startApplicationPayment)
+  const resolvePayment = useServerFn(resolveApplicationPayment)
+  const [payment, setPayment] =
+    useState<
+      Extract<
+        Awaited<ReturnType<typeof readApplicationPayment>>,
+        { kind: "found" }
+      >["payment"]
+    >(null)
+  const [message, setMessage] = useState("")
+  const [busy, setBusy] = useState(false)
+  const startKey = useRef(crypto.randomUUID())
+  const resolveKey = useRef(crypto.randomUUID())
+
+  useEffect(() => {
+    void readPayment({ data: { applicationNumber } }).then((result) => {
+      if (result.kind === "found") setPayment(result.payment)
+    })
+  }, [applicationNumber, readPayment])
+
+  async function begin() {
+    setBusy(true)
+    try {
+      const result = await startPayment({
+        data: { applicationNumber, idempotencyKey: startKey.current },
+      })
+      if ("payment" in result) setPayment(result.payment)
+      else setMessage(result.message)
+    } catch {
+      setMessage("Payment service is temporarily unavailable.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function recordOutcome() {
+    if (!payment) return
+    setBusy(true)
+    try {
+      const result = await resolvePayment({
+        data: {
+          applicationNumber,
+          idempotencyKey: resolveKey.current,
+          outcome: "SUCCESS",
+          paymentId: payment.id,
+        },
+      })
+      if (result.kind === "paid") await onComplete()
+      else if ("message" in result) setMessage(result.message)
+    } catch {
+      setMessage("Payment service is temporarily unavailable.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-6 sm:p-8">
+      <h2 className="font-sans text-2xl font-semibold">
+        Record permanent-licence fee outcome
+      </h2>
+      <p className="mt-3 leading-7 text-muted-foreground">
+        Record the DigiLicense-only fee outcome before choosing an appointment.
+      </p>
+      {payment?.status === "PENDING" ? (
+        <Button
+          className="mt-6"
+          disabled={busy}
+          onClick={() => void recordOutcome()}
+          type="button"
+        >
+          {busy ? "Recording..." : "Record fee outcome"}
+        </Button>
+      ) : (
+        <Button
+          className="mt-6"
+          disabled={busy}
+          onClick={() => void begin()}
+          type="button"
+        >
+          {busy ? "Starting..." : "Continue to fee outcome"}
+        </Button>
+      )}
+      {message ? (
+        <p aria-live="polite" className="mt-4 text-sm text-destructive">
+          {message}
+        </p>
+      ) : null}
+      <p className="mt-5 text-sm text-muted-foreground">
+        Recorded by DigiLicense only; no government service or payment provider
+        was contacted.
+      </p>
+    </section>
   )
 }
 

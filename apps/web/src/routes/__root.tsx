@@ -8,6 +8,7 @@ import {
 import appCss from "@workspace/ui/globals.css?url"
 
 import { ApplicantAssistantLauncher } from "../components/applicant-assistant"
+import { AppFooter } from "../components/app-footer"
 import { ApplicantHeader } from "../components/applicant-header"
 import { AssistantPublicContextProvider } from "../lib/assistant-public-context"
 
@@ -50,12 +51,7 @@ function RootLayout() {
         <Outlet />
         <ApplicantAssistantLauncher />
       </AssistantPublicContextProvider>
-      <footer className="border-t">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>DigiLicense is an independent Delhi service design.</p>
-          <p>No government service is connected.</p>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   )
 }

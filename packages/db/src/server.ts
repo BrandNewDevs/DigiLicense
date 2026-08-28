@@ -11,6 +11,7 @@ export {
 } from "./licence-workflow.ts"
 export {
   allocateAvailableAppointmentOffers,
+  allocateAppointmentOfferForWaitlistEntry,
   expireDueAppointmentOffers,
   processAppointmentOfferLifecycle,
   reactivateElapsedAppointmentCooldowns,

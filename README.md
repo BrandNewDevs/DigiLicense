@@ -261,7 +261,7 @@ Use these credentials only with the local synthetic environment:
 
 | Where | Sign in details |
 | --- | --- |
-| Applicant app | Mobile `9000000001`, OTP `123456` |
+| Applicant app | Mobile `9009006767`, OTP `676767` |
 | Adminer | Server `db`, username `digilicense`, password from `DIGILICENSE_LOCAL_DB_PASSWORD`, database `digilicense` |
 
 To run the workspace outside Docker, install dependencies with `pnpm install`.

@@ -198,7 +198,7 @@ console.log(`
 Setup complete.
   App:      http://localhost:3000
   Adminer:  http://localhost:8080  (server: db, user: digilicense, database: digilicense)
-  Sign in:  mobile 9000000001, OTP 123456
+  Sign in:  mobile 9009006767, OTP 676767
 
 Useful next commands:
   pnpm dev:reset    wipe all local data and start over

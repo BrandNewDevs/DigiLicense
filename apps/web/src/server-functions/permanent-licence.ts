@@ -2,6 +2,14 @@ import { createServerFn } from "@tanstack/react-start"
 
 import { permanentLicenceSubmissionSchema } from "../validation/permanent-licence"
 
+const advanceWalkthroughWaitingPeriod = createServerFn({
+  method: "POST",
+}).handler(async () => {
+  const { advanceWalkthroughWaitingPeriod: advance } =
+    await import("../server/permanent-licence.server")
+  return advance()
+})
+
 const readPermanentLicenceState = createServerFn({ method: "POST" }).handler(
   async () => {
     const { readPermanentLicenceState: readState } =
@@ -18,4 +26,8 @@ const submitPermanentLicenceApplication = createServerFn({ method: "POST" })
     return submitApplication(data)
   })
 
-export { readPermanentLicenceState, submitPermanentLicenceApplication }
+export {
+  advanceWalkthroughWaitingPeriod,
+  readPermanentLicenceState,
+  submitPermanentLicenceApplication,
+}

@@ -1,5 +1,13 @@
 import { createServerFn } from "@tanstack/react-start"
 
+const resetWalkthroughAppointment = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const { resetWalkthroughAppointment: reset } =
+      await import("../server/dashboard.server")
+    return reset()
+  }
+)
+
 const readApplicantDashboard = createServerFn({ method: "POST" }).handler(
   async () => {
     const { readApplicantDashboard: read } =
@@ -8,4 +16,4 @@ const readApplicantDashboard = createServerFn({ method: "POST" }).handler(
   }
 )
 
-export { readApplicantDashboard }
+export { readApplicantDashboard, resetWalkthroughAppointment }

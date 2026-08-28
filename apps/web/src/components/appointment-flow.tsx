@@ -85,6 +85,23 @@ const channelOptions = [
   { value: "EMAIL", label: "Email" },
 ]
 
+function formatDateTime(isoDateTime: string): string {
+  return new Date(isoDateTime).toLocaleString("en-IN", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+function formatTime(isoDateTime: string): string {
+  return new Date(isoDateTime).toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
 function createIdempotencyKey(): string | null {
   if (typeof crypto === "undefined") return null
 
@@ -451,13 +468,25 @@ function AppointmentFlow({
   }
 
   if (phase === "unavailable") {
+    const isUnavailable = failure?.kind === "unavailable"
     return (
       <section className="rounded-xl border border-border p-6 sm:p-8">
-        <h2 className="font-sans text-2xl font-medium">Service unavailable</h2>
+        <h2 className="font-sans text-2xl font-medium">
+          {isUnavailable ? "Service unavailable" : "Appointment not available"}
+        </h2>
         <p className="mt-3 leading-7 text-muted-foreground">
           {failure?.message ??
             "The appointment service could not be loaded. Reload the page to try again."}
         </p>
+        {!isUnavailable ? (
+          <Link
+            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-base font-medium text-foreground"
+            params={{ serviceId: "permanent-licence" }}
+            to="/services/$serviceId"
+          >
+            Check permanent-licence application
+          </Link>
+        ) : null}
       </section>
     )
   }
@@ -497,12 +526,10 @@ function AppointmentFlow({
             <dt className="sr-only">Date and time</dt>
             <dd>
               <time dateTime={appt.startsAt}>
-                {new Date(appt.startsAt).toLocaleString()}
+                {formatDateTime(appt.startsAt)}
               </time>
               {" – "}
-              <time dateTime={appt.endsAt}>
-                {new Date(appt.endsAt).toLocaleTimeString()}
-              </time>
+              <time dateTime={appt.endsAt}>{formatTime(appt.endsAt)}</time>
             </dd>
           </div>
         </dl>
@@ -521,6 +548,24 @@ function AppointmentFlow({
               travel.
             </li>
           </ul>
+        </section>
+        <section
+          aria-labelledby="appointment-next-step"
+          className="mt-6 rounded-2xl border border-border p-5"
+        >
+          <h3 className="font-semibold" id="appointment-next-step">
+            Your next step
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Attend the driving test at the confirmed time and zone. DigiLicense
+            does not record the driving-test outcome after this appointment.
+          </p>
+          <Link
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg border border-foreground px-5 text-sm font-medium text-foreground"
+            to="/dashboard"
+          >
+            Return to dashboard
+          </Link>
         </section>
         <p className="mt-5 text-sm leading-6 text-muted-foreground">
           This appointment was recorded by DigiLicense only. No government
@@ -602,7 +647,7 @@ function AppointmentFlow({
           Accept or decline this offer. If you decline, you stay on the
           waitlist. The offer expires at{" "}
           <time dateTime={offer.expiresAt}>
-            {new Date(offer.expiresAt).toLocaleString()}
+            {formatDateTime(offer.expiresAt)}
           </time>
           .
         </p>
@@ -631,11 +676,11 @@ function AppointmentFlow({
             <dt className="sr-only">Date and time</dt>
             <dd>
               <time dateTime={offer.slot.startsAt}>
-                {new Date(offer.slot.startsAt).toLocaleString()}
+                {formatDateTime(offer.slot.startsAt)}
               </time>
               {" – "}
               <time dateTime={offer.slot.endsAt}>
-                {new Date(offer.slot.endsAt).toLocaleTimeString()}
+                {formatTime(offer.slot.endsAt)}
               </time>
             </dd>
           </div>
