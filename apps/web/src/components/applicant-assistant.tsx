@@ -353,7 +353,7 @@ function ApplicantAssistantLauncher() {
       {isOpen ? (
         <aside
           aria-label="DigiLicense guidance assistant"
-          className="fixed inset-0 z-40 flex flex-col border-border bg-background p-6 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
+          className="fixed inset-0 z-40 flex flex-col overflow-hidden border-border bg-background p-4 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
         >
           <div className="flex items-center justify-between gap-4">
             <p className="flex items-center gap-2 text-sm font-semibold">
@@ -370,16 +370,16 @@ function ApplicantAssistantLauncher() {
               <X aria-hidden="true" className="size-6" />
             </Button>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-5">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4 sm:py-5">
             <div className="mx-auto w-full max-w-xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight">
+              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                 How can we help?
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Ask about a DigiLicense service in English or Hindi.
               </p>
             </div>
-            <div className="mx-auto mt-auto w-full max-w-xl pt-6">
+            <div className="mx-auto mt-auto w-full max-w-xl pt-4 sm:pt-6">
               <AssistantForm />
             </div>
           </div>
@@ -387,12 +387,12 @@ function ApplicantAssistantLauncher() {
       ) : null}
       <Button
         aria-label="Open guidance assistant"
-        className="fixed right-4 bottom-4 z-30 min-h-12 rounded-full px-4 shadow-lg sm:right-6 sm:bottom-6"
+        className="fixed right-4 bottom-24 z-30 size-12 rounded-full p-0 shadow-lg sm:right-6 sm:bottom-6 sm:min-h-12 sm:w-auto sm:px-4"
         onClick={() => setIsOpen(true)}
         type="button"
       >
         <Bot aria-hidden="true" className="size-5" />
-        Get guidance
+        <span className="hidden sm:inline">Get guidance</span>
       </Button>
     </>
   )

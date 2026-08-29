@@ -18,7 +18,7 @@ function DialogContent({ className, ...props }: DialogPrimitive.Popup.Props) {
       <DialogPrimitive.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
         <DialogPrimitive.Popup
           className={cn(
-            "relative w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg sm:p-8",
+            "relative max-h-[calc(100svh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg border bg-background p-6 shadow-lg sm:max-h-[calc(100svh-3rem)] sm:p-8",
             className
           )}
           data-slot="dialog-content"
