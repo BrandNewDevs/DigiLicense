@@ -69,8 +69,8 @@ test("a signed-in applicant receives grounded guidance through FastAPI", async (
   await page.waitForLoadState("networkidle")
   await page.getByRole("button", { name: "Open guidance assistant" }).click()
   await expect(
-    page.getByRole("complementary", {
-      name: "DigiLicense guidance assistant",
+    page.getByRole("dialog", {
+      name: "How can we help?",
     })
   ).toBeVisible()
   await page
