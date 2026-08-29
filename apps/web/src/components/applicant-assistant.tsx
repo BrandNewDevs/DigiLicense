@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Bot, Send, X } from "lucide-react"
-import { useEffect, useId, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
+import type { KeyboardEvent } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
@@ -347,13 +348,72 @@ function AssistantAnswer({
 
 function ApplicantAssistantLauncher() {
   const [isOpen, setIsOpen] = useState(false)
+  const assistantPanelRef = useRef<HTMLElement>(null)
+  const launcherRef = useRef<HTMLButtonElement>(null)
+  const wasOpenRef = useRef(false)
+  const assistantTitleId = useId()
+
+  useEffect(() => {
+    if (isOpen) {
+      assistantPanelRef.current?.focus()
+    } else if (wasOpenRef.current) {
+      launcherRef.current?.focus()
+    }
+
+    wasOpenRef.current = isOpen
+  }, [isOpen])
+
+  function handlePanelKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault()
+      setIsOpen(false)
+      return
+    }
+
+    if (event.key !== "Tab") return
+
+    const panel = assistantPanelRef.current
+    if (!panel) return
+
+    const focusableElements = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.getAttribute("aria-hidden") !== "true")
+
+    if (!focusableElements.length) {
+      event.preventDefault()
+      panel.focus()
+      return
+    }
+
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+    const activeElement = document.activeElement
+
+    if (
+      event.shiftKey &&
+      (activeElement === firstElement || activeElement === panel)
+    ) {
+      event.preventDefault()
+      lastElement.focus()
+    } else if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault()
+      firstElement.focus()
+    }
+  }
 
   return (
     <>
       {isOpen ? (
         <aside
-          aria-label="DigiLicense guidance assistant"
+          aria-labelledby={assistantTitleId}
+          aria-modal="true"
           className="fixed inset-0 z-40 flex flex-col overflow-hidden border-border bg-background p-4 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
+          onKeyDown={handlePanelKeyDown}
+          ref={assistantPanelRef}
+          role="dialog"
+          tabIndex={-1}
         >
           <div className="flex items-center justify-between gap-4">
             <p className="flex items-center gap-2 text-sm font-semibold">
@@ -372,7 +432,10 @@ function ApplicantAssistantLauncher() {
           </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4 sm:py-5">
             <div className="mx-auto w-full max-w-xl text-center">
-              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              <h2
+                className="text-2xl font-semibold tracking-tight sm:text-3xl"
+                id={assistantTitleId}
+              >
                 How can we help?
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -389,6 +452,7 @@ function ApplicantAssistantLauncher() {
         aria-label="Open guidance assistant"
         className="fixed right-4 bottom-24 z-30 size-12 rounded-full p-0 shadow-lg sm:right-6 sm:bottom-6 sm:min-h-12 sm:w-auto sm:px-4"
         onClick={() => setIsOpen(true)}
+        ref={launcherRef}
         type="button"
       >
         <Bot aria-hidden="true" className="size-5" />

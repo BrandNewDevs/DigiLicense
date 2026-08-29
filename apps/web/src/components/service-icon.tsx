@@ -34,10 +34,9 @@ function ServiceIcon({
   className?: string
   serviceId: ServiceId | string
 }) {
-  const Icon =
-    serviceId in serviceIcons
-      ? serviceIcons[serviceId as ServiceId]
-      : FilePenLine
+  const Icon = Object.prototype.hasOwnProperty.call(serviceIcons, serviceId)
+    ? serviceIcons[serviceId as ServiceId]
+    : FilePenLine
 
   return <Icon aria-hidden="true" className={className} />
 }
