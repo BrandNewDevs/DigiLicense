@@ -22,6 +22,7 @@ import { endMockSession, useMockSession } from "../lib/mock-auth"
 import { services } from "../lib/services"
 import { logoutDemoSession } from "../server-functions/demo-auth"
 import { MockLoginPage } from "./mock-login-page"
+import { ServiceIcon } from "./service-icon"
 
 function ApplicantHeader() {
   const isSignedIn = useMockSession("applicant")
@@ -187,21 +188,20 @@ function ApplicantHeader() {
         </Button>
         {isSignedIn ? (
           <Link
-            className="inline-flex h-12 items-center gap-2 rounded-xl px-4 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            aria-label="Account"
+            className="inline-flex size-12 items-center justify-center rounded-xl bg-foreground text-background hover:bg-foreground/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             to="/dashboard"
           >
             <UserRound aria-hidden="true" className="size-5" />
-            Account
           </Link>
         ) : (
           <Button
-            className="h-12 rounded-xl px-4"
+            aria-label="Account"
+            className="size-12 rounded-xl bg-foreground p-0 text-background hover:bg-foreground/85"
             onClick={() => setIsSignInOpen(true)}
             type="button"
-            variant="ghost"
           >
             <UserRound aria-hidden="true" className="size-5" />
-            Account
           </Button>
         )}
       </nav>
@@ -311,7 +311,15 @@ function ApplicantHeader() {
                       to="/services/$serviceId"
                     >
                       <span className="flex items-center justify-between gap-4 font-medium text-foreground">
-                        {service.title}
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground"
+                          >
+                            <ServiceIcon serviceId={service.id} />
+                          </span>
+                          <span>{service.title}</span>
+                        </span>
                         <ArrowUpRight
                           aria-hidden="true"
                           className="size-4 shrink-0 transition-transform group-hover:rotate-45"
