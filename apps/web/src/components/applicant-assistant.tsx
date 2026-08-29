@@ -363,6 +363,33 @@ function ApplicantAssistantLauncher() {
     wasOpenRef.current = isOpen
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+
+    const backgroundElements = Array.from(
+      document.querySelectorAll<HTMLElement>("header, #main-content, footer")
+    ).map((element) => ({
+      ariaHidden: element.getAttribute("aria-hidden"),
+      element,
+      inert: element.getAttribute("inert"),
+    }))
+
+    for (const { element } of backgroundElements) {
+      element.setAttribute("aria-hidden", "true")
+      element.setAttribute("inert", "")
+    }
+
+    return () => {
+      for (const { ariaHidden, element, inert } of backgroundElements) {
+        if (ariaHidden === null) element.removeAttribute("aria-hidden")
+        else element.setAttribute("aria-hidden", ariaHidden)
+
+        if (inert === null) element.removeAttribute("inert")
+        else element.setAttribute("inert", inert)
+      }
+    }
+  }, [isOpen])
+
   function handlePanelKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === "Escape") {
       event.preventDefault()
@@ -406,47 +433,50 @@ function ApplicantAssistantLauncher() {
   return (
     <>
       {isOpen ? (
-        <aside
-          aria-labelledby={assistantTitleId}
-          aria-modal="true"
-          className="fixed inset-0 z-40 flex flex-col overflow-hidden border-border bg-background p-4 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
-          onKeyDown={handlePanelKeyDown}
-          ref={assistantPanelRef}
-          role="dialog"
-          tabIndex={-1}
-        >
-          <div className="flex items-center justify-between gap-4">
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <Bot aria-hidden="true" className="size-5 text-primary" />
-              DigiLicense guidance
-            </p>
-            <Button
-              aria-label="Close guidance assistant"
-              onClick={() => setIsOpen(false)}
-              size="icon"
-              type="button"
-              variant="ghost"
-            >
-              <X aria-hidden="true" className="size-6" />
-            </Button>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4 sm:py-5">
-            <div className="mx-auto w-full max-w-xl text-center">
-              <h2
-                className="text-2xl font-semibold tracking-tight sm:text-3xl"
-                id={assistantTitleId}
-              >
-                How can we help?
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Ask about a DigiLicense service in English or Hindi.
+        <>
+          <div aria-hidden="true" className="fixed inset-0 z-30 bg-black/50" />
+          <aside
+            aria-labelledby={assistantTitleId}
+            aria-modal="true"
+            className="fixed inset-0 z-40 flex flex-col overflow-hidden border-border bg-background p-4 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
+            onKeyDown={handlePanelKeyDown}
+            ref={assistantPanelRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Bot aria-hidden="true" className="size-5 text-primary" />
+                DigiLicense guidance
               </p>
+              <Button
+                aria-label="Close guidance assistant"
+                onClick={() => setIsOpen(false)}
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                <X aria-hidden="true" className="size-6" />
+              </Button>
             </div>
-            <div className="mx-auto mt-auto w-full max-w-xl pt-4 sm:pt-6">
-              <AssistantForm />
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4 sm:py-5">
+              <div className="mx-auto w-full max-w-xl text-center">
+                <h2
+                  className="text-2xl font-semibold tracking-tight sm:text-3xl"
+                  id={assistantTitleId}
+                >
+                  How can we help?
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Ask about a DigiLicense service in English or Hindi.
+                </p>
+              </div>
+              <div className="mx-auto mt-auto w-full max-w-xl pt-4 sm:pt-6">
+                <AssistantForm />
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </>
       ) : null}
       <Button
         aria-label="Open guidance assistant"
