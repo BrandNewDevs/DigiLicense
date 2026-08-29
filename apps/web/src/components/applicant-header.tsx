@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowUpRight, LogOut, Menu, Search, X } from "lucide-react"
+import { ArrowUpRight, LogOut, Search, UserRound, X } from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -22,6 +22,7 @@ import { endMockSession, useMockSession } from "../lib/mock-auth"
 import { services } from "../lib/services"
 import { logoutDemoSession } from "../server-functions/demo-auth"
 import { MockLoginPage } from "./mock-login-page"
+import { ServiceIcon } from "./service-icon"
 
 function ApplicantHeader() {
   const isSignedIn = useMockSession("applicant")
@@ -29,7 +30,6 @@ function ApplicantHeader() {
     select: (state) => state.location.pathname,
   })
   const logout = useServerFn(logoutDemoSession)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isSignInOpen, setIsSignInOpen] = useState(false)
@@ -60,7 +60,6 @@ function ApplicantHeader() {
   }
 
   const openSearch = () => {
-    setIsMenuOpen(false)
     setActiveSearchIndex(null)
     setSearchQuery("")
     setIsSearchOpen(true)
@@ -77,7 +76,6 @@ function ApplicantHeader() {
         <PopoverContent align="end" className="w-44 p-1">
           <Link
             className="flex min-h-9 items-center gap-2 rounded-md px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            onClick={() => setIsMenuOpen(false)}
             to="/dashboard"
           >
             Dashboard
@@ -97,7 +95,6 @@ function ApplicantHeader() {
       <Button
         className={className}
         onClick={() => {
-          setIsMenuOpen(false)
           setIsSignInOpen(true)
         }}
         size="sm"
@@ -110,7 +107,7 @@ function ApplicantHeader() {
 
   return (
     <>
-      <header className="border-b bg-background">
+      <header className="hidden border-b bg-background md:block">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
           <Link
             aria-label="DigiLicense home"
@@ -122,7 +119,7 @@ function ApplicantHeader() {
 
           <div className="flex items-center gap-2 md:absolute md:left-1/2 md:-translate-x-1/2">
             <Button
-              className="hidden h-10 w-80 justify-start rounded-lg border-border bg-muted px-3 text-muted-foreground hover:bg-accent hover:text-foreground lg:w-96 md:flex"
+              className="hidden h-10 w-80 justify-start rounded-lg border-border bg-muted px-3 text-muted-foreground hover:bg-accent hover:text-foreground md:flex lg:w-96"
               onClick={openSearch}
               type="button"
               variant="outline"
@@ -133,48 +130,81 @@ function ApplicantHeader() {
           </div>
 
           <div className="ml-auto hidden md:block">{accountControl()}</div>
-
-          <Button
-            aria-label="Open navigation"
-            className="ml-auto md:hidden"
-            onClick={() => setIsMenuOpen(true)}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <Menu aria-hidden="true" className="size-5" />
-          </Button>
         </div>
       </header>
 
-      <Dialog onOpenChange={setIsMenuOpen} open={isMenuOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogClose
-            aria-label="Close navigation"
-            className="absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      <nav
+        aria-label="Primary navigation"
+        className="border-b bg-background md:hidden"
+      >
+        <div className="mx-auto flex h-11 w-full max-w-6xl items-center px-4 sm:px-6">
+          <Link
+            className={`flex h-full flex-1 items-center justify-center border-b-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${
+              pathname === "/"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground"
+            }`}
+            to="/"
           >
-            <X aria-hidden="true" className="size-5" />
-          </DialogClose>
-          <DialogHeader className="pr-10">
-            <DialogTitle>Menu</DialogTitle>
-            <DialogDescription>
-              Find a service or manage your account.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-6 space-y-3">
-            <Button
-              className="h-11 w-full justify-start"
-              onClick={openSearch}
-              type="button"
-              variant="outline"
-            >
-              <Search aria-hidden="true" className="size-4" />
-              Search services
-            </Button>
-          </div>
-          <div className="mt-6">{accountControl("w-full")}</div>
-        </DialogContent>
-      </Dialog>
+            Home
+          </Link>
+          <Link
+            className={`flex h-full flex-1 items-center justify-center border-b-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${
+              pathname.startsWith("/services") &&
+              !pathname.includes("/track-application")
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground"
+            }`}
+            to="/services"
+          >
+            Services
+          </Link>
+          <Link
+            className={`flex h-full flex-1 items-center justify-center border-b-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${
+              pathname.includes("/track-application")
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground"
+            }`}
+            params={{ serviceId: "track-application" }}
+            to="/services/$serviceId"
+          >
+            Track
+          </Link>
+        </div>
+      </nav>
+
+      <nav
+        aria-label="Mobile navigation"
+        className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-sm items-center gap-1 rounded-2xl border border-border bg-background p-1.5 shadow-lg md:hidden"
+      >
+        <Button
+          className="h-12 flex-1 justify-start rounded-xl px-4"
+          onClick={openSearch}
+          type="button"
+          variant="ghost"
+        >
+          <Search aria-hidden="true" className="size-5" />
+          Search
+        </Button>
+        {isSignedIn ? (
+          <Link
+            aria-label="Account"
+            className="inline-flex size-12 items-center justify-center rounded-xl bg-foreground text-background hover:bg-foreground/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            to="/dashboard"
+          >
+            <UserRound aria-hidden="true" className="size-5" />
+          </Link>
+        ) : (
+          <Button
+            aria-label="Account"
+            className="size-12 rounded-xl bg-foreground p-0 text-background hover:bg-foreground/85"
+            onClick={() => setIsSignInOpen(true)}
+            type="button"
+          >
+            <UserRound aria-hidden="true" className="size-5" />
+          </Button>
+        )}
+      </nav>
 
       <Dialog onOpenChange={setIsSearchOpen} open={isSearchOpen}>
         <DialogContent className="max-w-xl">
@@ -229,7 +259,7 @@ function ApplicantHeader() {
           </div>
           <div
             aria-label="Search results"
-            className="mt-4 max-h-80 overflow-y-auto"
+            className="mt-4 max-h-[min(20rem,max(8rem,calc(100svh-18rem)))] overflow-x-hidden overflow-y-auto sm:max-h-80"
             role="region"
           >
             {matchingServices.length ? (
@@ -240,7 +270,7 @@ function ApplicantHeader() {
                     key={service.id}
                   >
                     <Link
-                      className={`group -mx-2 block w-[calc(100%+1rem)] rounded-xl px-3 py-4 transition-colors ${
+                      className={`group block w-full rounded-xl px-3 py-4 transition-colors ${
                         activeSearchIndex === index
                           ? "bg-accent"
                           : "hover:bg-accent"
@@ -281,7 +311,15 @@ function ApplicantHeader() {
                       to="/services/$serviceId"
                     >
                       <span className="flex items-center justify-between gap-4 font-medium text-foreground">
-                        {service.title}
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground"
+                          >
+                            <ServiceIcon serviceId={service.id} />
+                          </span>
+                          <span>{service.title}</span>
+                        </span>
                         <ArrowUpRight
                           aria-hidden="true"
                           className="size-4 shrink-0 transition-transform group-hover:rotate-45"

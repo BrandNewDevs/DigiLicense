@@ -14,6 +14,7 @@ import { MobileUpdateFlow } from "../components/mobile-update-flow"
 import { PermanentLicenceFlow } from "../components/permanent-licence-flow"
 import { RenewalFlow } from "../components/renewal-flow"
 import { ServicePrototypeForm } from "../components/service-prototype-form"
+import { ServiceIcon } from "../components/service-icon"
 import { getService } from "../lib/services"
 
 export const Route = createFileRoute("/services/$serviceId")({
@@ -138,9 +139,17 @@ function ServicePage() {
 
             <div className="min-w-0">
               <section className="scroll-mt-24" id="service-overview">
-                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  {service.title}
-                </h1>
+                <div className="flex items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="grid size-12 shrink-0 place-items-center rounded-xl bg-muted text-foreground"
+                  >
+                    <ServiceIcon className="size-6" serviceId={service.id} />
+                  </span>
+                  <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    {service.title}
+                  </h1>
+                </div>
                 <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
                   {service.description}
                 </p>

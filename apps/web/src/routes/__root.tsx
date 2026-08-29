@@ -45,7 +45,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
+    <div className="flex min-h-svh flex-col bg-background pb-24 text-foreground md:pb-0">
       <ApplicantHeader />
       <AssistantPublicContextProvider>
         <Outlet />

@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react"
 
 import { services } from "../lib/services"
 import type { ServiceDefinition, ServiceId } from "../lib/services"
+import { ServiceIcon } from "../components/service-icon"
 
 export const Route = createFileRoute("/services/")({
   component: ServicesPage,
@@ -72,9 +73,17 @@ function ServiceLink({ service }: { service: ServiceDefinition }) {
         to="/services/$serviceId"
       >
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-base font-semibold underline decoration-border underline-offset-4 group-hover:decoration-foreground">
-            {service.title}
-          </h3>
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-foreground"
+            >
+              <ServiceIcon serviceId={service.id} />
+            </span>
+            <h3 className="text-base font-semibold underline decoration-border underline-offset-4 group-hover:decoration-foreground">
+              {service.title}
+            </h3>
+          </div>
           <ArrowUpRight
             aria-hidden="true"
             className="size-4 shrink-0 transition-transform group-hover:rotate-45"

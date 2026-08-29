@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Bot, Send, X } from "lucide-react"
-import { useEffect, useId, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
+import type { KeyboardEvent } from "react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
@@ -347,52 +348,145 @@ function AssistantAnswer({
 
 function ApplicantAssistantLauncher() {
   const [isOpen, setIsOpen] = useState(false)
+  const assistantPanelRef = useRef<HTMLElement>(null)
+  const launcherRef = useRef<HTMLButtonElement>(null)
+  const wasOpenRef = useRef(false)
+  const assistantTitleId = useId()
+
+  useEffect(() => {
+    if (isOpen) {
+      assistantPanelRef.current?.focus()
+    } else if (wasOpenRef.current) {
+      launcherRef.current?.focus()
+    }
+
+    wasOpenRef.current = isOpen
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const backgroundElements = Array.from(
+      document.querySelectorAll<HTMLElement>("header, #main-content, footer")
+    ).map((element) => ({
+      ariaHidden: element.getAttribute("aria-hidden"),
+      element,
+      inert: element.getAttribute("inert"),
+    }))
+
+    for (const { element } of backgroundElements) {
+      element.setAttribute("aria-hidden", "true")
+      element.setAttribute("inert", "")
+    }
+
+    return () => {
+      for (const { ariaHidden, element, inert } of backgroundElements) {
+        if (ariaHidden === null) element.removeAttribute("aria-hidden")
+        else element.setAttribute("aria-hidden", ariaHidden)
+
+        if (inert === null) element.removeAttribute("inert")
+        else element.setAttribute("inert", inert)
+      }
+    }
+  }, [isOpen])
+
+  function handlePanelKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault()
+      setIsOpen(false)
+      return
+    }
+
+    if (event.key !== "Tab") return
+
+    const panel = assistantPanelRef.current
+    if (!panel) return
+
+    const focusableElements = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => element.getAttribute("aria-hidden") !== "true")
+
+    if (!focusableElements.length) {
+      event.preventDefault()
+      panel.focus()
+      return
+    }
+
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+    const activeElement = document.activeElement
+
+    if (
+      event.shiftKey &&
+      (activeElement === firstElement || activeElement === panel)
+    ) {
+      event.preventDefault()
+      lastElement.focus()
+    } else if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault()
+      firstElement.focus()
+    }
+  }
 
   return (
     <>
       {isOpen ? (
-        <aside
-          aria-label="DigiLicense guidance assistant"
-          className="fixed inset-0 z-40 flex flex-col border-border bg-background p-6 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
-        >
-          <div className="flex items-center justify-between gap-4">
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <Bot aria-hidden="true" className="size-5 text-primary" />
-              DigiLicense guidance
-            </p>
-            <Button
-              aria-label="Close guidance assistant"
-              onClick={() => setIsOpen(false)}
-              size="icon"
-              type="button"
-              variant="ghost"
-            >
-              <X aria-hidden="true" className="size-6" />
-            </Button>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-5">
-            <div className="mx-auto w-full max-w-xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight">
-                How can we help?
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Ask about a DigiLicense service in English or Hindi.
+        <>
+          <div aria-hidden="true" className="fixed inset-0 z-30 bg-black/50" />
+          <aside
+            aria-labelledby={assistantTitleId}
+            aria-modal="true"
+            className="fixed inset-0 z-40 flex flex-col overflow-hidden border-border bg-background p-4 shadow-2xl sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(700px,calc(100svh-3rem))] sm:w-[min(480px,calc(100vw-3rem))] sm:rounded-3xl sm:border sm:p-6"
+            onKeyDown={handlePanelKeyDown}
+            ref={assistantPanelRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Bot aria-hidden="true" className="size-5 text-primary" />
+                DigiLicense guidance
               </p>
+              <Button
+                aria-label="Close guidance assistant"
+                onClick={() => setIsOpen(false)}
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                <X aria-hidden="true" className="size-6" />
+              </Button>
             </div>
-            <div className="mx-auto mt-auto w-full max-w-xl pt-6">
-              <AssistantForm />
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4 sm:py-5">
+              <div className="mx-auto w-full max-w-xl text-center">
+                <h2
+                  className="text-2xl font-semibold tracking-tight sm:text-3xl"
+                  id={assistantTitleId}
+                >
+                  How can we help?
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Ask about a DigiLicense service in English or Hindi.
+                </p>
+              </div>
+              <div className="mx-auto mt-auto w-full max-w-xl pt-4 sm:pt-6">
+                <AssistantForm />
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </>
       ) : null}
       <Button
         aria-label="Open guidance assistant"
-        className="fixed right-4 bottom-4 z-30 min-h-12 rounded-full px-4 shadow-lg sm:right-6 sm:bottom-6"
+        className="fixed right-4 bottom-24 z-30 size-12 rounded-full p-0 shadow-lg sm:right-6 sm:bottom-6 sm:min-h-12 sm:w-auto sm:px-4"
         onClick={() => setIsOpen(true)}
+        ref={launcherRef}
         type="button"
       >
         <Bot aria-hidden="true" className="size-5" />
-        Get guidance
+        <span className="hidden sm:inline">Get guidance</span>
       </Button>
     </>
   )
